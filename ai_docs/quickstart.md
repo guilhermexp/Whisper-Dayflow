@@ -30,10 +30,11 @@ Este guia orienta qualquer agente a entender a aplicação, executar localmente,
   - Toast de ESC/hint overlay: `whispo/src/main/hint-window.ts:1`
   - Estado/cancelamentos: `whispo/src/main/state.ts:1`
 - Renderer (React): rotas, páginas, UI do painel, cliente IPC.
-  - Router: `whispo/src/renderer/src/router.tsx`
-  - Painel: `whispo/src/renderer/src/pages/panel.tsx:14`
-  - Gravador: `whispo/src/renderer/src/lib/recorder.ts:35`
-  - IPC client: `whispo/src/renderer/src/lib/tipc-client.ts:5`
+- Router: `whispo/src/renderer/src/router.tsx`
+- Painel: `whispo/src/renderer/src/pages/panel.tsx:14`
+- Gravador: `whispo/src/renderer/src/lib/recorder.ts:35`
+- Dashboard/Histórico: `whispo/src/renderer/src/pages/index.tsx` (listagem) e `whispo/src/renderer/src/pages/dashboard.tsx` (analytics)
+- IPC client: `whispo/src/renderer/src/lib/tipc-client.ts:5`
 - Tipos: `whispo/src/shared/types.ts`
 
 ## Data Model Compartilhado

@@ -12,7 +12,12 @@ import {
 import path from "path"
 import { configStore, recordingsFolder } from "./config"
 import { modelManager } from "./model-manager"
-import { Config, RecordingHistoryItem } from "../shared/types"
+import type {
+  Config,
+  RecordingAudioProfile,
+  RecordingHistoryItem,
+  RecordingHistorySearchFilters,
+} from "../shared/types"
 import { RendererHandlers } from "./renderer-handlers"
 import { postProcessTranscript } from "./llm"
 import { abortOngoingTranscription, state } from "./state"
@@ -21,28 +26,10 @@ import { isAccessibilityGranted } from "./utils"
 import { writeText } from "./keyboard"
 import { clipboardManager } from "./clipboard-manager"
 import { transcribeWithLocalModel } from "./local-transcriber"
+import { historyStore } from "./history-store"
+import { buildAnalyticsSnapshot, runHistorySearch } from "./history-analytics"
 
 const t = tipc.create()
-
-const getRecordingHistory = () => {
-  try {
-    const history = JSON.parse(
-      fs.readFileSync(path.join(recordingsFolder, "history.json"), "utf8"),
-    ) as RecordingHistoryItem[]
-
-    // sort desc by createdAt
-    return history.sort((a, b) => b.createdAt - a.createdAt)
-  } catch {
-    return []
-  }
-}
-
-const saveRecordingsHitory = (history: RecordingHistoryItem[]) => {
-  fs.writeFileSync(
-    path.join(recordingsFolder, "history.json"),
-    JSON.stringify(history),
-  )
-}
 
 const normalizeProviderError = {
   stt(response: Response, body: string) {
@@ -139,6 +126,47 @@ const resolveActiveSttModelInfo = async (config: Config) => {
   return {
     providerId,
     description: CLOUD_STT_MODEL_LABELS[providerId] || providerId,
+  }
+}
+
+const safeWordCount = (text: string) => {
+  const normalized = text.trim()
+  if (!normalized) return 0
+  return normalized.split(/\s+/).length
+}
+
+const estimateConfidenceScore = (
+  options: { words: number; duration: number; providerId: string },
+) => {
+  if (!options.words || !options.duration) return null
+  const wpm = (options.words / options.duration) * 60000
+  const base = options.providerId.startsWith(LOCAL_PROVIDER_PREFIX)
+    ? 0.88
+    : options.providerId === "groq"
+      ? 0.94
+      : 0.9
+  const pacePenalty = Math.min(0.25, Math.abs(150 - wpm) / 400)
+  const lengthBoost = Math.min(0.05, options.words / 1500)
+  const score = base - pacePenalty + lengthBoost
+  return Number(Math.max(0.6, Math.min(0.99, score)).toFixed(2))
+}
+
+const normalizeAudioProfileInput = (profile?: RecordingAudioProfile) => {
+  if (!profile) return undefined
+  return {
+    peakLevel:
+      typeof profile.peakLevel === "number"
+        ? Math.min(1, Math.max(0, profile.peakLevel))
+        : null,
+    averageLevel:
+      typeof profile.averageLevel === "number"
+        ? Math.min(1, Math.max(0, profile.averageLevel))
+        : null,
+    silenceRatio:
+      typeof profile.silenceRatio === "number"
+        ? Math.min(1, Math.max(0, profile.silenceRatio))
+        : null,
+    sampleCount: profile.sampleCount ?? 0,
   }
 }
 
@@ -252,6 +280,7 @@ export const router = {
       recording: ArrayBuffer
       duration: number
       mimeType: string
+      audioProfile?: RecordingAudioProfile
     }>()
     .action(async ({ input }) => {
       fs.mkdirSync(recordingsFolder, { recursive: true })
@@ -268,7 +297,8 @@ export const router = {
 
       const config = configStore.get()
       let transcript: string | undefined
-      const recordingId = Date.now().toString()
+      const recordedAt = Date.now()
+      const recordingId = recordedAt.toString()
       const recordingBuffer = Buffer.from(input.recording)
       const providerId = deriveSttProviderId(config)
       const isLocalProvider = providerId.startsWith(LOCAL_PROVIDER_PREFIX)
@@ -278,13 +308,26 @@ export const router = {
         : undefined
       const mimeType = input.mimeType || "audio/wav"
       const fileExtension = mimeType === "audio/wav" ? "wav" : "webm"
+      const normalizedAudioProfile = normalizeAudioProfileInput(
+        input.audioProfile,
+      )
+      const transcriptionStartedAt = Date.now()
+      let transcriptionLatencyMs = 0
+      let postProcessingTimeMs = 0
+      const hasPostProcessing = Boolean(
+        config.transcriptPostProcessingEnabled &&
+          config.transcriptPostProcessingPrompt,
+      )
+      const llmProviderId = hasPostProcessing
+        ? config.transcriptPostProcessingProviderId || "openai"
+        : undefined
 
       console.log(
         `[transcription] createRecording provider=${providerId} defaultLocal=${config.defaultLocalModel ?? "none"} mime=${mimeType}`,
       )
 
       try {
-        let baseTranscript: string | undefined
+        let baseTranscript: string | null = null
 
         if (isLocalProvider) {
           if (mimeType !== "audio/wav") {
@@ -352,9 +395,16 @@ export const router = {
           baseTranscript = json.text
         }
 
+        if (baseTranscript == null) {
+          throw new Error("No transcript returned from transcription provider")
+        }
+
+        transcriptionLatencyMs = Date.now() - transcriptionStartedAt
+        const postProcessingStartedAt = Date.now()
         transcript = await postProcessTranscript(baseTranscript, {
           signal: controller.signal,
         })
+        postProcessingTimeMs = Date.now() - postProcessingStartedAt
       } catch (error) {
         if ((error as Error).name === "AbortError") {
           console.info("[createRecording] transcription aborted by user")
@@ -376,16 +426,42 @@ export const router = {
       // Update lastTranscription state
       state.lastTranscription = transcript
 
-      const history = getRecordingHistory()
+      const transcriptWordCount = safeWordCount(transcript)
+      const transcriptCharacterCount = transcript.length
+      const wordsPerMinute =
+        transcriptWordCount > 0 && input.duration > 0
+          ? Number(((transcriptWordCount / input.duration) * 60000).toFixed(2))
+          : undefined
+      const accuracyScore = estimateConfidenceScore({
+        words: transcriptWordCount,
+        duration: input.duration,
+        providerId,
+      })
+      const processingTimeMs = Date.now() - transcriptionStartedAt
+
       const item: RecordingHistoryItem = {
         id: recordingId,
-        createdAt: Date.now(),
+        createdAt: recordedAt,
         duration: input.duration,
         transcript,
         filePath: path.join(recordingsFolder, `${recordingId}.${fileExtension}`),
+        fileSize: recordingBuffer.byteLength,
+        transcriptWordCount,
+        transcriptCharacterCount,
+        wordsPerMinute,
+        providerId,
+        hasPostProcessing,
+        llmProviderId,
+        processingTimeMs,
+        transcriptionLatencyMs,
+        postProcessingTimeMs,
+        accuracyScore,
+        confidenceScore: accuracyScore,
+        tags: [],
+        audioProfile: normalizedAudioProfile,
       }
-      history.push(item)
-      saveRecordingsHitory(history)
+
+      historyStore.append(item)
 
       fs.writeFileSync(
         path.join(recordingsFolder, `${item.id}.${fileExtension}`),
@@ -434,26 +510,35 @@ export const router = {
     abortOngoingTranscription()
   }),
 
-  getRecordingHistory: t.procedure.action(async () => getRecordingHistory()),
+  getRecordingHistory: t.procedure.action(async () => historyStore.readAll()),
+
+  searchRecordingHistory: t.procedure
+    .input<RecordingHistorySearchFilters>()
+    .action(async ({ input }) => {
+      return runHistorySearch(historyStore.readAll(), input)
+    }),
+
+  getRecordingAnalytics: t.procedure.action(async () =>
+    buildAnalyticsSnapshot(historyStore.readAll()),
+  ),
 
   deleteRecordingItem: t.procedure
     .input<{ id: string }>()
     .action(async ({ input }) => {
-      const recordings = getRecordingHistory().filter(
-        (item) => item.id !== input.id,
-      )
-      saveRecordingsHitory(recordings)
-      const wavPath = path.join(recordingsFolder, `${input.id}.wav`)
-      const legacyPath = path.join(recordingsFolder, `${input.id}.webm`)
-      if (fs.existsSync(wavPath)) {
-        fs.unlinkSync(wavPath)
-      } else if (fs.existsSync(legacyPath)) {
-        fs.unlinkSync(legacyPath)
-      }
+      historyStore.delete(input.id)
+    }),
+
+  updateRecordingItem: t.procedure
+    .input<{
+      id: string
+      patch: Partial<Pick<RecordingHistoryItem, "tags" | "accuracyScore" | "confidenceScore">>
+    }>()
+    .action(async ({ input }) => {
+      return historyStore.update(input.id, input.patch)
     }),
 
   deleteRecordingHistory: t.procedure.action(async () => {
-    fs.rmSync(recordingsFolder, { force: true, recursive: true })
+    historyStore.clear()
   }),
 
   listModels: t.procedure.action(async () => {

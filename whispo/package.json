@@ -28,6 +28,9 @@
     "@egoist/electron-panel-window": "^8.0.3"
   },
   "devDependencies": {
+    "@tanstack/react-virtual": "^3.9.0",
+    "fuse.js": "^7.0.0",
+    "recharts": "^2.12.7",
     "@radix-ui/react-switch": "^1.1.1",
     "@egoist/tailwindcss-icons": "^1.8.1",
     "@egoist/tipc": "^0.3.2",

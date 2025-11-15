@@ -25,6 +25,7 @@ import {
   useSaveConfigMutation,
   useSetDefaultLocalModelMutation,
 } from "@renderer/lib/query-client"
+import { PageHeader } from "@renderer/components/page-header"
 import { DefaultModelSection } from "@renderer/components/models/default-model-section"
 import {
   ModelFilter,
@@ -192,6 +193,11 @@ export function Component() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Models"
+        description="Manage speech-to-text providers, local downloads, and transcript post-processing."
+      />
+
       <DefaultModelSection model={defaultModel} />
 
       <div className="grid gap-4 lg:grid-cols-2">

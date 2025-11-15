@@ -23,6 +23,11 @@ https://github.com/user-attachments/assets/2344a817-f36c-42b0-9ebc-cdd6e926b7a0
 - Transcrbing with OpenAI Whisper (provided by OpenAI or Groq).
 - Support custom API URL so you can use your own API to transcribe.
 - Supports post-processing your transcript with LLMs (e.g. OpenAI, Groq and Gemini).
+- Advanced history dashboard with semantic search, saved filters, and productivity analytics inspired by VoiceInk.
+
+## Development Notes
+
+- UI/UX should follow the [Layout & CSS Guide](docs/layout-style-guide.md) for consistent glassy-dark styling.
 
 ## License
 

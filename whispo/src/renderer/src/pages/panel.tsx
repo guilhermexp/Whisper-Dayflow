@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
 import { useConfigQuery, queryClient } from "@renderer/lib/query-client"
 import { rendererHandlers, tipcClient } from "~/lib/tipc-client"
+import type { RecordingAudioProfile } from "@shared/types"
 
 const VISUALIZER_BUFFER_LENGTH = 70
 
@@ -24,20 +25,54 @@ export function Component() {
   const isConfirmedRef = useRef(false)
   const audioCuesEnabled = configQuery.data?.enableAudioCues ?? true
 
+  const audioProfileRef = useRef({
+    samples: 0,
+    total: 0,
+    peak: 0,
+    silenceSamples: 0,
+  })
+
+  const resetAudioProfileMetrics = () => {
+    audioProfileRef.current = {
+      samples: 0,
+      total: 0,
+      peak: 0,
+      silenceSamples: 0,
+    }
+  }
+
+  const getAudioProfilePayload = () => {
+    const metrics = audioProfileRef.current
+    if (!metrics.samples) return undefined
+    const average = metrics.total / metrics.samples
+    const silenceRatio = metrics.silenceSamples / metrics.samples
+    return {
+      peakLevel: Number(Math.min(1, Math.max(0, metrics.peak)).toFixed(4)),
+      averageLevel: Number(Math.min(1, Math.max(0, average)).toFixed(4)),
+      silenceRatio: Number(Math.min(1, Math.max(0, silenceRatio)).toFixed(4)),
+      sampleCount: metrics.samples,
+    }
+  }
+
+  type TranscribePayload = {
+    blob: Blob
+    duration: number
+    mimeType: string
+    audioProfile?: RecordingAudioProfile
+  }
+
   const transcribeMutation = useMutation({
     mutationFn: async ({
       blob,
       duration,
       mimeType,
-    }: {
-      blob: Blob
-      duration: number
-      mimeType: string
-    }) => {
+      audioProfile,
+    }: TranscribePayload) => {
       await tipcClient.createRecording({
         recording: await blob.arrayBuffer(),
         duration,
         mimeType,
+        audioProfile,
       })
     },
     onMutate() {
@@ -62,6 +97,7 @@ export function Component() {
       setPhase("idle")
       setRecording(false)
       setVisualizerData(getInitialVisualizerData())
+      resetAudioProfileMetrics()
     },
   })
 
@@ -92,9 +128,20 @@ export function Component() {
       setRecording(true)
       tipcClient.recordEvent({ type: "start" })
       setPhase("recording")
+      resetAudioProfileMetrics()
     })
 
     recorder.on("visualizer-data", (rms) => {
+      audioProfileRef.current.samples += 1
+      audioProfileRef.current.total += Math.max(0, rms)
+      audioProfileRef.current.peak = Math.max(
+        audioProfileRef.current.peak,
+        Math.max(0, rms),
+      )
+      if (rms < 0.08) {
+        audioProfileRef.current.silenceSamples += 1
+      }
+
       setVisualizerData((prev) => {
         const data = [...prev, rms]
 
@@ -112,15 +159,20 @@ export function Component() {
       tipcClient.recordEvent({ type: "end" })
       setPhase(isConfirmedRef.current ? "stopping" : "idle")
 
-      if (!isConfirmedRef.current) return
+      if (!isConfirmedRef.current) {
+        resetAudioProfileMetrics()
+        return
+      }
 
       if (audioCuesEnabledRef.current) {
         void playSound("end_record")
       }
+      const audioProfile = getAudioProfilePayload()
       transcribeMutation.mutate({
         blob,
         duration,
         mimeType,
+        audioProfile,
       })
     })
   }, [])
@@ -161,6 +213,7 @@ export function Component() {
       recorderRef.current?.stopRecording()
       setVisualizerData(getInitialVisualizerData())
       transcribeMutation.reset()
+      resetAudioProfileMetrics()
     })
 
     return unlisten

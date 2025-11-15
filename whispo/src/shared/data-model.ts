@@ -1,4 +1,10 @@
-import type { Config, RecordingHistoryItem } from "./types"
+import type {
+  Config,
+  RecordingAnalyticsSnapshot,
+  RecordingHistoryItem,
+  RecordingHistorySearchFilters,
+  RecordingHistorySearchResult,
+} from "./types"
 
 export type ModuleInfo = {
   name: string
@@ -17,6 +23,7 @@ export type AppDataModel = {
   entities: {
     Config: string
     RecordingHistoryItem: string
+    RecordingAnalyticsSnapshot: string
   }
   modules: ModuleInfo[]
   ipc: IpcProcedure[]
@@ -31,8 +38,9 @@ export type AppDataModel = {
 
 export const DATA_MODEL: AppDataModel = {
   entities: {
-    Config: "src/shared/types.ts:10",
-    RecordingHistoryItem: "src/shared/types.ts:3",
+    Config: "src/shared/types.ts:115",
+    RecordingHistoryItem: "src/shared/types.ts:14",
+    RecordingAnalyticsSnapshot: "src/shared/types.ts:74",
   },
   modules: [
     { name: "main/index", path: "src/main/index.ts", exports: [] },
@@ -46,7 +54,9 @@ export const DATA_MODEL: AppDataModel = {
     { name: "main/serve", path: "src/main/serve.ts", exports: ["registerServeSchema", "registerServeProtocol"] },
     { name: "renderer/tipc-client", path: "src/renderer/src/lib/tipc-client.ts", exports: ["tipcClient", "rendererHandlers"] },
     { name: "renderer/recorder", path: "src/renderer/src/lib/recorder.ts", exports: ["Recorder"] },
-    { name: "shared/types", path: "src/shared/types.ts", exports: ["Config", "RecordingHistoryItem"] },
+    { name: "shared/types", path: "src/shared/types.ts", exports: ["Config", "RecordingHistoryItem", "RecordingAnalyticsSnapshot", "RecordingHistorySearchFilters", "RecordingHistorySearchResult"] },
+    { name: "main/history-store", path: "src/main/history-store.ts", exports: ["historyStore", "normalizeRecordingHistoryItem"] },
+    { name: "main/history-analytics", path: "src/main/history-analytics.ts", exports: ["buildAnalyticsSnapshot", "runHistorySearch"] },
   ],
   ipc: [
     { name: "restartApp", file: "src/main/tipc.ts" },
@@ -65,7 +75,10 @@ export const DATA_MODEL: AppDataModel = {
     { name: "createRecording", file: "src/main/tipc.ts", input: "{ recording: ArrayBuffer; duration: number; mimeType: string }" },
     { name: "cancelTranscription", file: "src/main/tipc.ts" },
     { name: "getRecordingHistory", file: "src/main/tipc.ts", output: "RecordingHistoryItem[]" },
+    { name: "searchRecordingHistory", file: "src/main/tipc.ts", input: "RecordingHistorySearchFilters", output: "RecordingHistorySearchResult" },
+    { name: "getRecordingAnalytics", file: "src/main/tipc.ts", output: "RecordingAnalyticsSnapshot" },
     { name: "deleteRecordingItem", file: "src/main/tipc.ts", input: "{ id: string }" },
+    { name: "updateRecordingItem", file: "src/main/tipc.ts", input: "{ id: string; patch: Partial<Pick<RecordingHistoryItem, 'tags' | 'accuracyScore' | 'confidenceScore'>> }", output: "RecordingHistoryItem | null" },
     { name: "deleteRecordingHistory", file: "src/main/tipc.ts" },
     { name: "listModels", file: "src/main/tipc.ts", output: "AnyModel[]" },
     { name: "listDownloadedModels", file: "src/main/tipc.ts", output: "LocalModel[]" },
@@ -81,7 +94,7 @@ export const DATA_MODEL: AppDataModel = {
     { name: "saveConfig", file: "src/main/tipc.ts", input: "{ config: Config }" },
     { name: "recordEvent", file: "src/main/tipc.ts", input: "{ type: 'start' | 'end' }" },
   ],
-  uiRoutes: ["/", "/settings", "/settings/about", "/settings/models", "/settings/data", "/setup", "/panel"],
+  uiRoutes: ["/", "/dashboard", "/settings", "/settings/about", "/settings/models", "/settings/data", "/setup", "/panel"],
   protocols: ["assets://app", "assets://recording", "assets://file"],
   dataPaths: {
     dataFolder: "app.getPath('appData')/<APP_ID>",

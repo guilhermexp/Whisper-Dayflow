@@ -222,12 +222,16 @@ export function listenToKeyboardEvents() {
   const child = spawn(WHISPO_RS_BINARY_PATH, ["listen"], {})
 
   child.stdout.on("data", (data) => {
-    if (import.meta.env.DEV) {
-      console.log(String(data))
-    }
-
     const event = parseEvent(data)
     if (!event) return
+
+    // Log only relevant shortcut keys in dev mode
+    if (import.meta.env.DEV) {
+      const relevantKeys = ["ControlLeft", "Function", "Escape", "Slash"]
+      if (relevantKeys.includes(event.data.key)) {
+        console.log(`[Keyboard] ${event.event_type}: ${event.data.key}`)
+      }
+    }
 
     handleEvent(event)
   })

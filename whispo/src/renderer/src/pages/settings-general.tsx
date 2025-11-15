@@ -1,3 +1,4 @@
+import { PageHeader } from "@renderer/components/page-header"
 import { Control, ControlGroup } from "@renderer/components/ui/control"
 import {
   Select,
@@ -57,7 +58,12 @@ export function Component() {
   if (!configQuery.data) return null
 
   return (
-    <div className="grid gap-4">
+    <div className="space-y-6">
+      <PageHeader
+        title="General"
+        description="Configure shortcuts, audio cues, and core application preferences."
+      />
+
       {process.env.IS_MAC && (
         <ControlGroup title="App">
           <Control label="Hide Dock Icon" className="px-3">

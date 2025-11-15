@@ -36,6 +36,8 @@ export class ModelManager {
   private registryPath: string
   private registry: ModelRegistry
   private downloadProgressMap = new Map<string, DownloadProgress>()
+  private loggedCatalogModels = new Set<string>()
+  private loggedSummary = false
 
   constructor() {
     this.modelsDirectory = path.join(dataFolder, "models")
@@ -82,11 +84,12 @@ export class ModelManager {
       const modelPath = path.join(this.modelsDirectory, model.filename)
       const isDownloaded = fs.existsSync(modelPath)
 
-      if (isDownloaded) {
+      if (isDownloaded && !this.loggedCatalogModels.has(model.id)) {
         const stats = fs.statSync(modelPath)
         console.log(`[model-manager] Found catalog model: ${model.displayName} (${model.id})`)
         console.log(`[model-manager]   Path: ${modelPath}`)
         console.log(`[model-manager]   Size: ${(stats.size / (1024 * 1024)).toFixed(2)} MB`)
+        this.loggedCatalogModels.add(model.id)
       }
 
       return {
@@ -96,7 +99,10 @@ export class ModelManager {
       }
     })
 
-    console.log(`[model-manager] Catalog models: ${models.filter(m => m.isDownloaded).length} downloaded, ${models.filter(m => !m.isDownloaded).length} not downloaded`)
+    if (!this.loggedSummary) {
+      console.log(`[model-manager] Catalog models: ${models.filter(m => m.isDownloaded).length} downloaded, ${models.filter(m => !m.isDownloaded).length} not downloaded`)
+      this.loggedSummary = true
+    }
     return models
   }
 
