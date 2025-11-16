@@ -1,67 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { ComponentProps } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useQuery } from "@tanstack/react-query"
 import dayjs from "dayjs"
 import { Button } from "@renderer/components/ui/button"
-import { Input } from "@renderer/components/ui/input"
 import { PageHeader } from "@renderer/components/page-header"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@renderer/components/ui/select"
 import { queryClient } from "@renderer/lib/query-client"
 import { rendererHandlers, tipcClient } from "@renderer/lib/tipc-client"
 import { cn } from "@renderer/lib/utils"
+import { useTranslation } from "react-i18next"
 import type {
   RecordingHistoryItem,
   RecordingHistoryItemHighlight,
   RecordingHistorySearchFilters,
-  SavedRecordingSearch,
 } from "@shared/types"
 
 const HISTORY_PAGE_LIMIT = 2000
-const SAVED_SEARCH_STORAGE_KEY = "whispo.history.saved-searches"
 
-const DATE_PRESETS = [
-  { value: "all", label: "All time" },
-  { value: "today", label: "Today" },
-  { value: "yesterday", label: "Yesterday" },
-  { value: "week", label: "This week" },
-  { value: "month", label: "This month" },
-  { value: "custom", label: "Custom" },
-] as const
+type DatePreset = "all" | "today" | "yesterday" | "week" | "month" | "custom"
 
-type DatePreset = (typeof DATE_PRESETS)[number]["value"]
-
-const GROUPING_OPTIONS = [
-  { value: "date", label: "Date" },
-  { value: "confidence", label: "Confidence" },
-  { value: "duration", label: "Duration" },
-  { value: "provider", label: "Provider" },
-] as const
-
-type GroupingValue = (typeof GROUPING_OPTIONS)[number]["value"]
-
-const SEARCH_MODES: SearchMode[] = [
-  "full-text",
-  "fuzzy",
-  "semantic",
-  "regex",
-]
+type GroupingValue = "date" | "confidence" | "duration" | "provider"
 
 type SearchMode = NonNullable<RecordingHistorySearchFilters["searchMode"]>
 type SortField = NonNullable<RecordingHistorySearchFilters["sortBy"]>
-
-const SORT_OPTIONS = [
-  { value: "createdAt", label: "Newest" },
-  { value: "duration", label: "Duration" },
-  { value: "processingTime", label: "Processing time" },
-  { value: "confidence", label: "Confidence" },
-] as const
 
 type FlattenedHistoryRow =
   | { type: "group"; id: string; label: string; count: number }
@@ -104,15 +64,6 @@ const formatProcessingTime = (ms?: number) => {
   return `${(ms / 1000).toFixed(2)}s`
 }
 
-type FilterInputProps = ComponentProps<typeof Input> & { label: string }
-
-const FilterInput = ({ label, ...props }: FilterInputProps) => (
-  <label className="grid gap-1 text-xs text-white/60">
-    <span>{label}</span>
-    <Input wrapperClassName="bg-white/5 border-white/10" {...props} />
-  </label>
-)
-
 const computeDateRange = (preset: DatePreset, custom?: { from?: string; to?: string }) => {
   switch (preset) {
     case "today":
@@ -134,34 +85,6 @@ const computeDateRange = (preset: DatePreset, custom?: { from?: string; to?: str
     default:
       return undefined
   }
-}
-
-const useDebounce = <T,>(value: T, delay = 250) => {
-  const [debounced, setDebounced] = useState(value)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-
-  return debounced
-}
-
-const loadSavedSearches = (): SavedRecordingSearch[] => {
-  try {
-    const raw = localStorage.getItem(SAVED_SEARCH_STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as SavedRecordingSearch[]
-    return parsed
-  } catch {
-    return []
-  }
-}
-
-const persistSavedSearches = (items: SavedRecordingSearch[]) => {
-  try {
-    localStorage.setItem(SAVED_SEARCH_STORAGE_KEY, JSON.stringify(items))
-  } catch {}
 }
 
 const getGroupLabel = (record: RecordingHistoryItem, grouping: GroupingValue) => {
@@ -187,27 +110,27 @@ const getGroupLabel = (record: RecordingHistoryItem, grouping: GroupingValue) =>
 }
 
 export function Component() {
+  const { t } = useTranslation()
   const historyQuery = useQuery({
     queryKey: ["recording-history"],
     queryFn: async () => tipcClient.getRecordingHistory(),
   })
 
-  const [searchKeyword, setSearchKeyword] = useState("")
-  const debouncedKeyword = useDebounce(searchKeyword)
-  const [searchMode, setSearchMode] = useState<SearchMode>("full-text")
-  const [booleanOperator, setBooleanOperator] = useState<"and" | "or">("and")
-  const [excludedKeywords, setExcludedKeywords] = useState("")
-  const [datePreset, setDatePreset] = useState<DatePreset>("all")
-  const [customDateRange, setCustomDateRange] = useState<{ from?: string; to?: string }>({})
-  const [durationRange, setDurationRange] = useState({ min: "", max: "" })
-  const [lengthRange, setLengthRange] = useState({ min: "", max: "" })
-  const [wordRange, setWordRange] = useState({ min: "", max: "" })
-  const [confidenceFilter, setConfidenceFilter] = useState({ min: "", max: "" })
-  const [audioFilters, setAudioFilters] = useState({ minAverage: "", maxAverage: "", maxSilence: "" })
+  const searchKeyword = ""
+  const debouncedKeyword = ""
+  const searchMode: SearchMode = "full-text"
+  const booleanOperator: "and" | "or" = "and"
+  const excludedKeywords = ""
+  const datePreset: DatePreset = "all"
+  const customDateRange: { from?: string; to?: string } = {}
+  const durationRange = { min: "", max: "" }
+  const lengthRange = { min: "", max: "" }
+  const wordRange = { min: "", max: "" }
+  const confidenceFilter = { min: "", max: "" }
+  const audioFilters = { minAverage: "", maxAverage: "", maxSilence: "" }
   const [tagFilters, setTagFilters] = useState<string[]>([])
-  const [grouping, setGrouping] = useState<GroupingValue>("date")
-  const [sortBy, setSortBy] = useState<SortField>("createdAt")
-  const [savedSearches, setSavedSearches] = useState<SavedRecordingSearch[]>(() => loadSavedSearches())
+  const grouping: GroupingValue = "date"
+  const sortBy: SortField = "createdAt"
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkStatus, setBulkStatus] = useState<string | null>(null)
 
@@ -319,35 +242,6 @@ export function Component() {
     })
   }, [searchQuery.data])
 
-  const historySuggestions = useMemo(() => {
-    if (!historyQuery.data) return []
-    const counts = new Map<string, number>()
-    for (const item of historyQuery.data) {
-      const terms = item.transcript
-        .split(/\s+/)
-        .map((word) => word.toLowerCase().replace(/[^a-z0-9]/g, ""))
-        .filter((word) => word.length >= 4)
-      for (const term of terms) {
-        counts.set(term, (counts.get(term) || 0) + 1)
-      }
-    }
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([value]) => value)
-  }, [historyQuery.data])
-
-  const availableTags = useMemo(() => {
-    if (!historyQuery.data) return []
-    const tags = new Set<string>()
-    for (const item of historyQuery.data) {
-      for (const tag of item.tags || []) {
-        tags.add(tag)
-      }
-    }
-    return Array.from(tags).sort()
-  }, [historyQuery.data])
-
   const highlightMap = useMemo(() => {
     const map = new Map<string, RecordingHistoryItemHighlight | undefined>()
     for (const item of searchQuery.data?.items || []) {
@@ -383,11 +277,19 @@ export function Component() {
   }, [searchQuery.data, grouping, highlightMap])
 
   const listParentRef = useRef<HTMLDivElement | null>(null)
+
+  const getScrollElement = useCallback(() => listParentRef.current, [])
+
+  const estimateSize = useCallback((index: number) => {
+    const item = flattenedRows[index]
+    return item?.type === "group" ? 50 : 152
+  }, [flattenedRows])
+
   const rowVirtualizer = useVirtualizer({
     count: flattenedRows.length,
-    getScrollElement: () => listParentRef.current,
-    estimateSize: () => 140,
-    overscan: 8,
+    getScrollElement,
+    estimateSize,
+    overscan: 5,
   })
 
   const handleToggleSelection = (id: string) => {
@@ -439,10 +341,10 @@ export function Component() {
 
   const handleBulkDelete = () => {
     if (!selectedIds.size) return
-    if (!window.confirm(`Delete ${selectedIds.size} recording(s)? This cannot be undone.`)) {
+    if (!window.confirm(t("history.deleteMultipleConfirm", { count: selectedIds.size }))) {
       return
     }
-    void bulkAction((id) => tipcClient.deleteRecordingItem({ id }), "Deleting...", "Deleted")
+    void bulkAction((id) => tipcClient.deleteRecordingItem({ id }), t("history.deleting"), t("history.deleted"))
   }
 
   const handleBulkExport = async () => {
@@ -459,13 +361,13 @@ export function Component() {
       tags: record.tags,
     }))
     await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
-    setBulkStatus("Exported to clipboard")
+    setBulkStatus(t("history.exportedToClipboard"))
     setTimeout(() => setBulkStatus(null), 2000)
   }
 
   const handleBulkTag = () => {
     if (!selectedIds.size) return
-    const value = window.prompt("Enter tags separated by commas")
+    const value = window.prompt(t("history.addTags"))
     if (!value) return
     const tags = value
       .split(",")
@@ -474,100 +376,9 @@ export function Component() {
     if (!tags.length) return
     void bulkAction(
       (id) => tipcClient.updateRecordingItem({ id, patch: { tags } }),
-      "Updating tags...",
-      "Tags updated",
+      t("history.updatingTags"),
+      t("history.tagsUpdated"),
     )
-  }
-
-  const handleSaveCurrentSearch = () => {
-    const name = window.prompt("Save this search as")
-    if (!name) return
-    const next: SavedRecordingSearch = {
-      id: crypto.randomUUID(),
-      name,
-      filters: remoteFilters,
-      createdAt: Date.now(),
-      lastUsedAt: Date.now(),
-      usageCount: 0,
-    }
-    const updated = [...savedSearches, next]
-    setSavedSearches(updated)
-    persistSavedSearches(updated)
-  }
-
-  const applySavedSearch = (entry: SavedRecordingSearch) => {
-    setSearchMode(entry.filters.searchMode || "full-text")
-    setBooleanOperator(entry.filters.booleanOperator || "and")
-    setSearchKeyword(entry.filters.text || "")
-    setExcludedKeywords((entry.filters.mustNotInclude || []).join(", "))
-    if (entry.filters.dateRange) {
-      setDatePreset("custom")
-      setCustomDateRange({
-        from: entry.filters.dateRange.from
-          ? dayjs(entry.filters.dateRange.from).format("YYYY-MM-DD")
-          : undefined,
-        to: entry.filters.dateRange.to
-          ? dayjs(entry.filters.dateRange.to).format("YYYY-MM-DD")
-          : undefined,
-      })
-    } else {
-      setDatePreset("all")
-      setCustomDateRange({})
-    }
-    setDurationRange({
-      min: entry.filters.durationMsRange?.min
-        ? String(Math.round(entry.filters.durationMsRange.min / 1000))
-        : "",
-      max: entry.filters.durationMsRange?.max
-        ? String(Math.round(entry.filters.durationMsRange.max / 1000))
-        : "",
-    })
-    setLengthRange({
-      min: entry.filters.transcriptLengthRange?.min
-        ? String(entry.filters.transcriptLengthRange.min)
-        : "",
-      max: entry.filters.transcriptLengthRange?.max
-        ? String(entry.filters.transcriptLengthRange.max)
-        : "",
-    })
-    setWordRange({
-      min: entry.filters.wordCountRange?.min ? String(entry.filters.wordCountRange.min) : "",
-      max: entry.filters.wordCountRange?.max ? String(entry.filters.wordCountRange.max) : "",
-    })
-    setConfidenceFilter({
-      min: entry.filters.confidenceRange?.min
-        ? String(Math.round((entry.filters.confidenceRange.min || 0) * 100))
-        : "",
-      max: entry.filters.confidenceRange?.max
-        ? String(Math.round((entry.filters.confidenceRange.max || 0) * 100))
-        : "",
-    })
-    setAudioFilters({
-      minAverage: entry.filters.audioProfile?.minAverageLevel
-        ? String(entry.filters.audioProfile.minAverageLevel)
-        : "",
-      maxAverage: entry.filters.audioProfile?.maxAverageLevel
-        ? String(entry.filters.audioProfile.maxAverageLevel)
-        : "",
-      maxSilence: entry.filters.audioProfile?.maxSilenceRatio
-        ? String(entry.filters.audioProfile.maxSilenceRatio)
-        : "",
-    })
-    setTagFilters(entry.filters.tags || [])
-    setSortBy(entry.filters.sortBy || "createdAt")
-    const updated = savedSearches.map((search) =>
-      search.id === entry.id
-        ? { ...search, lastUsedAt: Date.now(), usageCount: search.usageCount + 1 }
-        : search,
-    )
-    setSavedSearches(updated)
-    persistSavedSearches(updated)
-  }
-
-  const deleteSavedSearch = (id: string) => {
-    const updated = savedSearches.filter((entry) => entry.id !== id)
-    setSavedSearches(updated)
-    persistSavedSearches(updated)
   }
 
   const renderRow = (row: FlattenedHistoryRow) => {
@@ -575,7 +386,7 @@ export function Component() {
       return (
         <div className="flex items-center justify-between rounded-full bg-white/[0.05] px-4 py-2 text-xs font-semibold uppercase tracking-wide">
           <span>{row.label}</span>
-          <span className="text-white/60">{row.count} item(s)</span>
+          <span className="text-white/60">{t("history.itemCount", { count: row.count })}</span>
         </div>
       )
     }
@@ -587,7 +398,8 @@ export function Component() {
     return (
       <div
         className={cn(
-          "rounded-2xl border border-white/10 bg-white/[0.015] px-4 py-4 transition-colors",
+          "rounded-2xl border border-white/10 bg-white/[0.015] px-4 py-4 transition-all duration-200",
+          "hover:border-white/20 hover:bg-white/[0.03]",
           isSelected && "border-white/40 bg-white/[0.08]",
         )}
       >
@@ -602,8 +414,16 @@ export function Component() {
           <div className="flex grow flex-col gap-2">
             <div className="flex items-center justify-between gap-4 text-sm">
               <div className="flex flex-col gap-1">
-                <div className="text-base font-semibold">
-                  {record.transcript.slice(0, 160) || "(Empty transcript)"}
+                <div className="flex items-center gap-2">
+                  <div className="text-base font-semibold">
+                    {record.transcript.slice(0, 160) || t("history.emptyTranscript")}
+                  </div>
+                  {record.enhancementPromptId && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs text-purple-200">
+                      <span className="i-mingcute-sparkles-line text-xs" />
+                      Enhanced
+                    </span>
+                  )}
                 </div>
                 {row.highlight?.preview && (
                   <p className="text-xs text-white/60">
@@ -640,6 +460,22 @@ export function Component() {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                {record.originalTranscript && (
+                  <button
+                    type="button"
+                    title="Compare original vs enhanced"
+                    className={cn(
+                      itemButtonVariants(),
+                      "text-white/60 hover:text-white",
+                    )}
+                    onClick={() => {
+                      // TODO: Open comparison dialog
+                      alert(`Original: ${record.originalTranscript}\n\nEnhanced: ${record.transcript}`)
+                    }}
+                  >
+                    <span className="i-mingcute-transfer-line" />
+                  </button>
+                )}
                 <PlayButton item={record} />
                 <DeleteButton
                   id={record.id}
@@ -679,7 +515,7 @@ export function Component() {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  const value = window.prompt("Add tags separated by commas", (record.tags || []).join(", "))
+                  const value = window.prompt(t("history.addTags"), (record.tags || []).join(", "))
                   if (!value) return
                   const tags = value
                     .split(",")
@@ -693,7 +529,7 @@ export function Component() {
                     })
                 }}
               >
-                <span className="i-mingcute-add-line" /> Tag
+                <span className="i-mingcute-add-line" /> {t("history.tag")}
               </Button>
             </div>
           </div>
@@ -705,399 +541,94 @@ export function Component() {
   return (
     <div className="flex h-full flex-col gap-6 text-white">
       <PageHeader
-        title="History & Analytics"
-        description="Search, filter, and review your recordings with the analytics tooling."
-        actions={
-          <>
-            <Input
-              placeholder="Search transcripts"
-              wrapperClassName="bg-white/5 border-white/10"
-              endContent={<span className="i-mingcute-search-2-line text-white/60" />}
-              value={searchKeyword}
-              onChange={(event) => setSearchKeyword(event.target.value)}
-            />
-            <Select
-              value={searchMode}
-              onValueChange={(value) => setSearchMode(value as SearchMode)}
-            >
-              <SelectTrigger className="w-32 border-white/10 bg-white/5">
-                <SelectValue placeholder="Mode" />
-              </SelectTrigger>
-              <SelectContent>
-                {SEARCH_MODES.map((mode) => (
-                  <SelectItem key={mode} value={mode}>
-                    {mode === "full-text" && "Full text"}
-                    {mode === "fuzzy" && "Fuzzy"}
-                    {mode === "semantic" && "Semantic"}
-                    {mode === "regex" && "Regex"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={booleanOperator}
-              onValueChange={(value) => setBooleanOperator(value as "and" | "or")}
-            >
-              <SelectTrigger className="w-24 border-white/10 bg-white/5">
-                <SelectValue placeholder="Logic" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="and">AND</SelectItem>
-                <SelectItem value="or">OR</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={sortBy}
-              onValueChange={(value) => setSortBy(value as SortField)}
-            >
-              <SelectTrigger className="w-36 border-white/10 bg-white/5">
-                <SelectValue placeholder="Sort" />
-              </SelectTrigger>
-              <SelectContent>
-                {SORT_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="ghost" size="sm" onClick={handleSaveCurrentSearch}>
-              <span className="i-mingcute-bookmark-line" /> Save search
-            </Button>
-          </>
-        }
+        title={t("history.title")}
+        description={t("history.description")}
       />
 
-      <div className="flex h-full flex-col gap-6 lg:flex-row">
-        <aside className="flex w-full flex-col gap-4 overflow-auto text-sm lg:w-80">
-          <section className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-white/60">
-              Date range
+      <div className="flex flex-1 flex-col gap-4">
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-3 text-sm">
+            <span className="font-semibold">{selectedIds.size} {t("history.selected")}</span>
+            <Button variant="ghost" size="sm" onClick={handleSelectAll}>
+              {t("history.selectAll")}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleClearSelection}>
+              {t("history.clear")}
+            </Button>
+            <div className="ml-auto flex gap-2">
+              <Button variant="ghost" size="sm" onClick={handleBulkTag}>
+                <span className="i-mingcute-hashtag-line" /> {t("history.tag")}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleBulkExport}>
+                <span className="i-mingcute-download-line" /> {t("history.export")}
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                <span className="i-mingcute-delete-2-line" /> {t("history.delete")}
+              </Button>
             </div>
-            <Select
-              value={datePreset}
-              onValueChange={(value) => setDatePreset(value as DatePreset)}
+          </div>
+        )}
+
+        {bulkStatus && (
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-6 py-2 text-xs text-amber-100">
+            {bulkStatus}
+          </div>
+        )}
+
+        <div
+          ref={listParentRef}
+          className="flex-1 overflow-auto rounded-2xl border border-white/10 bg-black/30"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            willChange: 'scroll-position',
+          }}
+        >
+          {!searchQuery.data ? (
+            <div className="flex h-full items-center justify-center text-sm text-white/60">
+              {t("history.loadingHistory")}
+            </div>
+          ) : flattenedRows.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-white/60">
+              <span>{t("history.noRecordings")}</span>
+            </div>
+          ) : (
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                position: "relative",
+                contain: 'layout style paint',
+              }}
+              className="w-full"
             >
-              <SelectTrigger className="bg-white/5 border-white/10">
-                <SelectValue placeholder="Select range" />
-              </SelectTrigger>
-              <SelectContent>
-                {DATE_PRESETS.map((preset) => (
-                  <SelectItem key={preset.value} value={preset.value}>
-                    {preset.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {datePreset === "custom" && (
-              <div className="flex flex-col gap-2">
-              <FilterInput
-                type="date"
-                label="From"
-                value={customDateRange.from || ""}
-                onChange={(event) =>
-                  setCustomDateRange((prev) => ({ ...prev, from: event.target.value }))
-                }
-              />
-              <FilterInput
-                type="date"
-                label="To"
-                value={customDateRange.to || ""}
-                onChange={(event) =>
-                  setCustomDateRange((prev) => ({ ...prev, to: event.target.value }))
-                }
-              />
-            </div>
-          )}
-          </section>
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const item = flattenedRows[virtualRow.index]
+                const isGroup = item.type === "group"
+                const isFirstItem = virtualRow.index === 0
 
-          <section className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-white/60">
-              Filters
-            </div>
-            <div className="grid gap-3">
-              <FilterInput
-                label="Exclude keywords"
-                placeholder="comma separated"
-                value={excludedKeywords}
-                onChange={(event) => setExcludedKeywords(event.target.value)}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <FilterInput
-                  label="Min duration (s)"
-                  value={durationRange.min}
-                  onChange={(event) => setDurationRange((prev) => ({ ...prev, min: event.target.value }))}
-                />
-                <FilterInput
-                  label="Max duration (s)"
-                  value={durationRange.max}
-                  onChange={(event) => setDurationRange((prev) => ({ ...prev, max: event.target.value }))}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <FilterInput
-                  label="Min chars"
-                  value={lengthRange.min}
-                  onChange={(event) => setLengthRange((prev) => ({ ...prev, min: event.target.value }))}
-                />
-                <FilterInput
-                  label="Max chars"
-                  value={lengthRange.max}
-                  onChange={(event) => setLengthRange((prev) => ({ ...prev, max: event.target.value }))}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <FilterInput
-                  label="Min words"
-                  value={wordRange.min}
-                  onChange={(event) => setWordRange((prev) => ({ ...prev, min: event.target.value }))}
-                />
-                <FilterInput
-                  label="Max words"
-                  value={wordRange.max}
-                  onChange={(event) => setWordRange((prev) => ({ ...prev, max: event.target.value }))}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <FilterInput
-                  label="Min accuracy %"
-                  value={confidenceFilter.min}
-                  onChange={(event) => setConfidenceFilter((prev) => ({ ...prev, min: event.target.value }))}
-                />
-                <FilterInput
-                  label="Max accuracy %"
-                  value={confidenceFilter.max}
-                  onChange={(event) => setConfidenceFilter((prev) => ({ ...prev, max: event.target.value }))}
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <FilterInput
-                  label="Min avg lvl"
-                  value={audioFilters.minAverage}
-                  onChange={(event) => setAudioFilters((prev) => ({ ...prev, minAverage: event.target.value }))}
-                />
-                <FilterInput
-                  label="Max avg lvl"
-                  value={audioFilters.maxAverage}
-                  onChange={(event) => setAudioFilters((prev) => ({ ...prev, maxAverage: event.target.value }))}
-                />
-                <FilterInput
-                  label="Max silence"
-                  value={audioFilters.maxSilence}
-                  onChange={(event) => setAudioFilters((prev) => ({ ...prev, maxSilence: event.target.value }))}
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-white/60">
-              Tag filters
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {availableTags.length === 0 && <span className="text-xs text-white/50">No tags yet</span>}
-              {availableTags.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  className={cn(
-                    "rounded-full border px-2 py-0.5 text-xs",
-                    tagFilters.includes(tag)
-                      ? "border-white bg-white/20 text-white"
-                      : "border-white/10 text-white/70 hover:border-white/30",
-                  )}
-                  onClick={() =>
-                    setTagFilters((prev) =>
-                      prev.includes(tag)
-                        ? prev.filter((item) => item !== tag)
-                        : [...prev, tag],
-                    )
-                  }
-                >
-                  #{tag}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-white/60">
-              Saved searches
-            </div>
-            <div className="space-y-1">
-              {savedSearches.length === 0 && (
-                <p className="text-xs text-white/50">No saved searches yet.</p>
-              )}
-              {savedSearches.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between rounded-md border border-white/10 bg-black/30 px-2 py-1 text-xs"
-                >
-                  <button
-                    className="text-left font-medium"
-                    onClick={() => applySavedSearch(entry)}
+                return (
+                  <div
+                    key={virtualRow.key}
+                    ref={rowVirtualizer.measureElement}
+                    data-index={virtualRow.index}
+                    className="absolute w-full"
+                    style={{
+                      transform: `translateY(${virtualRow.start}px)`,
+                      paddingLeft: '1.5rem',
+                      paddingRight: '1.5rem',
+                      paddingTop: isFirstItem ? '1rem' : (isGroup ? '1rem' : '0'),
+                      paddingBottom: isGroup ? '0.5rem' : '0.75rem',
+                      willChange: 'transform',
+                      backfaceVisibility: 'hidden',
+                      perspective: 1000,
+                    }}
                   >
-                    {entry.name}
-                  </button>
-                  <button
-                    className="text-white/60 hover:text-red-400"
-                    onClick={() => deleteSavedSearch(entry.id)}
-                  >
-                    <span className="i-mingcute-delete-2-line" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        </aside>
-
-        <main className="flex h-full flex-col gap-4">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-              <div className="text-xs uppercase text-white/60">Matches</div>
-              <div className="text-2xl font-semibold">
-                {searchQuery.data?.total ?? "--"}
-              </div>
-              <div className="text-xs text-white/60">of {historyQuery.data?.length ?? "--"} recordings</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-              <div className="text-xs uppercase text-white/60">Total duration</div>
-              <div className="text-2xl font-semibold">
-                {searchQuery.data ? formatDuration(searchQuery.data.stats.totalDurationMs) : "--"}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-              <div className="text-xs uppercase text-white/60">Avg processing</div>
-              <div className="text-2xl font-semibold">
-                {searchQuery.data ? formatProcessingTime(searchQuery.data.stats.averageProcessingTimeMs || undefined) : "--"}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-              <div className="text-xs uppercase text-white/60">Avg accuracy</div>
-              <div className="text-2xl font-semibold">
-                {searchQuery.data ? formatConfidence(searchQuery.data.stats.averageConfidence) : "--"}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold uppercase tracking-wide text-white/60">
-                Group by
-              </span>
-              <Select
-                value={grouping}
-                onValueChange={(value) => setGrouping(value as GroupingValue)}
-              >
-                <SelectTrigger className="w-40 border-white/10 bg-white/5">
-                  <SelectValue placeholder="Grouping" />
-                </SelectTrigger>
-                <SelectContent>
-                  {GROUPING_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="text-white/60">
-              {flattenedRows.length} row(s)
-            </div>
-          </div>
-
-          {historySuggestions.length > 0 && (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-3 text-xs">
-              <span className="text-white/60">Suggestions:</span>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {historySuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    className="rounded-full border border-white/10 px-2 py-1"
-                    onClick={() => setSearchKeyword((prev) => `${prev} ${suggestion}`.trim())}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
+                    {renderRow(item)}
+                  </div>
+                )
+              })}
             </div>
           )}
-
-          {selectedIds.size > 0 && (
-            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-3 text-sm">
-              <span className="font-semibold">{selectedIds.size} selected</span>
-              <Button variant="ghost" size="sm" onClick={handleSelectAll}>
-                Select all
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleClearSelection}>
-                Clear
-              </Button>
-              <div className="ml-auto flex gap-2">
-                <Button variant="ghost" size="sm" onClick={handleBulkTag}>
-                  <span className="i-mingcute-hashtag-line" /> Tag
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleBulkExport}>
-                  <span className="i-mingcute-download-line" /> Export
-                </Button>
-                <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-                  <span className="i-mingcute-delete-2-line" /> Delete
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {bulkStatus && (
-            <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-6 py-2 text-xs text-amber-100">
-              {bulkStatus}
-            </div>
-          )}
-
-          <div ref={listParentRef} className="flex-1 overflow-auto rounded-2xl border border-white/10 bg-black/30">
-            {!searchQuery.data ? (
-              <div className="flex h-full items-center justify-center text-sm text-white/60">
-                Loading history…
-              </div>
-            ) : flattenedRows.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-white/60">
-                <span>No recordings match the current filters.</span>
-                <Button variant="ghost" size="sm" onClick={() => {
-                  setSearchKeyword("")
-                  setExcludedKeywords("")
-                  setDatePreset("all")
-                  setCustomDateRange({})
-                  setDurationRange({ min: "", max: "" })
-                  setLengthRange({ min: "", max: "" })
-                  setWordRange({ min: "", max: "" })
-                  setConfidenceFilter({ min: "", max: "" })
-                  setAudioFilters({ minAverage: "", maxAverage: "", maxSilence: "" })
-                  setTagFilters([])
-                }}>
-                  Reset filters
-                </Button>
-              </div>
-            ) : (
-              <div
-                style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: "relative" }}
-                className="px-4"
-              >
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const item = flattenedRows[virtualRow.index]
-                  return (
-                    <div
-                      key={virtualRow.key}
-                      className="absolute left-0 right-0"
-                      style={{
-                        transform: `translateY(${virtualRow.start}px)`,
-                      }}
-                    >
-                      {renderRow(item)}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </main>
+        </div>
       </div>
     </div>
   )
@@ -1105,7 +636,8 @@ export function Component() {
 
 const itemButtonVariants = ({ isDanger }: { isDanger?: boolean } = {}) =>
   cn(
-    "inline-flex h-8 w-8 items-center justify-center rounded-md text-white/60 hover:bg-white/10 hover:text-white",
+    "inline-flex h-8 w-8 items-center justify-center rounded-md text-white/60 transition-all duration-200",
+    "hover:bg-white/10 hover:text-white hover:scale-110 active:scale-95",
     isDanger && "hover:text-red-400",
   )
 
@@ -1158,12 +690,14 @@ const PlayButton = ({ item }: { item: RecordingHistoryItem }) => {
 }
 
 const DeleteButton = ({ id, onDeleted }: { id: string; onDeleted?: () => void }) => {
+  const { t } = useTranslation()
+
   return (
     <button
       type="button"
       className={itemButtonVariants({ isDanger: true })}
       onClick={async () => {
-        if (window.confirm("Delete this recording forever?")) {
+        if (window.confirm(t("history.deleteConfirm"))) {
           await tipcClient.deleteRecordingItem({ id })
           onDeleted?.()
           queryClient.invalidateQueries({ queryKey: ["recording-history"] })

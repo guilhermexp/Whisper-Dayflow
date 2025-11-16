@@ -4,12 +4,19 @@ import {
   stopRecordingAndHidePanelWindow,
   WINDOWS,
 } from "./window"
-import { systemPreferences } from "electron"
+import { systemPreferences, shell } from "electron"
 import { configStore } from "./config"
 import { abortOngoingTranscription, state } from "./state"
 import { showEscHintToast } from "./hint-window"
 import { spawn } from "child_process"
 import { WHISPO_RS_BINARY_PATH } from "./native-binary"
+
+export const openAccessibilitySettings = async () => {
+  if (process.env.IS_MAC) {
+    // Open System Preferences to Accessibility pane
+    await shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+  }
+}
 
 type RdevEvent = {
   event_type: "KeyPress" | "KeyRelease"
@@ -23,6 +30,18 @@ type RdevEvent = {
 
 export const writeText = (text: string) => {
   return new Promise<void>((resolve, reject) => {
+    // Check accessibility permissions on macOS
+    if (process.env.IS_MAC) {
+      if (!systemPreferences.isTrustedAccessibilityClient(false)) {
+        const error = new Error(
+          "O Whispo precisa de permissão de Acessibilidade para colar o texto automaticamente.\n\nClique em 'Abrir Configurações' para permitir.",
+        )
+        error.name = "AccessibilityPermissionError"
+        reject(error)
+        return
+      }
+    }
+
     const child = spawn(WHISPO_RS_BINARY_PATH, ["write", text])
 
     child.stdout.on("data", (data) => {
@@ -40,8 +59,14 @@ export const writeText = (text: string) => {
 
       if (code === 0) {
         resolve()
+      } else if (code === null) {
+        const error = new Error(
+          "O Whispo precisa de permissão de Acessibilidade para colar o texto automaticamente.\n\nClique em 'Abrir Configurações' para permitir.",
+        )
+        error.name = "AccessibilityPermissionError"
+        reject(error)
       } else {
-        reject(new Error(`child process exited with code ${code}`))
+        reject(new Error(`Erro ao colar texto (código ${code})`))
       }
     })
   })

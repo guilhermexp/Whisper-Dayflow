@@ -1,10 +1,11 @@
 import { dialog } from "electron"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { configStore } from "./config"
+import { enhancementService } from "./services/enhancement-service"
 
 export async function postProcessTranscript(
   transcript: string,
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; returnMetadata?: boolean } = {},
 ) {
   const config = configStore.get()
 
@@ -18,6 +19,68 @@ export async function postProcessTranscript(
 
   ensureNotAborted()
 
+  // NEW: Use enhancement service if enabled
+  if (config.enhancementEnabled) {
+    console.log("[enhancement] Enhancement ENABLED")
+    console.log("[enhancement] Selected prompt ID:", config.selectedPromptId || "default")
+    console.log("[enhancement] Provider:", config.enhancementProvider || "openai")
+
+    try {
+      const result = await enhancementService.enhanceTranscript(transcript, {
+        signal: options.signal,
+      })
+
+      // Log error if enhancement failed but returned original
+      if (result.error) {
+        console.log("[enhancement] ⚠️  Enhancement failed, using original transcript")
+        console.log("[enhancement] Error:", result.error)
+        console.log("[enhancement] Processing time:", result.processingTime, "ms")
+        console.log("[enhancement] Provider used:", result.provider || "none")
+        console.log("[enhancement] Prompt used:", result.promptId || "none")
+      } else {
+        console.log("[enhancement] ✅ Enhancement completed successfully")
+        console.log("[enhancement] Original length:", result.originalText.length, "chars")
+        console.log("[enhancement] Enhanced length:", result.enhancedText.length, "chars")
+        console.log("[enhancement] Processing time:", result.processingTime, "ms")
+        console.log("[enhancement] Provider used:", result.provider)
+        console.log("[enhancement] Model used:", config.enhancementProvider === "openrouter"
+          ? config.openrouterModel || "openai/gpt-4o-mini"
+          : config.enhancementProvider === "openai" ? "gpt-4o-mini"
+          : config.enhancementProvider === "groq" ? "llama-3.1-70b-versatile"
+          : config.enhancementProvider === "gemini" ? "gemini-1.5-flash-002"
+          : config.customEnhancementModel || "gpt-4o-mini"
+        )
+        console.log("[enhancement] Prompt used:", result.promptId)
+      }
+
+      // Return with metadata if requested
+      if (options.returnMetadata) {
+        return {
+          text: result.enhancedText,
+          metadata: {
+            originalTranscript: result.originalText,
+            enhancementPromptId: result.promptId,
+            enhancementProvider: result.provider,
+            enhancementProcessingTime: result.processingTime,
+            enhancementError: result.error,
+          },
+        }
+      }
+
+      return result.enhancedText
+    } catch (error) {
+      console.error("[enhancement] ❌ Enhancement service threw exception:", error)
+      // Fallback to original transcript on error
+      if (options.returnMetadata) {
+        return { text: transcript, metadata: {} }
+      }
+      return transcript
+    }
+  } else {
+    console.log("[enhancement] Enhancement DISABLED")
+  }
+
+  // LEGACY: Use old post-processing if enabled
   if (
     !config.transcriptPostProcessingEnabled ||
     !config.transcriptPostProcessingPrompt

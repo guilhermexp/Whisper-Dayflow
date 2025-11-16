@@ -1,4 +1,5 @@
 import type { CHAT_PROVIDER_ID, STT_PROVIDER_ID } from "."
+import type { CustomPrompt } from "./types/enhancement"
 
 export type RecordingAudioProfile = {
   /** Highest normalized RMS value captured during recording (0-1) */
@@ -31,6 +32,11 @@ export type RecordingHistoryItem = {
   confidenceScore?: number | null
   tags?: string[]
   audioProfile?: RecordingAudioProfile
+  // Enhancement metadata
+  originalTranscript?: string // Original before enhancement
+  enhancementPromptId?: string
+  enhancementProvider?: string
+  enhancementProcessingTime?: number
 }
 
 export type RecordingHistorySearchFilters = {
@@ -72,6 +78,19 @@ export type RecordingHistorySearchResult = {
   appliedFilters: RecordingHistorySearchFilters
 }
 
+export type ModelPerformanceMetrics = {
+  modelId: string
+  modelName: string
+  count: number
+  averageLatencyMs: number
+  medianLatencyMs: number
+  averageAccuracy: number | null
+  averageConfidence: number | null
+  totalDurationMs: number
+  successRate: number
+  p95LatencyMs: number
+}
+
 export type RecordingAnalyticsSnapshot = {
   generatedAt: number
   totals: {
@@ -102,6 +121,9 @@ export type RecordingAnalyticsSnapshot = {
     }
   }
   tags: Array<{ tag: string; count: number }>
+  // Model performance rankings
+  sttModelRanking: Array<ModelPerformanceMetrics>
+  enhancementModelRanking: Array<ModelPerformanceMetrics>
 }
 
 export type SavedRecordingSearch = {
@@ -113,22 +135,40 @@ export type SavedRecordingSearch = {
   usageCount: number
 }
 
+export type OpenRouterModel = {
+  id: string
+  name: string
+  pricing: {
+    prompt: string
+    completion: string
+  }
+  context_length: number
+}
+
 export type Config = {
   shortcut?: "hold-ctrl" | "ctrl-slash" | "instant-ctrl" | "fn-key"
   hideDockIcon?: boolean
   enableAudioCues?: boolean
   launchOnStartup?: boolean
+  language?: "en-US" | "pt-BR"
 
   sttProviderId?: STT_PROVIDER_ID
 
   openaiApiKey?: string
   openaiBaseUrl?: string
+  openaiWhisperModel?: string
 
   groqApiKey?: string
   groqBaseUrl?: string
+  groqWhisperModel?: string
 
   geminiApiKey?: string
   geminiBaseUrl?: string
+  geminiModel?: string
+
+  openrouterApiKey?: string
+  openrouterBaseUrl?: string
+  openrouterModel?: string
 
   transcriptPostProcessingEnabled?: boolean
   transcriptPostProcessingProviderId?: CHAT_PROVIDER_ID
@@ -147,4 +187,21 @@ export type Config = {
   localInferenceThreads?: number
   enableGPUAcceleration?: boolean
   preferLocalModels?: boolean
+
+  // Enhancement Configuration
+  enhancementEnabled?: boolean
+  enhancementProvider?: "openai" | "groq" | "gemini" | "openrouter" | "custom"
+  selectedPromptId?: string
+  customPrompts?: CustomPrompt[]
+  enhancementTimeout?: number
+
+  // Custom Enhancement Provider
+  customEnhancementApiKey?: string
+  customEnhancementBaseUrl?: string
+  customEnhancementModel?: string
+
+  // Context Capture
+  useClipboardContext?: boolean
+  useSelectedTextContext?: boolean
+  useScreenCaptureContext?: boolean
 }

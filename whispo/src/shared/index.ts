@@ -7,6 +7,10 @@ export const STT_PROVIDERS = [
     label: "Groq",
     value: "groq",
   },
+  {
+    label: "OpenRouter",
+    value: "openrouter",
+  },
 ] as const
 
 export type CloudSTTProviderId = (typeof STT_PROVIDERS)[number]["value"]

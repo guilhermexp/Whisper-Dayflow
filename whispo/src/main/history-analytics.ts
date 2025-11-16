@@ -7,6 +7,7 @@ import type {
   RecordingHistoryItemHighlight,
   RecordingHistorySearchFilters,
   RecordingHistorySearchResult,
+  ModelPerformanceMetrics,
 } from "../shared/types"
 
 const DEFAULT_FUSE_OPTIONS: IFuseOptions<RecordingHistoryItem> = {
@@ -360,6 +361,118 @@ const computeTrend = (timeline: RecordingAnalyticsSnapshot["timeline"]) => {
   return Number(((change / previous.durationMs) * 100).toFixed(2))
 }
 
+const buildModelRanking = (
+  items: RecordingHistoryItem[],
+  type: "stt" | "enhancement"
+): ModelPerformanceMetrics[] => {
+  const modelMap = new Map<string, {
+    count: number
+    latencies: number[]
+    accuracies: number[]
+    confidences: number[]
+    totalDurationMs: number
+    successCount: number
+  }>()
+
+  for (const item of items) {
+    let modelId: string | undefined
+    let modelName: string
+    let latency: number | undefined
+    let accuracy: number | null | undefined
+    let confidence: number | null | undefined
+
+    if (type === "stt") {
+      modelId = item.providerId
+      if (!modelId) continue
+
+      // Extract model name from provider ID
+      if (modelId.startsWith("local:")) {
+        modelName = `Local: ${modelId.replace("local:", "")}`
+      } else {
+        modelName = modelId === "openai" ? "OpenAI Whisper"
+          : modelId === "groq" ? "Groq Whisper"
+          : modelId === "openrouter" ? "OpenRouter"
+          : modelId
+      }
+
+      latency = item.transcriptionLatencyMs
+      accuracy = item.accuracyScore
+      confidence = item.confidenceScore
+    } else { // enhancement
+      const enhancementProvider = item.enhancementProvider
+      if (!enhancementProvider) continue
+
+      modelId = enhancementProvider
+      modelName = enhancementProvider === "openai" ? "OpenAI (gpt-4o-mini)"
+        : enhancementProvider === "groq" ? "Groq (llama-3.1-70b)"
+        : enhancementProvider === "gemini" ? "Gemini (flash-002)"
+        : enhancementProvider === "openrouter" ? "OpenRouter"
+        : enhancementProvider
+
+      latency = item.enhancementProcessingTime
+      // Enhancement doesn't have accuracy/confidence scores
+    }
+
+    const entry = modelMap.get(modelId) || {
+      count: 0,
+      latencies: [],
+      accuracies: [],
+      confidences: [],
+      totalDurationMs: 0,
+      successCount: 0,
+    }
+
+    entry.count += 1
+    entry.totalDurationMs += item.duration
+
+    if (typeof latency === "number") {
+      entry.latencies.push(latency)
+      entry.successCount += 1
+    }
+
+    if (typeof accuracy === "number") {
+      entry.accuracies.push(accuracy)
+    }
+
+    if (typeof confidence === "number") {
+      entry.confidences.push(confidence)
+    }
+
+    modelMap.set(modelId, entry)
+  }
+
+  const rankings: ModelPerformanceMetrics[] = Array.from(modelMap.entries())
+    .map(([modelId, stats]) => ({
+      modelId,
+      modelName: modelId.startsWith("local:") ? `Local: ${modelId.replace("local:", "")}`
+        : modelId === "openai" ? "OpenAI Whisper"
+        : modelId === "groq" ? "Groq Whisper"
+        : modelId === "openrouter" ? "OpenRouter"
+        : modelId,
+      count: stats.count,
+      averageLatencyMs: stats.latencies.length > 0
+        ? stats.latencies.reduce((a, b) => a + b, 0) / stats.latencies.length
+        : 0,
+      medianLatencyMs: median(stats.latencies) ?? 0,
+      averageAccuracy: clampPercentage(
+        stats.accuracies.length > 0
+          ? stats.accuracies.reduce((a, b) => a + b, 0) / stats.accuracies.length
+          : null
+      ),
+      averageConfidence: clampPercentage(
+        stats.confidences.length > 0
+          ? stats.confidences.reduce((a, b) => a + b, 0) / stats.confidences.length
+          : null
+      ),
+      totalDurationMs: stats.totalDurationMs,
+      successRate: stats.count > 0 ? (stats.successCount / stats.count) : 0,
+      p95LatencyMs: percentile(stats.latencies, 95) ?? 0,
+    }))
+    .sort((a, b) => b.count - a.count) // Sort by usage count
+
+  return rankings
+}
+
 export const buildAnalyticsSnapshot = (
   items: RecordingHistoryItem[],
 ): RecordingAnalyticsSnapshot => {
@@ -507,5 +620,7 @@ export const buildAnalyticsSnapshot = (
       },
     },
     tags,
+    sttModelRanking: buildModelRanking(items, "stt"),
+    enhancementModelRanking: buildModelRanking(items, "enhancement"),
   }
 }

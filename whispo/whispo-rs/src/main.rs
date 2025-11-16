@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use rdev::{listen, Event, EventType, Key};
 use serde::{Deserialize, Serialize};
 use serde_json::json;

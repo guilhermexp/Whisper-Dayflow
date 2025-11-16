@@ -22,6 +22,10 @@ export const router: ReturnType<typeof createBrowserRouter> =
               path: "data",
               lazy: () => import("./pages/settings-data"),
             },
+            {
+              path: "enhancement",
+              lazy: () => import("./pages/settings-enhancement"),
+            },
           ],
         },
         {

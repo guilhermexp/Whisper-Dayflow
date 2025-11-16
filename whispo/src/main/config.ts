@@ -6,6 +6,7 @@ import {
   getSystemAutoLaunchPreference,
   syncAutoLaunchSetting,
 } from "./auto-launch"
+import { PREDEFINED_PROMPTS } from "../shared/data/predefined-prompts"
 
 export const dataFolder = path.join(app.getPath("appData"), process.env.APP_ID)
 
@@ -23,11 +24,35 @@ const getConfig = () => {
   }
 }
 
+const getDefaultLanguage = (): "en-US" | "pt-BR" => {
+  // Try to get system locale
+  const locale = app.getLocale()
+
+  if (locale.startsWith("pt")) {
+    return "pt-BR"
+  }
+
+  return "en-US"
+}
+
 const withDefaults = (config?: Config): Config => {
   return {
     enableAudioCues: true,
     launchOnStartup: getSystemAutoLaunchPreference(),
     preferLocalModels: config?.preferLocalModels ?? false,
+    language: config?.language ?? getDefaultLanguage(),
+
+    // Enhancement defaults
+    enhancementEnabled: config?.enhancementEnabled ?? false,
+    enhancementProvider: config?.enhancementProvider ?? "openai",
+    selectedPromptId: config?.selectedPromptId ?? "default",
+    customPrompts: config?.customPrompts ?? [],
+
+    // Context capture defaults
+    useClipboardContext: config?.useClipboardContext ?? false,
+    useSelectedTextContext: config?.useSelectedTextContext ?? false,
+    useScreenCaptureContext: config?.useScreenCaptureContext ?? false,
+
     ...config,
   }
 }

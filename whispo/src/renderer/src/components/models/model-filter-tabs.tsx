@@ -1,7 +1,7 @@
 import { Button } from "@renderer/components/ui/button"
 import { Settings } from "lucide-react"
 
-export type ModelFilter = "recommended" | "local" | "cloud" | "custom"
+export type ModelFilter = "local" | "cloud" | "custom"
 
 type ModelFilterTabsProps = {
   activeFilter: ModelFilter
@@ -17,7 +17,6 @@ export function ModelFilterTabs({
   settingsOpen,
 }: ModelFilterTabsProps) {
   const filters: { label: string; value: ModelFilter }[] = [
-    { label: "Recommended", value: "recommended" },
     { label: "Local", value: "local" },
     { label: "Cloud", value: "cloud" },
     { label: "Custom", value: "custom" },

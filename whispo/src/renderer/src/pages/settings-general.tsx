@@ -21,6 +21,7 @@ import {
 } from "@renderer/lib/query-client"
 import { Config } from "@shared/types"
 import { useEffect } from "react"
+import { useTranslation } from "react-i18next"
 
 const supportsAutoLaunch = (() => {
   if (typeof navigator === "undefined") return true
@@ -29,6 +30,7 @@ const supportsAutoLaunch = (() => {
 })()
 
 export function Component() {
+  const { t, i18n } = useTranslation()
   const configQuery = useConfigQuery()
 
   const saveConfigMutation = useSaveConfigMutation()
@@ -45,6 +47,7 @@ export function Component() {
   const shortcut = configQuery.data?.shortcut || "hold-ctrl"
   const audioCuesEnabled = configQuery.data?.enableAudioCues ?? true
   const launchOnStartup = configQuery.data?.launchOnStartup ?? false
+  const currentLanguage = configQuery.data?.language || i18n.language
 
   // Force refetch when window gains focus to ensure fresh config
   useEffect(() => {
@@ -60,13 +63,13 @@ export function Component() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="General"
-        description="Configure shortcuts, audio cues, and core application preferences."
+        title={t("settings.general.title")}
+        description={t("settings.general.description")}
       />
 
       {process.env.IS_MAC && (
-        <ControlGroup title="App">
-          <Control label="Hide Dock Icon" className="px-3">
+        <ControlGroup title={t("settings.general.app")}>
+          <Control label={t("settings.general.hideDockIcon")} className="px-3">
             <Switch
               defaultChecked={configQuery.data.hideDockIcon}
               onCheckedChange={(value) => {
@@ -80,17 +83,17 @@ export function Component() {
       )}
 
       <ControlGroup
-        title="Shortcuts"
+        title={t("settings.general.shortcuts")}
         endDescription={
           <div className="flex items-center gap-1">
             <div>
               {shortcut === "hold-ctrl"
-                ? "Hold Ctrl key for ~0.8s to start, release to finish"
+                ? t("settings.general.shortcutHoldCtrlDesc")
                 : shortcut === "instant-ctrl"
-                  ? "Press and hold Ctrl to start instantly, release to finish"
+                  ? t("settings.general.shortcutInstantCtrlDesc")
                   : shortcut === "fn-key"
-                    ? "Use the Fn key (push-to-talk)"
-                    : "Press Ctrl+/ to start and finish recording"}
+                    ? t("settings.general.shortcutFnKeyDesc")
+                    : t("settings.general.shortcutCtrlSlashDesc")}
             </div>
             <TooltipProvider disableHoverableContent delayDuration={0}>
               <Tooltip>
@@ -99,19 +102,19 @@ export function Component() {
                 </TooltipTrigger>
                 <TooltipContent collisionPadding={5}>
                   {shortcut === "hold-ctrl"
-                    ? "Press any key to cancel"
+                    ? t("settings.general.shortcutCancelHoldCtrl")
                     : shortcut === "instant-ctrl"
-                      ? "Press Esc twice to cancel"
+                      ? t("settings.general.shortcutCancelInstantCtrl")
                       : shortcut === "fn-key"
-                        ? "Press Esc twice to cancel (requires Accessibility on macOS)"
-                        : "Press Esc to cancel"}
+                        ? t("settings.general.shortcutCancelFnKey")
+                        : t("settings.general.shortcutCancelCtrlSlash")}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
         }
       >
-        <Control label="Recording" className="px-3">
+        <Control label={t("settings.general.recording")} className="px-3">
           <Select
             defaultValue={shortcut}
             onValueChange={(value) => {
@@ -124,20 +127,20 @@ export function Component() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="hold-ctrl">Hold Ctrl</SelectItem>
-              <SelectItem value="instant-ctrl">Instant Ctrl</SelectItem>
-              <SelectItem value="fn-key">Fn Key (push-to-talk)</SelectItem>
-              <SelectItem value="ctrl-slash">Ctrl+{"/"}</SelectItem>
+              <SelectItem value="hold-ctrl">{t("settings.general.holdCtrl")}</SelectItem>
+              <SelectItem value="instant-ctrl">{t("settings.general.instantCtrl")}</SelectItem>
+              <SelectItem value="fn-key">{t("settings.general.fnKey")}</SelectItem>
+              <SelectItem value="ctrl-slash">{t("settings.general.ctrlSlash")}</SelectItem>
             </SelectContent>
           </Select>
         </Control>
       </ControlGroup>
 
       <ControlGroup
-        title="Clipboard"
-        endDescription="When enabled, your clipboard (Cmd+V) will be preserved after transcription. Use Ctrl+V to paste the last transcription."
+        title={t("settings.general.clipboard")}
+        endDescription={t("settings.general.preserveClipboardDesc")}
       >
-        <Control label="Preserve Clipboard" className="px-3">
+        <Control label={t("settings.general.preserveClipboard")} className="px-3">
           <Switch
             defaultChecked={configQuery.data.preserveClipboard ?? true}
             onCheckedChange={(value) => {
@@ -150,10 +153,10 @@ export function Component() {
       </ControlGroup>
 
       <ControlGroup
-        title="Notifications"
-        endDescription="Play audible cues when recording starts or finishes."
+        title={t("settings.general.notifications")}
+        endDescription={t("settings.general.audioCuesDesc")}
       >
-        <Control label="Audio cues" className="px-3">
+        <Control label={t("settings.general.audioCues")} className="px-3">
           <Switch
             checked={audioCuesEnabled}
             onCheckedChange={(value) => {
@@ -166,14 +169,39 @@ export function Component() {
       </ControlGroup>
 
       <ControlGroup
-        title="Startup"
+        title={t("settings.general.language")}
+        endDescription={t("settings.general.languageDesc")}
+      >
+        <Control label={t("settings.general.selectLanguage")} className="px-3">
+          <Select
+            value={currentLanguage}
+            onValueChange={(value: "en-US" | "pt-BR") => {
+              i18n.changeLanguage(value)
+              saveConfig({
+                language: value,
+              })
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en-US">English (US)</SelectItem>
+              <SelectItem value="pt-BR">Português (Brasil)</SelectItem>
+            </SelectContent>
+          </Select>
+        </Control>
+      </ControlGroup>
+
+      <ControlGroup
+        title={t("settings.general.startup")}
         endDescription={
           supportsAutoLaunch
-            ? "Launch Whispo automatically when you sign in."
-            : "Auto-launch is available on macOS and Windows builds."
+            ? t("settings.general.launchOnLoginDesc")
+            : t("settings.general.launchOnLoginUnavailable")
         }
       >
-        <Control label="Launch on login" className="px-3">
+        <Control label={t("settings.general.launchOnLogin")} className="px-3">
           <Switch
             checked={launchOnStartup}
             disabled={!supportsAutoLaunch}

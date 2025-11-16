@@ -20,10 +20,11 @@ import type {
 } from "../shared/types"
 import { RendererHandlers } from "./renderer-handlers"
 import { postProcessTranscript } from "./llm"
+import { enhancementService } from "./services/enhancement-service"
 import { abortOngoingTranscription, state } from "./state"
 import { updateTrayIcon } from "./tray"
 import { isAccessibilityGranted } from "./utils"
-import { writeText } from "./keyboard"
+import { writeText, openAccessibilitySettings } from "./keyboard"
 import { clipboardManager } from "./clipboard-manager"
 import { transcribeWithLocalModel } from "./local-transcriber"
 import { historyStore } from "./history-store"
@@ -199,6 +200,10 @@ export const router = {
     )
   }),
 
+  openAccessibilitySettings: t.procedure.action(async () => {
+    await openAccessibilitySettings()
+  }),
+
   hidePanelWindow: t.procedure.action(async () => {
     const panel = WINDOWS.get("panel")
 
@@ -362,22 +367,47 @@ export const router = {
               type: mimeType,
             }),
           )
-          form.append("model", providerId === "groq" ? "whisper-large-v3" : "whisper-1")
+          const model =
+            providerId === "groq"
+              ? config.groqWhisperModel || "whisper-large-v3"
+              : providerId === "openrouter"
+                ? config.openrouterModel || "whisper-1"
+                : providerId === "openai"
+                  ? config.openaiWhisperModel || "whisper-1"
+                  : providerId === "gemini"
+                    ? config.geminiModel || "gemini-1.5-flash-002"
+                    : "whisper-1"
+
+          form.append("model", model)
           form.append("response_format", "json")
 
           const groqBaseUrl =
             config.groqBaseUrl || "https://api.groq.com/openai/v1"
           const openaiBaseUrl =
             config.openaiBaseUrl || "https://api.openai.com/v1"
+          const openrouterBaseUrl =
+            config.openrouterBaseUrl || "https://openrouter.ai/api/v1"
+
+          const baseUrl =
+            providerId === "groq"
+              ? groqBaseUrl
+              : providerId === "openrouter"
+                ? openrouterBaseUrl
+                : openaiBaseUrl
+
+          const apiKey =
+            providerId === "groq"
+              ? config.groqApiKey
+              : providerId === "openrouter"
+                ? config.openrouterApiKey
+                : config.openaiApiKey
 
           const transcriptResponse = await fetch(
-            providerId === "groq"
-              ? `${groqBaseUrl}/audio/transcriptions`
-              : `${openaiBaseUrl}/audio/transcriptions`,
+            `${baseUrl}/audio/transcriptions`,
             {
               method: "POST",
               headers: {
-                Authorization: `Bearer ${providerId === "groq" ? config.groqApiKey : config.openaiApiKey}`,
+                Authorization: `Bearer ${apiKey}`,
               },
               body: form,
               signal: controller.signal,
@@ -401,9 +431,24 @@ export const router = {
 
         transcriptionLatencyMs = Date.now() - transcriptionStartedAt
         const postProcessingStartedAt = Date.now()
-        transcript = await postProcessTranscript(baseTranscript, {
+
+        // Call postProcessTranscript with metadata return if enhancement is enabled
+        const postProcessResult = await postProcessTranscript(baseTranscript, {
           signal: controller.signal,
+          returnMetadata: config.enhancementEnabled,
         })
+
+        // Handle both string and object returns
+        if (typeof postProcessResult === "string") {
+          transcript = postProcessResult
+        } else {
+          transcript = postProcessResult.text
+          // Store enhancement metadata in a variable for later use
+          if (postProcessResult.metadata) {
+            var enhancementMetadata = postProcessResult.metadata
+          }
+        }
+
         postProcessingTimeMs = Date.now() - postProcessingStartedAt
       } catch (error) {
         if ((error as Error).name === "AbortError") {
@@ -459,6 +504,13 @@ export const router = {
         confidenceScore: accuracyScore,
         tags: [],
         audioProfile: normalizedAudioProfile,
+        // Enhancement metadata
+        ...(enhancementMetadata && {
+          originalTranscript: enhancementMetadata.originalTranscript,
+          enhancementPromptId: enhancementMetadata.enhancementPromptId,
+          enhancementProvider: enhancementMetadata.enhancementProvider,
+          enhancementProcessingTime: enhancementMetadata.enhancementProcessingTime,
+        }),
       }
 
       historyStore.append(item)
@@ -657,6 +709,69 @@ export const router = {
         )
       }
     }),
+
+  // Enhancement procedures
+  enhanceTranscript: t.procedure
+    .input<{
+      text: string
+      promptId?: string
+      skipContext?: boolean
+    }>()
+    .action(async ({ input }) => {
+      return await enhancementService.enhanceTranscript(input.text, {
+        promptId: input.promptId,
+        skipContext: input.skipContext,
+      })
+    }),
+
+  getEnhancementHistory: t.procedure.action(async () => {
+    return enhancementService.getHistory()
+  }),
+
+  clearEnhancementHistory: t.procedure.action(async () => {
+    enhancementService.clearHistory()
+  }),
+
+  getEnhancementResult: t.procedure
+    .input<{ id: string }>()
+    .action(async ({ input }) => {
+      return enhancementService.getResult(input.id)
+    }),
+
+  fetchOpenRouterModels: t.procedure.action(async () => {
+    const config = configStore.get()
+    const apiKey = config.openrouterApiKey
+
+    if (!apiKey) {
+      throw new Error("OpenRouter API key is required")
+    }
+
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/models", {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch OpenRouter models: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      return data.data as Array<{
+        id: string
+        name: string
+        pricing: {
+          prompt: string
+          completion: string
+        }
+        context_length: number
+      }>
+    } catch (error) {
+      console.error("[OpenRouter] Failed to fetch models:", error)
+      throw error
+    }
+  }),
 
   recordEvent: t.procedure
     .input<{ type: "start" | "end" }>()

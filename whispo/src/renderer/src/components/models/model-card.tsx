@@ -1,4 +1,5 @@
 import { Button } from "@renderer/components/ui/button"
+import { Input } from "@renderer/components/ui/input"
 import { DownloadProgress } from "./download-progress"
 import { RatingDots } from "./rating-dots"
 import type {
@@ -6,7 +7,22 @@ import type {
   DownloadProgress as DownloadProgressType,
   LocalModel,
 } from "@shared/index"
-import { Globe, HardDrive, Cpu, Download, Loader2 } from "lucide-react"
+import { Globe, HardDrive, Cpu, Download, Loader2, Cloud, Settings } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@renderer/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@renderer/components/ui/select"
+import { useState, useMemo } from "react"
 
 type ModelCardProps = {
   model: AnyModel
@@ -16,6 +32,19 @@ type ModelCardProps = {
   onDelete?: () => void
   onReveal?: () => void
   downloadProgress?: DownloadProgressType | null
+  // Cloud provider specific props
+  apiKeyValue?: string
+  baseUrlValue?: string
+  basePlaceholder?: string
+  onApiKeyChange?: (value: string) => void
+  onBaseUrlChange?: (value: string) => void
+  // Generic model selection props (works for any provider)
+  availableModels?: Array<{id: string; name: string}>
+  selectedModel?: string
+  onModelChange?: (model: string) => void
+  // Optional: for providers that need to fetch models dynamically (like OpenRouter)
+  onFetchModels?: () => void
+  isLoadingModels?: boolean
 }
 
 export function ModelCard({
@@ -26,9 +55,24 @@ export function ModelCard({
   onDelete,
   onReveal,
   downloadProgress,
+  apiKeyValue,
+  baseUrlValue,
+  basePlaceholder,
+  onApiKeyChange,
+  onBaseUrlChange,
+  availableModels,
+  selectedModel,
+  onModelChange,
+  onFetchModels,
+  isLoadingModels,
 }: ModelCardProps) {
+  const [configDialogOpen, setConfigDialogOpen] = useState(false)
+  const [modelSearchQuery, setModelSearchQuery] = useState("")
   const isLocal = model.provider === "local"
   const isImported = model.provider === "local-imported"
+  const isCloudProvider = model.provider === "openai" || model.provider === "groq" || model.provider === "gemini" || model.provider === "openrouter"
+  const supportsModelSelection = availableModels && availableModels.length > 0 && onModelChange
+  const needsFetchModels = onFetchModels && (!availableModels || availableModels.length === 0 || availableModels[0]?.id === "")
   const localModel = (isLocal ? model : null) as LocalModel | null
   const isDownloaded =
     (isLocal && !!localModel?.isDownloaded && !!localModel?.localPath) ||
@@ -45,6 +89,18 @@ export function ModelCard({
       ? formatSeconds(downloadProgress.eta)
       : undefined
 
+  // Filter models based on search query
+  const filteredModels = useMemo(() => {
+    if (!availableModels) return []
+    if (!modelSearchQuery.trim()) return availableModels
+
+    const query = modelSearchQuery.toLowerCase()
+    return availableModels.filter(m =>
+      m.id.toLowerCase().includes(query) ||
+      m.name.toLowerCase().includes(query)
+    )
+  }, [availableModels, modelSearchQuery])
+
   return (
     <div
       className={`rounded-lg border p-4 transition-colors ${isDefault ? "border-primary bg-primary/5" : "bg-background"}`}
@@ -52,7 +108,10 @@ export function ModelCard({
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="text-sm font-semibold">{model.displayName}</div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          {isDefault && <StatusBadge label="Default" />}
+          {isDefault && !isCloudProvider && <StatusBadge label="Default" />}
+          {isDefault && isCloudProvider && <StatusBadge label="Active" />}
+          {isCloudProvider && apiKeyValue && <StatusBadge label="Configured" />}
+          {isCloudProvider && !apiKeyValue && <StatusBadge label="Missing API Key" variant="warning" />}
           {isDownloaded && !isDefault && <StatusBadge label="Downloaded" />}
           {isImported && <StatusBadge label="Imported" />}
         </div>
@@ -60,9 +119,124 @@ export function ModelCard({
 
       {renderMetadata(localModel)}
 
-      <p className="mb-3 line-clamp-2 text-xs text-muted-foreground">
-        {model.description}
-      </p>
+      {isCloudProvider && (
+        <div className="mb-2 flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <Cloud className="h-3.5 w-3.5" />
+            <span>{model.description}</span>
+          </div>
+        </div>
+      )}
+
+      {!isCloudProvider && (
+        <p className="mb-3 line-clamp-2 text-xs text-muted-foreground">
+          {model.description}
+        </p>
+      )}
+
+      {isCloudProvider && onApiKeyChange && onBaseUrlChange && (
+        <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="gap-1.5">
+              <Settings className="h-3.5 w-3.5" />
+              Configure API
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{model.displayName} Configuration</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor={`${model.id}-api-key`} className="text-sm font-medium">
+                  API Key
+                </label>
+                <Input
+                  id={`${model.id}-api-key`}
+                  type="password"
+                  value={apiKeyValue || ""}
+                  onChange={(e) => onApiKeyChange(e.currentTarget.value)}
+                  placeholder="sk-..."
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor={`${model.id}-base-url`} className="text-sm font-medium">
+                  Base URL
+                </label>
+                <Input
+                  id={`${model.id}-base-url`}
+                  type="url"
+                  value={baseUrlValue || ""}
+                  onChange={(e) => onBaseUrlChange(e.currentTarget.value)}
+                  placeholder={basePlaceholder}
+                />
+              </div>
+              {(supportsModelSelection || needsFetchModels) && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor={`${model.id}-model`} className="text-sm font-medium">
+                      Model
+                    </label>
+                    {supportsModelSelection && availableModels && availableModels.length > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {filteredModels.length} of {availableModels.length} models
+                      </span>
+                    )}
+                  </div>
+                  {needsFetchModels ? (
+                    <Button
+                      size="sm"
+                      onClick={onFetchModels}
+                      disabled={isLoadingModels || !apiKeyValue}
+                    >
+                      {isLoadingModels ? (
+                        <>
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                          Loading models...
+                        </>
+                      ) : (
+                        "Fetch Available Models"
+                      )}
+                    </Button>
+                  ) : (
+                    <>
+                      {availableModels && availableModels.length > 10 && (
+                        <Input
+                          placeholder="Search models..."
+                          value={modelSearchQuery}
+                          onChange={(e) => setModelSearchQuery(e.currentTarget.value)}
+                          className="mb-2"
+                        />
+                      )}
+                      <Select
+                        value={selectedModel || ""}
+                        onValueChange={onModelChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a model..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[400px]">
+                          {filteredModels.length === 0 ? (
+                            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                              No models found
+                            </div>
+                          ) : (
+                            filteredModels.map((m) => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {isDownloading && downloadProgress && (
         <DownloadProgress
@@ -100,8 +274,16 @@ export function ModelCard({
           </Button>
         )}
 
+        {isCloudProvider && !isDefault && onSetDefault && (
+          <Button size="sm" onClick={onSetDefault}>
+            Set as Default
+          </Button>
+        )}
+
         {isDefault && (
-          <span className="text-xs text-muted-foreground">Default model</span>
+          <span className="text-xs text-muted-foreground">
+            {isCloudProvider ? "Active provider" : "Default model"}
+          </span>
         )}
 
         {isDownloaded && (onReveal || onDelete) && (
@@ -151,8 +333,12 @@ const renderMetadata = (model: LocalModel | null) => {
   )
 }
 
-const StatusBadge = ({ label }: { label: string }) => (
-  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] uppercase tracking-tight">
+const StatusBadge = ({ label, variant }: { label: string; variant?: "default" | "warning" }) => (
+  <span className={`rounded-full px-2 py-0.5 text-[11px] uppercase tracking-tight ${
+    variant === "warning"
+      ? "bg-amber-500/10 text-amber-300"
+      : "bg-muted"
+  }`}>
     {label}
   </span>
 )

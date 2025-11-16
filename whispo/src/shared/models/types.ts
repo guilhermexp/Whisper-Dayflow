@@ -4,6 +4,7 @@ export type ModelProvider =
   | "openai"
   | "groq"
   | "gemini"
+  | "openrouter"
   | "deepgram"
   | "custom"
 
