@@ -59,9 +59,9 @@ export const Component = () => {
 
   return (
     <div className="flex h-dvh bg-black text-white">
-      <div className="app-drag-region relative w-48 shrink-0 p-3 text-sm">
+      <div className="app-drag-region relative w-48 shrink-0 p-2 text-sm">
         <div className="pointer-events-none absolute inset-0 border-r border-white/10 bg-white/5 backdrop-blur-sm" />
-        <div className="relative mt-6 grid gap-1">
+        <div className="relative mt-4 grid gap-0.5">
           {navLinks.map((link, _index) => (
             <div key={link.text}>
               <NavLink
@@ -71,10 +71,10 @@ export const Component = () => {
                 draggable={false}
                 className={({ isActive }) =>
                   cn(
-                    "flex h-9 items-center gap-2.5 rounded-pill px-3 font-medium transition-all duration-200",
-                    "hover:scale-[1.02] active:scale-[0.98]",
+                    "flex h-8 items-center gap-2 rounded-lg px-2.5 text-caption font-medium transition-all duration-150",
+                    "hover:scale-[1.01] active:scale-[0.99]",
                     isActive
-                      ? "bg-white/20 text-white shadow-sm"
+                      ? "bg-white/15 text-white shadow-sm"
                       : "text-white/70 hover:bg-white/10 hover:text-white",
                   )
                 }
@@ -83,14 +83,14 @@ export const Component = () => {
                 <span>{link.text}</span>
               </NavLink>
               {link.separator && (
-                <div className="my-3 h-px bg-white/10" />
+                <div className="my-2 h-px bg-white/10" />
               )}
             </div>
           ))}
         </div>
       </div>
       <div className="relative flex grow flex-col overflow-hidden">
-        <div className="flex grow flex-col overflow-auto px-6 py-4">
+        <div className="flex grow flex-col overflow-auto px-4 py-3">
           <Outlet />
         </div>
       </div>

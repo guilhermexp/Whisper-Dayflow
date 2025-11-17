@@ -5,7 +5,7 @@ import { tv, type VariantProps } from "tailwind-variants"
 import { cn } from "~/lib/utils"
 
 const buttonVariants = tv({
-  base: "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 disabled:pointer-events-none disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]",
+  base: "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-body font-medium transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]",
   variants: {
     variant: {
       default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
@@ -22,10 +22,10 @@ const buttonVariants = tv({
       glassDone: "relative overflow-hidden bg-white/90 text-black hover:bg-gray-100 active:bg-gray-200",
     },
     size: {
-      default: "h-9 px-4 py-2",
-      sm: "h-8 rounded-pill px-3 text-xs",
-      lg: "h-10 rounded-pill px-8",
-      icon: "h-8 w-8 rounded-pill",
+      default: "h-9 px-3 py-2",
+      sm: "h-8 px-2.5 text-xs",
+      lg: "h-11 px-4",
+      icon: "h-9 w-9",
     },
   },
   defaultVariants: {

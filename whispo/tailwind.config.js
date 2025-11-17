@@ -8,11 +8,37 @@ export default {
   content: ["./src/renderer/**/*.tsx"],
   theme: {
     extend: {
+      fontSize: {
+        'display': ['48px', { lineHeight: '1.2', fontWeight: '700' }],
+        'h1': ['32px', { lineHeight: '1.2', fontWeight: '700' }],
+        'h2': ['24px', { lineHeight: '1.3', fontWeight: '600' }],
+        'h3': ['20px', { lineHeight: '1.4', fontWeight: '600' }],
+        'h4': ['18px', { lineHeight: '1.4', fontWeight: '500' }],
+        'body': ['14px', { lineHeight: '1.6', fontWeight: '400' }],
+        'caption': ['12px', { lineHeight: '1.5', fontWeight: '400' }],
+      },
+      spacing: {
+        'xs': '4px',
+        'sm': '8px',
+        'md': '12px',
+        'base': '16px',
+        'lg': '24px',
+        'xl': '32px',
+        '2xl': '48px',
+        '3xl': '64px',
+      },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-        pill: "9000px",
+        'sm': '6px',
+        'DEFAULT': '8px',
+        'lg': '12px',
+        'xl': '16px',
+        'pill': '9000px',
+      },
+      boxShadow: {
+        'sm': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+        'DEFAULT': '0 1px 3px 0 rgb(0 0 0 / 0.1)',
+        'md': '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        'lg': '0 10px 15px -3px rgb(0 0 0 / 0.1)',
       },
       colors: {
         background: "hsl(var(--background))",
