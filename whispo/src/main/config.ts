@@ -7,6 +7,25 @@ import {
   syncAutoLaunchSetting,
 } from "./auto-launch"
 import { PREDEFINED_PROMPTS } from "../shared/data/predefined-prompts"
+import { mediaController } from "./services/media-controller"
+
+/**
+ * Atomically writes data to a file to prevent corruption
+ * Writes to a temporary file first, then renames it
+ */
+const atomicWriteFileSync = (filePath: string, data: string) => {
+  const tmpPath = `${filePath}.tmp`
+  try {
+    fs.writeFileSync(tmpPath, data, "utf8")
+    fs.renameSync(tmpPath, filePath)
+  } catch (error) {
+    // Clean up temp file if it exists
+    if (fs.existsSync(tmpPath)) {
+      fs.unlinkSync(tmpPath)
+    }
+    throw error
+  }
+}
 
 export const dataFolder = path.join(app.getPath("appData"), process.env.APP_ID)
 
@@ -96,12 +115,16 @@ class ConfigStore {
     const { config: migratedConfig } = applyConfigMigrations(next)
     this.config = migratedConfig
     syncAutoLaunchSetting(this.config.launchOnStartup ?? false)
+
+    // Update media controller when config changes
+    mediaController.setEnabled(this.config.isPauseMediaEnabled ?? false)
+
     this.persist()
   }
 
   private persist() {
     fs.mkdirSync(dataFolder, { recursive: true })
-    fs.writeFileSync(configPath, JSON.stringify(this.config))
+    atomicWriteFileSync(configPath, JSON.stringify(this.config, null, 2))
   }
 }
 

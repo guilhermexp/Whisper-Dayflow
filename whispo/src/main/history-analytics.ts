@@ -403,9 +403,9 @@ const buildModelRanking = (
       if (!enhancementProvider) continue
 
       modelId = enhancementProvider
-      modelName = enhancementProvider === "openai" ? "OpenAI (gpt-4o-mini)"
-        : enhancementProvider === "groq" ? "Groq (llama-3.1-70b)"
-        : enhancementProvider === "gemini" ? "Gemini (flash-002)"
+      modelName = enhancementProvider === "openai" ? "OpenAI"
+        : enhancementProvider === "groq" ? "Groq"
+        : enhancementProvider === "gemini" ? "Gemini"
         : enhancementProvider === "openrouter" ? "OpenRouter"
         : enhancementProvider
 

@@ -162,9 +162,9 @@ export const Component = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">OpenAI (gpt-4o-mini)</SelectItem>
-                <SelectItem value="groq">Groq (llama-3.1-70b)</SelectItem>
-                <SelectItem value="gemini">Gemini (flash-002)</SelectItem>
+                <SelectItem value="openai">OpenAI</SelectItem>
+                <SelectItem value="groq">Groq</SelectItem>
+                <SelectItem value="gemini">Gemini</SelectItem>
                 <SelectItem value="openrouter">OpenRouter</SelectItem>
                 <SelectItem value="custom">{t("settings.enhancement.customProvider")}</SelectItem>
               </SelectContent>

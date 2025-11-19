@@ -58,8 +58,8 @@
   --chart-1: 220 70% 50%;
   --chart-2: 160 60% 45%;
   --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
+  --chart-4: 43 74% 66%;
+  --chart-5: 190 90% 50%;
 }
 
 * {
@@ -109,23 +109,21 @@ select {
 /* Glass UI Utilities */
 @layer utilities {
   .glass-effect {
-    @apply bg-glass-bg backdrop-blur-glass border border-glass-border/10;
+    @apply bg-white/[0.08] backdrop-blur-md border border-white/10;
   }
 
   .glass-container {
-    @apply bg-glass-bg backdrop-blur-glass rounded-pill p-2 relative overflow-hidden;
+    @apply bg-white/[0.05] backdrop-blur-xl rounded-2xl p-4 relative overflow-hidden border border-white/[0.08] shadow-2xl;
   }
 
   .glass-border::after {
     content: '';
-    @apply absolute inset-0 rounded-pill pointer-events-none;
+    @apply absolute inset-0 rounded-[inherit] pointer-events-none;
     padding: 1px;
-    background: linear-gradient(
-      169deg,
-      rgba(255, 255, 255, 0.17) 0%,
-      rgba(255, 255, 255, 0.08) 50%,
-      rgba(255, 255, 255, 0.17) 100%
-    );
+    background: linear-gradient(169deg,
+        rgba(255, 255, 255, 0.15) 0%,
+        rgba(255, 255, 255, 0.05) 50%,
+        rgba(255, 255, 255, 0.15) 100%);
     -webkit-mask:
       linear-gradient(#fff 0 0) content-box,
       linear-gradient(#fff 0 0);
@@ -134,9 +132,7 @@ select {
   }
 
   .smooth-transition {
-    transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1),
-                opacity 0.2s ease-out,
-                background 0.15s ease;
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
   }
 
   .accelerated {
@@ -148,26 +144,33 @@ select {
 
 /* Loading dots animation */
 @keyframes pulse {
-  0%, 80%, 100% {
+
+  0%,
+  80%,
+  100% {
     opacity: 0.2;
+    transform: scale(0.8);
   }
+
   40% {
     opacity: 1.0;
+    transform: scale(1.1);
   }
 }
 
 .loading-dots {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .loading-dots span {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   background-color: white;
   border-radius: 50%;
   animation: pulse 1.4s infinite ease-in-out both;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
 .loading-dots span:nth-of-type(1) {
@@ -188,8 +191,9 @@ select {
 
 /* Backdrop filter fallback */
 @supports not (backdrop-filter: blur(10px)) {
+
   .glass-effect,
   .glass-container {
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(20, 20, 28, 0.95);
   }
 }

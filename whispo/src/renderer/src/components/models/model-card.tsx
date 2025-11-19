@@ -103,11 +103,11 @@ export function ModelCard({
 
   return (
     <div
-      className={`rounded-lg border p-4 transition-colors ${isDefault ? "border-primary bg-primary/5" : "bg-background"}`}
+      className={`rounded-lg border p-2.5 transition-colors ${isDefault ? "border-primary bg-primary/5" : "bg-background"}`}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="text-sm font-semibold">{model.displayName}</div>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <div className="text-[13px] font-semibold">{model.displayName}</div>
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
           {isDefault && !isCloudProvider && <StatusBadge label="Default" />}
           {isDefault && isCloudProvider && <StatusBadge label="Active" />}
           {isCloudProvider && apiKeyValue && <StatusBadge label="Configured" />}
@@ -120,16 +120,16 @@ export function ModelCard({
       {renderMetadata(localModel)}
 
       {isCloudProvider && (
-        <div className="mb-2 flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="mb-1.5 flex items-center gap-2 text-[10px] text-muted-foreground">
           <div className="flex items-center gap-1">
-            <Cloud className="h-3.5 w-3.5" />
+            <Cloud className="h-3 w-3" />
             <span>{model.description}</span>
           </div>
         </div>
       )}
 
       {!isCloudProvider && (
-        <p className="mb-3 line-clamp-2 text-xs text-muted-foreground">
+        <p className="mb-2 line-clamp-2 text-[10px] text-muted-foreground">
           {model.description}
         </p>
       )}
@@ -137,8 +137,8 @@ export function ModelCard({
       {isCloudProvider && onApiKeyChange && onBaseUrlChange && (
         <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" variant="outline" className="gap-1.5">
-              <Settings className="h-3.5 w-3.5" />
+            <Button size="sm" variant="outline" className="gap-1 h-7 text-[11px]">
+              <Settings className="h-3 w-3" />
               Configure API
             </Button>
           </DialogTrigger>
@@ -246,22 +246,22 @@ export function ModelCard({
         />
       )}
 
-      <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+      <div className="mt-2 flex flex-wrap items-center justify-end gap-1.5">
         {!isDownloaded && isLocal && (
           <Button
             size="sm"
-            className="gap-1"
+            className="gap-1 h-7 text-[11px]"
             onClick={onDownload}
             disabled={isDownloading}
           >
             {isDownloading ? (
               <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
                 Downloading…
               </>
             ) : (
               <>
-                <Download className="h-3.5 w-3.5" />
+                <Download className="h-3 w-3" />
                 Download
               </>
             )}
@@ -269,19 +269,19 @@ export function ModelCard({
         )}
 
         {isDownloaded && !isDefault && (
-          <Button size="sm" onClick={onSetDefault}>
+          <Button size="sm" className="h-7 text-[11px]" onClick={onSetDefault}>
             Set as Default
           </Button>
         )}
 
         {isCloudProvider && !isDefault && onSetDefault && (
-          <Button size="sm" onClick={onSetDefault}>
+          <Button size="sm" className="h-7 text-[11px]" onClick={onSetDefault}>
             Set as Default
           </Button>
         )}
 
         {isDefault && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[10px] text-muted-foreground">
             {isCloudProvider ? "Active provider" : "Default model"}
           </span>
         )}
@@ -289,7 +289,7 @@ export function ModelCard({
         {isDownloaded && (onReveal || onDelete) && (
           <>
             {onReveal && (
-              <Button variant="ghost" size="sm" onClick={onReveal}>
+              <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={onReveal}>
                 Reveal
               </Button>
             )}
@@ -297,7 +297,7 @@ export function ModelCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-destructive"
+                className="text-destructive h-7 text-[11px]"
                 onClick={onDelete}
               >
                 Delete
@@ -314,19 +314,19 @@ const renderMetadata = (model: LocalModel | null) => {
   if (!model) return null
 
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-      <div className="flex items-center gap-1">
-        <Globe className="h-3.5 w-3.5" />
+    <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+      <div className="flex items-center gap-0.5">
+        <Globe className="h-3 w-3" />
         <span className="capitalize">{model.language}</span>
       </div>
-      <div className="flex items-center gap-1">
-        <HardDrive className="h-3.5 w-3.5" />
+      <div className="flex items-center gap-0.5">
+        <HardDrive className="h-3 w-3" />
         <span>{model.size}</span>
       </div>
       <RatingDots label="Speed" value={model.speed} />
       <RatingDots label="Accuracy" value={model.accuracy} />
-      <div className="flex items-center gap-1">
-        <Cpu className="h-3.5 w-3.5" />
+      <div className="flex items-center gap-0.5">
+        <Cpu className="h-3 w-3" />
         <span>{model.ramUsage} GB RAM</span>
       </div>
     </div>
@@ -334,7 +334,7 @@ const renderMetadata = (model: LocalModel | null) => {
 }
 
 const StatusBadge = ({ label, variant }: { label: string; variant?: "default" | "warning" }) => (
-  <span className={`rounded-full px-2 py-0.5 text-[11px] uppercase tracking-tight ${
+  <span className={`rounded-full px-1.5 py-0.5 text-[9px] uppercase tracking-tight ${
     variant === "warning"
       ? "bg-amber-500/10 text-amber-300"
       : "bg-muted"

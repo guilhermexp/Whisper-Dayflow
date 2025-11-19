@@ -17,9 +17,9 @@ const buttonVariants = tv({
       ghost:
         "hover:bg-accent dark:hover:bg-neutral-800 hover:text-accent-foreground",
       link: "text-primary underline-offset-4 hover:underline",
-      glass: "relative overflow-hidden bg-white/[0.14] text-white hover:bg-white/[0.18] active:bg-white/[0.25] glass-border",
-      glassActive: "relative overflow-hidden bg-red-500/50 text-white hover:bg-red-400/60 active:bg-red-500/70 glass-border",
-      glassDone: "relative overflow-hidden bg-white/90 text-black hover:bg-gray-100 active:bg-gray-200",
+      glass: "glass-effect text-white hover:bg-white/[0.12] active:bg-white/[0.16] shadow-lg hover:shadow-xl border-white/10",
+      glassActive: "bg-red-500/20 text-white hover:bg-red-500/30 active:bg-red-500/40 border border-red-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(239,68,68,0.2)]",
+      glassDone: "bg-white/90 text-black hover:bg-white active:bg-white/80 shadow-lg backdrop-blur-md font-semibold",
     },
     size: {
       default: "h-9 px-3 py-2",
@@ -36,7 +36,7 @@ const buttonVariants = tv({
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  VariantProps<typeof buttonVariants> {
   asChild?: boolean
 }
 

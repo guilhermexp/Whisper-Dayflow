@@ -8,6 +8,13 @@ import { queryClient } from "@renderer/lib/query-client"
 import { rendererHandlers, tipcClient } from "@renderer/lib/tipc-client"
 import { cn } from "@renderer/lib/utils"
 import { useTranslation } from "react-i18next"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@renderer/components/ui/dialog"
 import type {
   RecordingHistoryItem,
   RecordingHistoryItemHighlight,
@@ -26,11 +33,11 @@ type SortField = NonNullable<RecordingHistorySearchFilters["sortBy"]>
 type FlattenedHistoryRow =
   | { type: "group"; id: string; label: string; count: number }
   | {
-      type: "record"
-      id: string
-      record: RecordingHistoryItem
-      highlight?: RecordingHistoryItemHighlight
-    }
+    type: "record"
+    id: string
+    record: RecordingHistoryItem
+    highlight?: RecordingHistoryItemHighlight
+  }
 
 const formatDuration = (ms: number) => {
   if (!ms) return "0s"
@@ -133,6 +140,10 @@ export function Component() {
   const sortBy: SortField = "createdAt"
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkStatus, setBulkStatus] = useState<string | null>(null)
+  const [comparisonData, setComparisonData] = useState<{
+    original: string
+    enhanced: string
+  } | null>(null)
 
   const dateRange = useMemo(
     () => computeDateRange(datePreset, customDateRange),
@@ -469,8 +480,10 @@ export function Component() {
                       "text-white/60 hover:text-white",
                     )}
                     onClick={() => {
-                      // TODO: Open comparison dialog
-                      alert(`Original: ${record.originalTranscript}\n\nEnhanced: ${record.transcript}`)
+                      setComparisonData({
+                        original: record.originalTranscript || "",
+                        enhanced: record.transcript,
+                      })
                     }}
                   >
                     <span className="i-mingcute-transfer-line" />
@@ -539,7 +552,7 @@ export function Component() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-6 text-white">
+    <div className="flex min-h-full flex-col gap-6 text-white bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent">
       <PageHeader
         title={t("history.title")}
         description={t("history.description")}
@@ -630,6 +643,32 @@ export function Component() {
           )}
         </div>
       </div>
+
+      {/* Comparison Dialog */}
+      <Dialog open={!!comparisonData} onOpenChange={(open) => !open && setComparisonData(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Transcript Comparison</DialogTitle>
+            <DialogDescription>
+              Compare original transcript with enhanced version
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 overflow-y-auto flex-1">
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm text-white/80">Original</h3>
+              <div className="rounded-md bg-white/5 p-4 text-sm whitespace-pre-wrap">
+                {comparisonData?.original}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm text-white/80">Enhanced</h3>
+              <div className="rounded-md bg-white/5 p-4 text-sm whitespace-pre-wrap">
+                {comparisonData?.enhanced}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

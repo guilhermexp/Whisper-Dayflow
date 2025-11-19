@@ -15,6 +15,8 @@ import { createAppMenu } from "./menu"
 import { initTray } from "./tray"
 import { isAccessibilityGranted } from "./utils"
 import { globalShortcutManager } from "./global-shortcut"
+import { mediaController } from "./services/media-controller"
+import { configStore } from "./config"
 
 registerServeSchema()
 
@@ -52,6 +54,11 @@ app.whenReady().then(() => {
   } else {
     console.error('Failed to initialize global shortcuts')
   }
+
+  // Initialize media controller
+  const config = configStore.get()
+  mediaController.setEnabled(config.isPauseMediaEnabled ?? false)
+  console.log('[MediaController] Initialized, enabled:', mediaController.isEnabled())
 
   import("./updater").then((res) => res.init()).catch(console.error)
 

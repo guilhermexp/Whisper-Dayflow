@@ -45,9 +45,9 @@ export async function postProcessTranscript(
         console.log("[enhancement] Provider used:", result.provider)
         console.log("[enhancement] Model used:", config.enhancementProvider === "openrouter"
           ? config.openrouterModel || "openai/gpt-4o-mini"
-          : config.enhancementProvider === "openai" ? "gpt-4o-mini"
-          : config.enhancementProvider === "groq" ? "llama-3.1-70b-versatile"
-          : config.enhancementProvider === "gemini" ? "gemini-1.5-flash-002"
+          : config.enhancementProvider === "openai" ? config.openaiModel || "gpt-4o-mini"
+          : config.enhancementProvider === "groq" ? config.groqModel || "llama-3.1-70b-versatile"
+          : config.enhancementProvider === "gemini" ? config.geminiModel || "gemini-1.5-flash-002"
           : config.customEnhancementModel || "gpt-4o-mini"
         )
         console.log("[enhancement] Prompt used:", result.promptId)
@@ -99,7 +99,7 @@ export async function postProcessTranscript(
     if (!config.geminiApiKey) throw new Error("Gemini API key is required")
 
     const gai = new GoogleGenerativeAI(config.geminiApiKey)
-    const gModel = gai.getGenerativeModel({ model: "gemini-1.5-flash-002" })
+    const gModel = gai.getGenerativeModel({ model: config.geminiModel || "gemini-1.5-flash-002" })
 
     ensureNotAborted()
     const result = await gModel.generateContent([prompt], {
@@ -145,6 +145,16 @@ export async function postProcessTranscript(
   if (import.meta.env.DEV) {
     console.log(chatJson)
   }
+
+  // Validate API response structure
+  if (!chatJson.choices || !Array.isArray(chatJson.choices) || chatJson.choices.length === 0) {
+    throw new Error("Invalid API response: missing or empty choices array")
+  }
+
+  if (!chatJson.choices[0].message || typeof chatJson.choices[0].message.content !== "string") {
+    throw new Error("Invalid API response: missing or invalid message content")
+  }
+
   const result = chatJson.choices[0].message.content.trim()
   return result
 }

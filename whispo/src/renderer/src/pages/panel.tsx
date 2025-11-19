@@ -1,4 +1,4 @@
-import { Spinner } from "@renderer/components/ui/spinner"
+
 import { Recorder } from "@renderer/lib/recorder"
 import { playSound } from "@renderer/lib/sound"
 import { cn } from "@renderer/lib/utils"
@@ -271,14 +271,18 @@ export function Component() {
 
   return (
     <>
-      <div className="relative flex h-screen items-center justify-center rounded-2xl border border-gray-800/50 bg-black/90 backdrop-blur-sm">
+      <div className="relative flex h-screen items-center justify-center rounded-full border border-white/5 bg-black shadow-2xl">
         {transcribeMutation.isPending ? (
           <div className="flex h-full w-full items-center justify-center">
-            <Spinner />
+            <div className="loading-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
           </div>
         ) : (
           <div className="relative flex grow items-center justify-center overflow-hidden" dir="rtl">
-            <div className="flex h-4 items-center gap-0.5">
+            <div className="flex h-8 items-center gap-1">
               {visualizerData
                 .slice()
                 .reverse()
@@ -287,11 +291,15 @@ export function Component() {
                     <div
                       key={index}
                       className={cn(
-                        "w-0.5 shrink-0 rounded-full transition-all duration-75",
-                        rms === -1000 ? "bg-gray-600" : "bg-white shadow-sm",
+                        "w-1 shrink-0 rounded-full transition-all duration-100 ease-out",
+                        rms === -1000
+                          ? "h-1 bg-white/5"
+                          : "bg-white shadow-[0_0_8px_rgba(255,255,255,0.5)]"
                       )}
                       style={{
-                        height: `${Math.min(100, Math.max(8, rms * 100))}%`,
+                        height: rms === -1000 ? "4px" : `${Math.min(100, Math.max(12, rms * 120))}%`,
+                        opacity: rms === -1000 ? 0.5 : 1,
+                        transform: rms === -1000 ? "scaleY(1)" : "scaleY(1.1)",
                       }}
                     />
                   )

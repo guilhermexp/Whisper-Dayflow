@@ -260,7 +260,7 @@ export const router = {
     return isAccessibilityGranted()
   }),
 
-  requestAccesssbilityAccess: t.procedure.action(async () => {
+  requestAccessibilityAccess: t.procedure.action(async () => {
     if (process.platform === "win32") return true
 
     return systemPreferences.isTrustedAccessibilityClient(true)
@@ -330,6 +330,14 @@ export const router = {
       console.log(
         `[transcription] createRecording provider=${providerId} defaultLocal=${config.defaultLocalModel ?? "none"} mime=${mimeType}`,
       )
+
+      // Declare enhancementMetadata outside try block so it's accessible later
+      let enhancementMetadata: {
+        originalTranscript?: string
+        enhancementPromptId?: string
+        enhancementProvider?: string
+        enhancementProcessingTime?: number
+      } | undefined
 
       try {
         let baseTranscript: string | null = null
@@ -443,9 +451,9 @@ export const router = {
           transcript = postProcessResult
         } else {
           transcript = postProcessResult.text
-          // Store enhancement metadata in a variable for later use
+          // Store enhancement metadata for later use
           if (postProcessResult.metadata) {
-            var enhancementMetadata = postProcessResult.metadata
+            enhancementMetadata = postProcessResult.metadata
           }
         }
 
@@ -462,6 +470,10 @@ export const router = {
           state.transcriptionAbortController = null
         }
         state.isTranscribing = false
+
+        // Unmute system audio after transcription completes
+        const { mediaController } = await import("./services/media-controller")
+        await mediaController.unmuteSystemAudio()
       }
 
       if (!transcript) {
@@ -477,7 +489,7 @@ export const router = {
         transcriptWordCount > 0 && input.duration > 0
           ? Number(((transcriptWordCount / input.duration) * 60000).toFixed(2))
           : undefined
-      const accuracyScore = estimateConfidenceScore({
+      const confidenceScore = estimateConfidenceScore({
         words: transcriptWordCount,
         duration: input.duration,
         providerId,
@@ -500,8 +512,7 @@ export const router = {
         processingTimeMs,
         transcriptionLatencyMs,
         postProcessingTimeMs,
-        accuracyScore,
-        confidenceScore: accuracyScore,
+        confidenceScore,
         tags: [],
         audioProfile: normalizedAudioProfile,
         // Enhancement metadata

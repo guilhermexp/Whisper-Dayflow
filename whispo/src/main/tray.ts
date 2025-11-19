@@ -18,16 +18,16 @@ const buildMenu = (tray: Tray) =>
   Menu.buildFromTemplate([
     {
       label: state.isRecording ? "Cancel Recording" : "Start Recording",
-      click() {
+      async click() {
         if (state.isRecording) {
           state.isRecording = false
           tray.setImage(defaultIcon)
-          stopRecordingAndHidePanelWindow()
+          await stopRecordingAndHidePanelWindow()
           return
         }
         state.isRecording = true
         tray.setImage(stopIcon)
-        showPanelWindowAndStartRecording()
+        await showPanelWindowAndStartRecording()
       },
     },
     {

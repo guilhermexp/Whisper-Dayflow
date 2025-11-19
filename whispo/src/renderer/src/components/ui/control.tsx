@@ -36,14 +36,14 @@ export const ControlGroup = ({
   endDescription?: React.ReactNode
 }) => {
   return (
-    <div className={cn(CARD_BASE_CLASS, "space-y-3", className)}>
+    <div className={cn("glass-container glass-border space-y-3", className)}>
       {(title || endDescription) && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
           {title && (
-            <span className="text-sm font-semibold text-white">{title}</span>
+            <span className="text-sm font-semibold text-white/90 tracking-wide">{title}</span>
           )}
           {endDescription && (
-            <div className="text-xs text-white/70">{endDescription}</div>
+            <div className="text-xs text-white/60">{endDescription}</div>
           )}
         </div>
       )}

@@ -194,11 +194,15 @@ export const transcribeWithLocalModel = async ({
     await fs.promises.writeFile(wavPath, audioBuffer)
     console.log(`[local-transcriber] Wrote ${audioBuffer.length} bytes to ${wavPath}`)
 
-    const shouldDebugCopy = process.env.DEBUG_AUDIO === "1" || process.env.NODE_ENV === "development"
-    if (shouldDebugCopy) {
-      const debugPath = path.join(require('os').homedir(), 'Desktop', `debug-audio-${Date.now()}.wav`)
-      await fs.promises.copyFile(wavPath, debugPath)
-      console.log(`[local-transcriber] DEBUG: Audio saved to ${debugPath} for inspection`)
+    // Debug audio copy is only enabled with explicit DEBUG_AUDIO=1 environment variable
+    if (process.env.DEBUG_AUDIO === "1") {
+      try {
+        const debugPath = path.join(require('os').homedir(), 'Desktop', `debug-audio-${Date.now()}.wav`)
+        await fs.promises.copyFile(wavPath, debugPath)
+        console.log(`[local-transcriber] DEBUG: Audio saved to ${debugPath} for inspection`)
+      } catch (debugError) {
+        console.warn(`[local-transcriber] Failed to save debug audio:`, debugError)
+      }
     }
 
     console.log(`[local-transcriber] Starting inference with whispo-rs...`)

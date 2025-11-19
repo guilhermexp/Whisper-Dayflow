@@ -53,8 +53,12 @@ export const writeText = (text: string) => {
     })
 
     child.on("close", (code) => {
-      // writeText will trigger KeyPress event of the key A
-      // I don't know why
+      // WORKAROUND: The whispo-rs writeText operation triggers spurious KeyPress
+      // events (particularly 'A' key) after text simulation completes. This appears
+      // to be a side effect of the text simulation process in the Rust binary.
+      // Clearing the keysPressed map prevents these phantom key events from
+      // interfering with subsequent recording operations.
+      // TODO: Investigate root cause in whispo-rs text simulation logic
       keysPressed.clear()
 
       if (code === 0) {
@@ -121,7 +125,7 @@ export function listenToKeyboardEvents() {
     }
   }
 
-  const handleEvent = (e: RdevEvent) => {
+  const handleEvent = async (e: RdevEvent) => {
     if (e.event_type === "KeyPress") {
       const shortcut = configStore.get().shortcut || "hold-ctrl"
       const isFnShortcut = shortcut === "fn-key"
@@ -140,7 +144,7 @@ export function listenToKeyboardEvents() {
             }
 
             if (state.isRecording) {
-              stopRecordingAndHidePanelWindow()
+              await stopRecordingAndHidePanelWindow()
             } else if (state.isTranscribing) {
               abortOngoingTranscription()
               WINDOWS.get("panel")?.hide()
@@ -204,7 +208,7 @@ export function listenToKeyboardEvents() {
 
           // when holding ctrl key, pressing any other key will stop recording
           if (isHoldingShortcutKey) {
-            stopRecordingAndHidePanelWindow()
+            await stopRecordingAndHidePanelWindow()
           }
 
           isHoldingShortcutKey = false
@@ -236,7 +240,7 @@ export function listenToKeyboardEvents() {
         if (isHoldingShortcutKey) {
           getWindowRendererHandlers("panel")?.finishRecording.send()
         } else {
-          stopRecordingAndHidePanelWindow()
+          await stopRecordingAndHidePanelWindow()
         }
 
         isHoldingShortcutKey = false

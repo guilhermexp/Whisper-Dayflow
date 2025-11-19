@@ -14,6 +14,7 @@ import {
 } from "@egoist/electron-panel-window"
 import { RendererHandlers } from "./renderer-handlers"
 import { configStore } from "./config"
+import { mediaController } from "./services/media-controller"
 
 type WINDOW_ID = "main" | "panel" | "setup"
 
@@ -116,7 +117,7 @@ export function createSetupWindow() {
 export function showMainWindow(url?: string) {
   const win = WINDOWS.get("main")
 
-  if (win) {
+  if (win && !win.isDestroyed()) {
     win.show()
     if (url) {
       getRendererHandlers<RendererHandlers>(win.webContents).navigate.send(url)
@@ -178,7 +179,9 @@ export function createPanelWindow() {
   })
 
   win.on("hide", () => {
-    getRendererHandlers<RendererHandlers>(win.webContents).stopRecording.send()
+    if (!win.isDestroyed()) {
+      getRendererHandlers<RendererHandlers>(win.webContents).stopRecording.send()
+    }
   })
 
   makePanel(win)
@@ -196,8 +199,13 @@ export function showPanelWindow() {
   }
 }
 
-export function showPanelWindowAndStartRecording() {
+export async function showPanelWindowAndStartRecording() {
   showPanelWindow()
+
+  // Mute system audio if enabled
+  console.log("[Window] Calling mediaController.muteSystemAudio()")
+  await mediaController.muteSystemAudio()
+
   getWindowRendererHandlers("panel")?.startRecording.send()
 }
 
@@ -215,13 +223,18 @@ export const getWindowRendererHandlers = (id: WINDOW_ID) => {
   return getRendererHandlers<RendererHandlers>(win.webContents)
 }
 
-export const stopRecordingAndHidePanelWindow = () => {
+export const stopRecordingAndHidePanelWindow = async () => {
   const win = WINDOWS.get("panel")
-  if (win) {
+  if (win && !win.isDestroyed()) {
     getRendererHandlers<RendererHandlers>(win.webContents).stopRecording.send()
 
     if (win.isVisible()) {
       win.hide()
     }
   }
+
+  // Unmute system audio if we muted it
+  console.log("[Window] Calling mediaController.unmuteSystemAudio()")
+  await mediaController.unmuteSystemAudio()
+  console.log("[Window] mediaController.unmuteSystemAudio() completed")
 }

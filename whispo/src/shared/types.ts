@@ -28,6 +28,7 @@ export type RecordingHistoryItem = {
   processingTimeMs?: number
   transcriptionLatencyMs?: number
   postProcessingTimeMs?: number
+  /** @deprecated Use confidenceScore instead. Kept for backward compatibility. */
   accuracyScore?: number | null
   confidenceScore?: number | null
   tags?: string[]
@@ -157,10 +158,12 @@ export type Config = {
   openaiApiKey?: string
   openaiBaseUrl?: string
   openaiWhisperModel?: string
+  openaiModel?: string
 
   groqApiKey?: string
   groqBaseUrl?: string
   groqWhisperModel?: string
+  groqModel?: string
 
   geminiApiKey?: string
   geminiBaseUrl?: string
@@ -204,4 +207,7 @@ export type Config = {
   useClipboardContext?: boolean
   useSelectedTextContext?: boolean
   useScreenCaptureContext?: boolean
+
+  // Media Control
+  isPauseMediaEnabled?: boolean
 }

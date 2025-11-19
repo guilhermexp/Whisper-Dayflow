@@ -68,7 +68,7 @@ export const DATA_MODEL: AppDataModel = {
     { name: "showContextMenu", file: "src/main/tipc.ts", input: "{ x: number; y: number; selectedText?: string }" },
     { name: "getMicrophoneStatus", file: "src/main/tipc.ts", output: "string" },
     { name: "isAccessibilityGranted", file: "src/main/tipc.ts", output: "boolean" },
-    { name: "requestAccesssbilityAccess", file: "src/main/tipc.ts", output: "boolean" },
+    { name: "requestAccessibilityAccess", file: "src/main/tipc.ts", output: "boolean" },
     { name: "requestMicrophoneAccess", file: "src/main/tipc.ts", output: "boolean" },
     { name: "showPanelWindow", file: "src/main/tipc.ts" },
     { name: "displayError", file: "src/main/tipc.ts", input: "{ title?: string; message: string }" },

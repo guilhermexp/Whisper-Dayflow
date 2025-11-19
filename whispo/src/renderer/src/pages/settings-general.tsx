@@ -69,7 +69,7 @@ export function Component() {
 
       {process.env.IS_MAC && (
         <ControlGroup title={t("settings.general.app")}>
-          <Control label={t("settings.general.hideDockIcon")} className="px-3">
+          <Control label={t("settings.general.hideDockIcon")}>
             <Switch
               defaultChecked={configQuery.data.hideDockIcon}
               onCheckedChange={(value) => {
@@ -192,6 +192,24 @@ export function Component() {
           </Select>
         </Control>
       </ControlGroup>
+
+      {process.env.IS_MAC && (
+        <ControlGroup
+          title="Media Control"
+          endDescription="Automatically mute system audio during recording to prevent background noise"
+        >
+          <Control label="Mute System Audio" className="px-3">
+            <Switch
+              defaultChecked={configQuery.data.isPauseMediaEnabled ?? false}
+              onCheckedChange={(value) => {
+                saveConfig({
+                  isPauseMediaEnabled: value,
+                })
+              }}
+            />
+          </Control>
+        </ControlGroup>
+      )}
 
       <ControlGroup
         title={t("settings.general.startup")}

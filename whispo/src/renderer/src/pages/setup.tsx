@@ -27,7 +27,7 @@ export function Component() {
                 description={`We need Accessibility Access to capture keyboard events, so that you can hold Ctrl key to start recording, we don't log or store your keyboard events.`}
                 actionText="Enable in System Settings"
                 actionHandler={() => {
-                  tipcClient.requestAccesssbilityAccess()
+                  tipcClient.requestAccessibilityAccess()
                 }}
                 enabled={isAccessibilityGrantedQuery.data}
               />

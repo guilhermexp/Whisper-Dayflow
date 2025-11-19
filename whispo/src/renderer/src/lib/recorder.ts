@@ -128,6 +128,7 @@ export class Recorder extends EventEmitter<{
 
   analyseAudio(stream: MediaStream) {
     let processFrameTimer: number | null = null
+    let isStopped = false
 
     const audioContext = new AudioContext()
     const audioStreamSource = audioContext.createMediaStreamSource(stream)
@@ -142,11 +143,15 @@ export class Recorder extends EventEmitter<{
     const timeDomainData = new Uint8Array(analyser.fftSize)
 
     const animate = (fn: () => void) => {
-      processFrameTimer = requestAnimationFrame(fn)
+      if (!isStopped) {
+        processFrameTimer = requestAnimationFrame(fn)
+      }
     }
 
     const detectSound = () => {
       const processFrame = () => {
+        if (isStopped) return
+
         analyser.getByteTimeDomainData(timeDomainData)
         analyser.getByteFrequencyData(domainData)
 
@@ -165,7 +170,11 @@ export class Recorder extends EventEmitter<{
     detectSound()
 
     return () => {
-      processFrameTimer && cancelAnimationFrame(processFrameTimer)
+      isStopped = true
+      if (processFrameTimer !== null) {
+        cancelAnimationFrame(processFrameTimer)
+        processFrameTimer = null
+      }
       audioStreamSource.disconnect()
       audioContext.close()
     }

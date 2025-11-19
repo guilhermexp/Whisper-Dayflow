@@ -228,8 +228,9 @@ export class EnhancementService {
     const timeoutId = setTimeout(() => controller.abort(), timeout)
 
     // Combine external signal with timeout
+    const abortHandler = () => controller.abort()
     if (signal) {
-      signal.addEventListener("abort", () => controller.abort())
+      signal.addEventListener("abort", abortHandler)
     }
 
     try {
@@ -279,9 +280,23 @@ export class EnhancementService {
       }
 
       const data = await response.json()
+
+      // Validate API response structure
+      if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+        throw new Error("Invalid API response: missing or empty choices array")
+      }
+
+      if (!data.choices[0].message || typeof data.choices[0].message.content !== "string") {
+        throw new Error("Invalid API response: missing or invalid message content")
+      }
+
       return data.choices[0].message.content
     } finally {
       clearTimeout(timeoutId)
+      // Clean up abort handler to prevent memory leak
+      if (signal) {
+        signal.removeEventListener("abort", abortHandler)
+      }
     }
   }
 
@@ -292,9 +307,9 @@ export class EnhancementService {
     const config = configStore.get()
 
     const models = {
-      openai: "gpt-4o-mini",
-      groq: "llama-3.1-70b-versatile",
-      gemini: "gemini-1.5-flash-002",
+      openai: config.openaiModel ?? "gpt-4o-mini",
+      groq: config.groqModel ?? "llama-3.1-70b-versatile",
+      gemini: config.geminiModel ?? "gemini-1.5-flash-002",
       openrouter: config.openrouterModel ?? "openai/gpt-4o-mini",
       custom: config.customEnhancementModel ?? "gpt-4o-mini",
     }

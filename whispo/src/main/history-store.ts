@@ -5,6 +5,24 @@ import type { RecordingAudioProfile, RecordingHistoryItem } from "../shared/type
 
 const HISTORY_FILE_PATH = path.join(recordingsFolder, "history.json")
 
+/**
+ * Atomically writes data to a file to prevent corruption
+ * Writes to a temporary file first, then renames it
+ */
+const atomicWriteFileSync = (filePath: string, data: string) => {
+  const tmpPath = `${filePath}.tmp`
+  try {
+    fs.writeFileSync(tmpPath, data, "utf8")
+    fs.renameSync(tmpPath, filePath)
+  } catch (error) {
+    // Clean up temp file if it exists
+    if (fs.existsSync(tmpPath)) {
+      fs.unlinkSync(tmpPath)
+    }
+    throw error
+  }
+}
+
 type LegacyHistoryItem = Partial<RecordingHistoryItem> &
   Pick<RecordingHistoryItem, "id" | "createdAt" | "duration" | "transcript" | "filePath"> &
   {
@@ -55,6 +73,9 @@ export const normalizeRecordingHistoryItem = (
       ? Number(((transcriptWordCount / duration) * 60000).toFixed(2))
       : undefined)
 
+  // Migration: use accuracyScore as confidenceScore if confidenceScore is missing
+  const confidenceScore = item.confidenceScore ?? item.accuracyScore ?? null
+
   return {
     id: item.id,
     createdAt: item.createdAt ?? Date.now(),
@@ -71,8 +92,7 @@ export const normalizeRecordingHistoryItem = (
     processingTimeMs: item.processingTimeMs,
     transcriptionLatencyMs: item.transcriptionLatencyMs,
     postProcessingTimeMs: item.postProcessingTimeMs,
-    accuracyScore: item.accuracyScore ?? null,
-    confidenceScore: item.confidenceScore ?? null,
+    confidenceScore,
     tags: Array.isArray(item.tags) ? item.tags : [],
     audioProfile: ensureAudioProfile(item.audioProfile),
   }
@@ -90,7 +110,7 @@ const readFileIfExists = () => {
 
 const writeHistory = (history: RecordingHistoryItem[]) => {
   fs.mkdirSync(recordingsFolder, { recursive: true })
-  fs.writeFileSync(HISTORY_FILE_PATH, JSON.stringify(history))
+  atomicWriteFileSync(HISTORY_FILE_PATH, JSON.stringify(history, null, 2))
 }
 
 export const historyStore = {
