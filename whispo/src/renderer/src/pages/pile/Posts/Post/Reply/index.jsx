@@ -12,6 +12,7 @@ import { usePilesContext } from 'renderer/context/PilesContext';
 import usePost from 'renderer/hooks/usePost';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AIIcon } from 'renderer/icons';
+import { useTranslation } from 'react-i18next';
 
 export default function Reply({
   postPath,
@@ -23,6 +24,7 @@ export default function Reply({
   reloadParentPost = () => {},
   searchTerm = { searchTerm },
 }) {
+  const { i18n } = useTranslation();
   const { currentPile } = usePilesContext();
   const { post, cycleColor } = usePost(postPath);
   const [editable, setEditable] = useState(false);
@@ -67,7 +69,7 @@ export default function Reply({
             <div className={styles.title}>{post.name}</div>
             <div className={styles.meta}>
               <div className={styles.time} onClick={toggleEditable}>
-                {created.toRelative()}
+                {created.toRelative({ locale: i18n.language })}
               </div>
             </div>
           </div>

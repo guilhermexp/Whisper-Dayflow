@@ -16,11 +16,11 @@ import TagButton from './TagButton';
 import TagList from './TagList';
 import Attachments from './Attachments';
 import usePost from 'renderer/hooks/usePost';
-import ProseMirrorStyles from './ProseMirror.scss';
 import { useAIContext } from 'renderer/context/AIContext';
 import useThread from 'renderer/hooks/useThread';
 import LinkPreviews from './LinkPreviews';
 import { useToastsContext } from 'renderer/context/ToastsContext';
+import { useTranslation } from 'react-i18next';
 
 // Escape special characters
 const escapeRegExp = (string) => {
@@ -63,6 +63,7 @@ const Editor = memo(
     const { ai, prompt, model, generateCompletion, prepareCompletionContext } =
       useAIContext();
     const { addNotification, removeNotification } = useToastsContext();
+    const { t } = useTranslation();
 
     const isNew = !postPath;
 
@@ -113,11 +114,18 @@ const Editor = memo(
 
     const editor = useEditor({
       extensions: [
-        StarterKit,
+        StarterKit.configure({
+          // StarterKit doesn't include Link by default
+        }),
         Typography,
-        Link,
+        Link.extend({ name: 'pileLink' }).configure({
+          openOnClick: false,
+          HTMLAttributes: {
+            class: 'prose-link',
+          },
+        }),
         Placeholder.configure({
-          placeholder: isAI ? 'AI is thinking...' : 'What are you thinking?',
+          placeholder: isAI ? t('pile.aiThinking') : t('pile.whatAreYouThinking'),
         }),
         CharacterCount.configure({
           limit: 10000,
@@ -226,7 +234,7 @@ const Editor = memo(
         !editor ||
         isAIResponding ||
         !isAI ||
-        !editor.state.doc.textContent.length === 0
+        editor.state.doc.textContent.length !== 0
       )
         return;
 
@@ -243,12 +251,20 @@ const Editor = memo(
         const thread = await getThread(parentPostPath);
         const context = prepareCompletionContext(thread);
 
-        if (context.length === 0) return;
+        if (context.length === 0) {
+          console.warn('[AI Reflect] No context available for AI completion');
+          return;
+        }
+
+        console.log('[AI Reflect] Starting AI completion with context length:', context.length);
 
         await generateCompletion(context, (token) => {
           editor.commands.insertContent(token);
         });
+
+        console.log('[AI Reflect] AI completion finished');
       } catch (error) {
+        console.error('[AI Reflect] Error:', error);
         addNotification({
           id: 'reflecting',
           type: 'failed',
@@ -301,11 +317,11 @@ const Editor = memo(
     }, [editor]);
 
     const renderPostButton = () => {
-      if (isAI) return 'Save AI response';
-      if (isReply) return 'Reply';
-      if (isNew) return 'Post';
+      if (isAI) return t('pile.saveAiResponse');
+      if (isReply) return t('pile.reply');
+      if (isNew) return t('pile.post');
 
-      return 'Update';
+      return t('pile.update');
     };
 
     if (!post) return;
@@ -370,7 +386,7 @@ const Editor = memo(
             <div className={styles.right}>
               {isReply && (
                 <button className={styles.deleteButton} onClick={closeReply}>
-                  Close
+                  {t('pile.close')}
                 </button>
               )}
 
@@ -379,7 +395,7 @@ const Editor = memo(
                   className={styles.deleteButton}
                   onClick={handleOnDelete}
                 >
-                  {deleteStep == 0 ? 'Delete' : 'Click again to confirm'}
+                  {deleteStep == 0 ? t('pile.delete') : t('pile.deleteConfirm')}
                 </button>
               )}
               <button

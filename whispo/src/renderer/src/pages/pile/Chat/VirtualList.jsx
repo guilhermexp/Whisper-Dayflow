@@ -1,24 +1,10 @@
-import { useParams } from 'react-router-dom';
-import styles from './Chat.module.scss';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Placeholder from '@tiptap/extension-placeholder';
 import {
-  useState,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   memo,
-  useLayoutEffect,
 } from 'react';
-import { useIndexContext } from 'renderer/context/IndexContext';
-import { AnimatePresence, motion } from 'framer-motion';
-import debounce from 'renderer/utils/debounce';
-import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
-import { useWindowResize } from 'renderer/hooks/useWindowResize';
 import { Virtuoso } from 'react-virtuoso';
-import { useTimelineContext } from 'renderer/context/TimelineContext';
 import Scrollbar from './Scrollbar';
 import Intro from './Intro';
 import Message from './Message';

@@ -24,5 +24,10 @@ export default defineConfig({
   renderer: {
     define,
     plugins: [tsconfigPaths(), react()],
+    resolve: {
+      alias: {
+        'renderer': resolve(__dirname, 'src/renderer/src'),
+      },
+    },
   },
 })

@@ -1,20 +1,21 @@
 # CLAUDE.md - AI Agent Development Guide
 
-**Last Updated:** November 14, 2024
-**Project:** Whisper-Dayflow (Whispo) - AI-powered dictation tool
-**Version:** 0.1.7
+**Last Updated:** November 19, 2024
+**Project:** Whisper-Dayflow (Whispo) - AI-powered dictation tool with integrated journaling
+**Version:** 0.2.0
 
 ---
 
 ## 🎯 Project Overview
 
-**Whispo** is a desktop dictation application built with Electron that:
+**Whispo** is a desktop application built with Electron that combines AI-powered dictation with journaling:
 
 1. **Captures voice** via global keyboard shortcut (Ctrl key hold or Ctrl+/)
 2. **Transcribes audio** using OpenAI Whisper or Groq API
-3. **Post-processes text** optionally with LLMs (OpenAI, Groq, Gemini)
+3. **Post-processes text** optionally with LLMs (OpenAI, Groq, Gemini, OpenRouter)
 4. **Inserts automatically** into the active application
-5. **Stores locally** with full recording history and configuration
+5. **Stores locally** with full recording history, analytics, and configuration
+6. **Journaling (Pile)** - Integrated journaling with AI chat, search, and timeline
 
 ### Target Platforms
 - macOS (Apple Silicon + Intel)
@@ -27,6 +28,8 @@
 - Global shortcuts work in any application
 - Real-time visualization during recording
 - Post-processing intelligence for higher quality output
+- Unified interface combining dictation and journaling
+- Comprehensive analytics and dashboard for usage tracking
 
 ---
 
@@ -65,7 +68,8 @@
 | **Desktop** | Electron | 31.0.2 |
 | **State** | TanStack Query | 5.59.14 |
 | **UI Framework** | Radix UI | Latest |
-| **Styling** | TailwindCSS | 3.4.13 |
+| **Charts** | Recharts | Latest |
+| **Styling** | TailwindCSS + SCSS Modules | 3.4.13 |
 | **Routing** | React Router | 6.27.0 |
 | **Native** | Rust (rdev, enigo) | 1.0+ |
 
@@ -83,15 +87,26 @@ whispo/
 │   │   ├── llm.ts        # LLM post-processing
 │   │   ├── keyboard.ts   # Global hotkey handling
 │   │   ├── window.ts     # Window management
-│   │   ├── tray.ts       # System tray integration
+│   │   ├── tray.ts       # System tray (with Enhancement submenu)
 │   │   ├── serve.ts      # assets:// protocol
 │   │   └── utils.ts      # Utilities
 │   ├── renderer/         # React Frontend
 │   │   └── src/
 │   │       ├── router.tsx            # Route definitions
 │   │       ├── pages/                # UI pages
-│   │       │   ├── panel.tsx         # Main recording UI
-│   │       │   └── ...
+│   │       │   ├── panel.tsx         # Recording overlay UI
+│   │       │   ├── setup.tsx         # Initial setup wizard
+│   │       │   └── pile/             # Main application (Pile)
+│   │       │       ├── index.tsx     # Pile main entry
+│   │       │       ├── Layout.jsx    # Pile layout wrapper
+│   │       │       ├── Analytics/    # Analytics & History dialog
+│   │       │       ├── Dashboard/    # Dashboard with charts
+│   │       │       ├── Settings/     # Unified settings dialog
+│   │       │       ├── Sidebar/      # Navigation sidebar
+│   │       │       ├── Posts/        # Journal posts list
+│   │       │       ├── Editor/       # Post editor
+│   │       │       ├── Chat/         # AI chat interface
+│   │       │       └── ...
 │   │       └── lib/
 │   │           ├── recorder.ts       # WebM audio recording
 │   │           ├── tipc-client.ts    # IPC client
@@ -112,6 +127,63 @@ whispo/
 - **Type Definitions:** `src/shared/types.ts` - Shared types
 - **Recording Logic:** `src/renderer/src/lib/recorder.ts`
 - **Post-Processing:** `src/main/llm.ts`
+- **Analytics:** `src/renderer/src/pages/pile/Analytics/index.jsx` - Stats & history
+- **Dashboard:** `src/renderer/src/pages/pile/Dashboard/index.jsx` - Charts & metrics
+- **Settings:** `src/renderer/src/pages/pile/Settings/index.jsx` - All configuration
+- **Tray Menu:** `src/main/tray.ts` - System tray with Enhancement submenu
+
+### Routes Structure
+
+The application uses a simplified routing structure:
+- `/` - Pile main application (journal + dictation)
+  - `/pile/:pileName` - Specific pile view
+  - `/create-pile` - Create new pile
+  - `/whispo-config` - Whisper configuration
+- `/setup` - Initial setup wizard
+- `/panel` - Recording overlay window
+
+**Note:** The old `/whisper` routes have been removed. All Whisper/dictation functionality is now integrated into the Pile frontend.
+
+---
+
+## 🎛️ Core UI Components
+
+### Analytics Dialog
+**Location:** `src/renderer/src/pages/pile/Analytics/index.jsx`
+
+Dialog-based component with two main tabs:
+- **Analytics Tab:** Total recordings, duration, storage usage, STT model performance metrics
+- **History Tab:** List of all transcriptions with timestamps, ability to delete individual recordings
+
+Uses Radix UI Dialog/Tabs components and TanStack Query for data fetching.
+
+### Dashboard Dialog
+**Location:** `src/renderer/src/pages/pile/Dashboard/index.jsx`
+
+Visual analytics dashboard with Recharts graphs:
+- **Timeline Chart (LineChart):** Recordings over time
+- **Provider Breakdown (PieChart):** Usage by STT provider
+- **Stats Cards:** Total recordings, duration, accuracy, WPM
+
+### Settings Dialog
+**Location:** `src/renderer/src/pages/pile/Settings/index.jsx`
+
+Unified settings with three main tabs:
+- **Journal:** Pile/journaling settings (theme, AI integration)
+- **AI:** LLM provider configuration (OpenAI, Groq, Gemini, OpenRouter, Ollama)
+- **Transcription:** Whisper/STT settings, enhancement options
+
+Contains TranscriptionSettingsTabs and AISettingsTabs sub-components.
+
+### System Tray
+**Location:** `src/main/tray.ts`
+
+Quick access menu includes:
+- Start/Cancel Recording
+- Open Pile
+- **Enhancement submenu:** Toggle enhancement on/off, switch providers (OpenAI, Groq, Gemini, OpenRouter, Custom)
+- Settings shortcut
+- Quit
 
 ---
 
@@ -157,15 +229,23 @@ Transcript received
 
 1. **Main Process (Node.js)**
    - Keep side-effect heavy operations here (file I/O, APIs)
-   - Use `src/main/tipc.ts` for all Renderer ↔ Main communication
+   - Use `src/main/tipc.ts` for all Renderer <-> Main communication
    - Centralize configuration in `src/main/config.ts`
 
 2. **Renderer (React)**
-   - Create pages in `src/renderer/src/pages/`
+   - Main UI is in `src/renderer/src/pages/pile/` (unified Pile frontend)
+   - Dialog components: Analytics, Dashboard, Settings in their respective folders
    - Use TanStack Query for async state
    - Call IPC via `tipcClient` from `src/renderer/src/lib/tipc-client.ts`
+   - Styling: SCSS modules (`.module.scss`) for component-specific styles
 
-3. **Shared Types**
+3. **Pile Components**
+   - All major UI components are dialog-based (Radix UI Dialog)
+   - Analytics and Dashboard are accessed via sidebar icons
+   - Settings consolidates all configuration in tabbed interface
+   - Charts use Recharts library
+
+4. **Shared Types**
    - Define all interfaces in `src/shared/types.ts`
    - Keep enums and constants in `src/shared/`
    - Avoid circular dependencies
@@ -244,9 +324,10 @@ export const recordingRouter = t.router({
 Before submitting changes, verify:
 
 ### For UI Changes
-- [ ] Route defined in `renderer/src/router.tsx`
-- [ ] Page component created in `renderer/src/pages/`
-- [ ] TailwindCSS classes used (no custom CSS)
+- [ ] Route defined in `renderer/src/router.tsx` (if new route needed)
+- [ ] Component created in appropriate `renderer/src/pages/pile/` folder
+- [ ] Dialog-based components use Radix UI Dialog pattern
+- [ ] Styling uses SCSS modules (`.module.scss`) in component folder
 - [ ] Accessibility tested (keyboard navigation, screen readers)
 
 ### For IPC Changes
@@ -259,7 +340,9 @@ Before submitting changes, verify:
 ### For Config Changes
 - [ ] New field added to Config type in `shared/types.ts`
 - [ ] Persistence added to `main/config.ts`
-- [ ] UI control added to Settings page
+- [ ] UI control added to appropriate Settings tab (Journal/AI/Transcription)
+- [ ] For transcription settings: update `TranscriptionSettingsTabs/index.jsx`
+- [ ] For AI settings: update `AISettingsTabs/index.jsx`
 - [ ] Validation logic implemented
 
 ### For API Changes
@@ -385,6 +468,7 @@ All configured via Settings UI with custom base URLs supported.
 - **React Docs:** https://react.dev
 - **TailwindCSS:** https://tailwindcss.com/docs
 - **Radix UI:** https://www.radix-ui.com/docs
+- **Recharts:** https://recharts.org/en-US/api
 - **OpenAI API:** https://platform.openai.com/docs
 
 ---

@@ -1,10 +1,10 @@
-const fs = require('fs');
-const axios = require('axios');
-const path = require('path');
-const { walk } = require('../util');
-const matter = require('gray-matter');
-const settings = require('electron-settings');
-const {getKey} = require('../utils/store');
+import fs from 'fs';
+import axios from 'axios';
+import path from 'path';
+import { walk } from '../pile-util';
+import matter from 'gray-matter';
+import settings from 'electron-settings';
+import { getKey } from './store';
 
 // Todo: Cache the norms alongside embeddings at some point
 // to avoid recomputing them for every query
@@ -208,4 +208,5 @@ class PileEmbeddings {
   }
 }
 
-module.exports = new PileEmbeddings();
+const instance = new PileEmbeddings();
+export default instance;

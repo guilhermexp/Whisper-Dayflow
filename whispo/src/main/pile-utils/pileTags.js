@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
-const glob = require('glob');
-const matter = require('gray-matter');
+import fs from 'fs';
+import path from 'path';
+import glob from 'glob';
+import matter from 'gray-matter';
 
 class PileTags {
   constructor() {
@@ -105,4 +105,6 @@ class PileTags {
   }
 }
 
-module.exports = new PileTags();
+const instance = new PileTags();
+export default instance;
+

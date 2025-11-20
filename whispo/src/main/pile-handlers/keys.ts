@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { getKey, setKey, deleteKey } from '../utils/store';
+import { getKey, setKey, deleteKey } from '../pile-utils/store';
 
 ipcMain.handle('get-ai-key', async () => {
   return getKey();

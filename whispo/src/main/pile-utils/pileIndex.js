@@ -1,11 +1,10 @@
-const fs = require('fs');
-const path = require('path');
-const glob = require('glob');
-const matter = require('gray-matter');
-const pileSearchIndex = require('./pileSearchIndex');
-const pileEmbeddings = require('./pileEmbeddings');
-const { walk } = require('../util');
-const { convertHTMLToPlainText } = require('../util');
+import fs from 'fs';
+import path from 'path';
+import glob from 'glob';
+import matter from 'gray-matter';
+import pileSearchIndex from './pileSearchIndex';
+import pileEmbeddings from './pileEmbeddings';
+import { walk, convertHTMLToPlainText } from '../pile-util';
 
 class PileIndex {
   constructor() {
@@ -214,4 +213,6 @@ class PileIndex {
   }
 }
 
-module.exports = new PileIndex();
+const instance = new PileIndex();
+export default instance;
+

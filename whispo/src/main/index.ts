@@ -18,6 +18,9 @@ import { globalShortcutManager } from "./global-shortcut"
 import { mediaController } from "./services/media-controller"
 import { configStore } from "./config"
 
+// Register Pile IPC handlers
+import "./pile-ipc"
+
 registerServeSchema()
 
 // This method will be called when Electron has finished

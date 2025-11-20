@@ -143,6 +143,26 @@ export class EnhancementService {
 
     if (!skipContext) {
       context = await this.captureContext()
+
+      // Debug logging to verify which contexts were actually captured
+      if (context) {
+        const parts: string[] = []
+        if (context.clipboard) {
+          parts.push(`clipboard(len=${context.clipboard.length})`)
+        }
+        if (context.selectedText) {
+          parts.push(`selectedText(len=${context.selectedText.length})`)
+        }
+        if (context.screenCapture) {
+          parts.push(`screenCapture(len=${context.screenCapture.length})`)
+        }
+        console.log(
+          "[enhancement-service] Context details:",
+          parts.length ? parts.join(", ") : "empty context object",
+        )
+      } else {
+        console.log("[enhancement-service] No context captured")
+      }
     }
 
     // Build context sections
@@ -363,10 +383,100 @@ export class EnhancementService {
       }
     }
 
-    // Note: Selected text and screen capture would require additional native modules
-    // For now, we'll skip them and implement later
+    // Screen capture + OCR (optional, behind config flag)
+    if (config.useScreenCaptureContext) {
+      try {
+        const screenText = await this.captureScreenText()
+        if (screenText && screenText.length > 0) {
+          // Limit to a reasonable size to keep prompts fast
+          context.screenCapture = screenText.slice(0, 4000)
+          hasContext = true
+        }
+      } catch (error) {
+        console.error("[enhancement-service] Failed to capture screen text:", error)
+      }
+    }
+
+    // Note: Selected text capture still requires additional native integration
 
     return hasContext ? context : undefined
+  }
+
+  /**
+   * Capture visible screen content and extract text via OCR.
+   *
+   * Implementation notes:
+   * - Uses Electron's desktopCapturer to grab a thumbnail of the primary screen.
+   * - Uses Gemini Vision (same GoogleGenerativeAI client) to perform OCR.
+   * - Fully optional: requires both `useScreenCaptureContext` and `geminiApiKey`.
+   * - On any error, returns undefined so it never breaks the core flow.
+   */
+  private async captureScreenText(): Promise<string | undefined> {
+    const config = configStore.get()
+
+    // Require explicit opt-in and Gemini API key
+    if (!config.useScreenCaptureContext) return undefined
+    if (!config.geminiApiKey) {
+      console.warn(
+        "[enhancement-service] Screen capture context enabled but geminiApiKey is missing; skipping OCR.",
+      )
+      return undefined
+    }
+
+    try {
+      const { desktopCapturer } = await import("electron")
+
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        // Reasonable thumbnail size; Electron will maintain aspect ratio.
+        thumbnailSize: { width: 1280, height: 720 },
+      })
+
+      if (!sources.length) {
+        console.warn("[enhancement-service] No screen sources available for capture.")
+        return undefined
+      }
+
+      // For now, just use the first screen (primary display).
+      const primary = sources[0]
+      const image = primary.thumbnail
+      if (image.isEmpty()) {
+        console.warn("[enhancement-service] Captured screen thumbnail is empty.")
+        return undefined
+      }
+
+      const pngBuffer = image.toPNG()
+      const base64Image = pngBuffer.toString("base64")
+
+      const gai = new GoogleGenerativeAI(config.geminiApiKey)
+      const modelId = this.getModelForProvider("gemini")
+      const gModel = gai.getGenerativeModel({ model: modelId })
+
+      const result = await gModel.generateContent(
+        [
+          {
+            inlineData: {
+              data: base64Image,
+              mimeType: "image/png",
+            },
+          },
+          {
+            text: "Extract all readable text from this screenshot. Return only plain text, no explanations.",
+          },
+        ],
+        {
+          baseUrl: config.geminiBaseUrl,
+        },
+      )
+
+      const text = result.response.text()
+      if (!text) return undefined
+
+      return text.trim()
+    } catch (error) {
+      console.error("[enhancement-service] Error during screen capture OCR:", error)
+      return undefined
+    }
   }
 
   /**

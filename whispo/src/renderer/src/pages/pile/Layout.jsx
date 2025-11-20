@@ -10,6 +10,8 @@ import HighlightsDialog from './Highlights';
 import { usePilesContext } from 'renderer/context/PilesContext';
 import Toasts from './Toasts';
 import Search from './Search';
+import Analytics from './Analytics';
+import Dashboard from './Dashboard';
 import { useTimelineContext } from 'renderer/context/TimelineContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import InstallUpdate from './InstallUpdate';
@@ -82,6 +84,8 @@ export default function PileLayout({ children }) {
               <Chat />
               <Search />
               <Settings />
+              <Dashboard />
+              <Analytics />
               <Link to="/" className={`${styles.iconHolder}`}>
                 <HomeIcon className={styles.homeIcon} />
               </Link>

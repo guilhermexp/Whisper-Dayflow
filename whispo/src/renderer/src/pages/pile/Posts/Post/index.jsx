@@ -23,8 +23,10 @@ import { useTimelineContext } from 'renderer/context/TimelineContext';
 import Ball from './Ball';
 import { useHighlightsContext } from 'renderer/context/HighlightsContext';
 import { useAIContext } from 'renderer/context/AIContext';
+import { useTranslation } from 'react-i18next';
 
 const Post = memo(({ postPath, searchTerm = null, repliesCount = 0 }) => {
+  const { t, i18n } = useTranslation();
   const { currentPile, getCurrentPilePath } = usePilesContext();
   const { highlights } = useHighlightsContext();
   const { validKey } = useAIContext();
@@ -135,7 +137,7 @@ const Post = memo(({ postPath, searchTerm = null, repliesCount = 0 }) => {
             <div className={styles.title}>{post.name}</div>
             <div className={styles.meta}>
               <button className={styles.time} onClick={toggleEditable}>
-                {created.toRelative()}
+                {created.toRelative({ locale: i18n.language })}
               </button>
             </div>
           </div>
@@ -164,7 +166,7 @@ const Post = memo(({ postPath, searchTerm = null, repliesCount = 0 }) => {
               <div className={styles.actions}>
                 <button className={styles.openReply} onClick={toggleReplying}>
                   <NeedleIcon className={styles.icon} />
-                  Add another entry
+                  {t('pile.addAnotherEntry')}
                 </button>
                 <div className={styles.sep}>/</div>
                 <button
@@ -176,7 +178,7 @@ const Post = memo(({ postPath, searchTerm = null, repliesCount = 0 }) => {
                   }}
                 >
                   <ReflectIcon className={styles.icon2} />
-                  Reflect
+                  {t('pile.reflect')}
                 </button>
               </div>
             </motion.div>

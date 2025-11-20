@@ -1,8 +1,6 @@
 import { cn } from "@renderer/lib/utils"
 import React from "react"
 
-import { CARD_BASE_CLASS } from "./section-card"
-
 export const Control = ({
   label,
   children,

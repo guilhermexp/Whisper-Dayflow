@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 class PileLinks {
   constructor() {
@@ -74,4 +74,6 @@ class PileLinks {
   }
 }
 
-module.exports = new PileLinks();
+const instance = new PileLinks();
+export default instance;
+

@@ -1,18 +1,18 @@
 import { ipcMain, app, dialog } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import pileHelper from '../utils/pileHelper';
+import pileHelper from '../pile-utils/pileHelper';
 import matter from 'gray-matter';
 
-ipcMain.on('update-file', (event, { path, content }) => {
+ipcMain.on('update-file', (_event, { path, content }) => {
   pileHelper.updateFile(path, content);
 });
 
-ipcMain.on('change-folder', (event, newPath) => {
+ipcMain.on('change-folder', (_event, newPath) => {
   pileHelper.changeWatchFolder(newPath);
 });
 
-ipcMain.handle('matter-parse', async (event, file) => {
+ipcMain.handle('matter-parse', async (_event, file) => {
   try {
     const post = matter(file);
     return post;
@@ -21,39 +21,39 @@ ipcMain.handle('matter-parse', async (event, file) => {
   }
 });
 
-ipcMain.handle('matter-stringify', async (event, { content, data }) => {
+ipcMain.handle('matter-stringify', async (_event, { content, data }) => {
   const stringifiedContent = matter.stringify(content, data);
   return stringifiedContent;
 });
 
-ipcMain.handle('get-files', async (event, dirPath) => {
+ipcMain.handle('get-files', async (_event, dirPath) => {
   const files = await pileHelper.getFilesInFolder(dirPath);
   return files;
 });
 
-ipcMain.handle('get-file', async (event, filePath) => {
+ipcMain.handle('get-file', async (_event, filePath) => {
   const content = await pileHelper.getFile(filePath).catch(() => null);
   return content;
 });
 
-ipcMain.on('get-config-file-path', (event) => {
+ipcMain.on('get-config-file-path', (_event) => {
   const userHomeDirectoryPath = app.getPath('home');
   const pilesConfig = path.join(userHomeDirectoryPath, 'Piles', 'piles.json');
-  event.returnValue = pilesConfig;
+  _event.returnValue = pilesConfig;
 });
 
-ipcMain.on('open-file-dialog', async (event) => {
+ipcMain.on('open-file-dialog', async (_event) => {
   const directory = await dialog.showOpenDialog({
     properties: ['openDirectory'],
   });
   if (!directory.canceled) {
-    event.sender.send('selected-directory', directory.filePaths[0]);
+    _event.sender.send('selected-directory', directory.filePaths[0]);
   }
 });
 
 ipcMain.handle(
   'save-file',
-  async (event, { fileData, fileExtension, storePath }) => {
+  async (_event, { fileData, fileExtension, storePath }) => {
     try {
       const currentDate = new Date();
       const year = String(currentDate.getFullYear()).slice(-2);
@@ -84,11 +84,12 @@ ipcMain.handle(
       return newFilePath;
     } catch (error) {
       console.error('Failed to save the file:', error);
+      return null;
     }
   }
 );
 
-ipcMain.handle('open-file', async (event, data) => {
+ipcMain.handle('open-file', async (_event, data) => {
   let attachments: string[] = [];
   const storePath = data.storePath;
   const selected = await dialog.showOpenDialog({

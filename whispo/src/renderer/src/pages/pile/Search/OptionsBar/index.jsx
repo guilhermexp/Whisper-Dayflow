@@ -14,8 +14,10 @@ import {
 } from 'renderer/icons';
 import styles from './OptionsBar.module.scss';
 import * as Switch from '@radix-ui/react-switch';
+import { useTranslation } from 'react-i18next';
 
 export default function OptionsBar({ options, setOptions, onSubmit }) {
+  const { t } = useTranslation();
   const flipValue = (e) => {
     const key = e.target.name;
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -39,7 +41,7 @@ export default function OptionsBar({ options, setOptions, onSubmit }) {
           name={'relevance'}
           onClick={toggleRecent}
         >
-          <RelevantIcon className={styles.icon} /> Relevance
+          <RelevantIcon className={styles.icon} /> {t('search.filters.relevance')}
         </button>
         <button
           className={`${styles.button} ${
@@ -48,7 +50,7 @@ export default function OptionsBar({ options, setOptions, onSubmit }) {
           name={'mostRecent'}
           onClick={toggleRecent}
         >
-          ↑ Recent
+          {t('search.filters.recent')}
         </button>
         <button
           className={`${styles.button} ${
@@ -57,7 +59,7 @@ export default function OptionsBar({ options, setOptions, onSubmit }) {
           name={'oldest'}
           onClick={toggleRecent}
         >
-          ↓ Oldest
+          {t('search.filters.oldest')}
         </button>
         <div className={styles.sep}>•</div>
         <button
@@ -68,7 +70,7 @@ export default function OptionsBar({ options, setOptions, onSubmit }) {
           onClick={flipValue}
         >
           <HighlightIcon className={styles.icon} />
-          Highlighted
+          {t('search.filters.highlighted')}
         </button>
         <button
           className={`${styles.button} ${
@@ -77,13 +79,13 @@ export default function OptionsBar({ options, setOptions, onSubmit }) {
           name={'hasAttachments'}
           onClick={flipValue}
         >
-          <PaperclipIcon className={styles.icon} /> Attachments
+          <PaperclipIcon className={styles.icon} /> {t('search.filters.attachments')}
         </button>
       </div>
       <div className={styles.right}>
         <div className={styles.switch}>
           <label className={styles.Label} htmlFor="semantic-search">
-            Semantic
+            {t('search.filters.semantic')}
           </label>
           <Switch.Root
             id={'semantic-search'}

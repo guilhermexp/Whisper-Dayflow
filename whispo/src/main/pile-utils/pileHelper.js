@@ -1,6 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const { ipcMain } = require('electron');
+import fs from 'fs';
+import path from 'path';
+import { ipcMain } from 'electron';
 
 class PileHelper {
   constructor() {
@@ -75,4 +75,5 @@ class PileHelper {
   }
 }
 
-module.exports = new PileHelper();
+const instance = new PileHelper();
+export default instance;

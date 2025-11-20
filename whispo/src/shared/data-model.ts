@@ -24,6 +24,7 @@ export type AppDataModel = {
     Config: string
     RecordingHistoryItem: string
     RecordingAnalyticsSnapshot: string
+    AutoJournalSummary: string
   }
   modules: ModuleInfo[]
   ipc: IpcProcedure[]
@@ -41,6 +42,7 @@ export const DATA_MODEL: AppDataModel = {
     Config: "src/shared/types.ts:115",
     RecordingHistoryItem: "src/shared/types.ts:14",
     RecordingAnalyticsSnapshot: "src/shared/types.ts:74",
+    AutoJournalSummary: "src/shared/types.ts:104",
   },
   modules: [
     { name: "main/index", path: "src/main/index.ts", exports: [] },
@@ -54,7 +56,7 @@ export const DATA_MODEL: AppDataModel = {
     { name: "main/serve", path: "src/main/serve.ts", exports: ["registerServeSchema", "registerServeProtocol"] },
     { name: "renderer/tipc-client", path: "src/renderer/src/lib/tipc-client.ts", exports: ["tipcClient", "rendererHandlers"] },
     { name: "renderer/recorder", path: "src/renderer/src/lib/recorder.ts", exports: ["Recorder"] },
-    { name: "shared/types", path: "src/shared/types.ts", exports: ["Config", "RecordingHistoryItem", "RecordingAnalyticsSnapshot", "RecordingHistorySearchFilters", "RecordingHistorySearchResult"] },
+    { name: "shared/types", path: "src/shared/types.ts", exports: ["Config", "RecordingHistoryItem", "RecordingAnalyticsSnapshot", "RecordingHistorySearchFilters", "RecordingHistorySearchResult", "AutoJournalSummary", "AutoJournalActivity"] },
     { name: "main/history-store", path: "src/main/history-store.ts", exports: ["historyStore", "normalizeRecordingHistoryItem"] },
     { name: "main/history-analytics", path: "src/main/history-analytics.ts", exports: ["buildAnalyticsSnapshot", "runHistorySearch"] },
   ],
@@ -77,6 +79,8 @@ export const DATA_MODEL: AppDataModel = {
     { name: "getRecordingHistory", file: "src/main/tipc.ts", output: "RecordingHistoryItem[]" },
     { name: "searchRecordingHistory", file: "src/main/tipc.ts", input: "RecordingHistorySearchFilters", output: "RecordingHistorySearchResult" },
     { name: "getRecordingAnalytics", file: "src/main/tipc.ts", output: "RecordingAnalyticsSnapshot" },
+    { name: "captureRecordingScreenshot", file: "src/main/tipc.ts", output: "{ path: string; capturedAt: number }" },
+    { name: "generateAutoJournalSummary", file: "src/main/tipc.ts", input: "{ windowMinutes?: number }", output: "AutoJournalSummary" },
     { name: "deleteRecordingItem", file: "src/main/tipc.ts", input: "{ id: string }" },
     { name: "updateRecordingItem", file: "src/main/tipc.ts", input: "{ id: string; patch: Partial<Pick<RecordingHistoryItem, 'tags' | 'accuracyScore' | 'confidenceScore'>> }", output: "RecordingHistoryItem | null" },
     { name: "deleteRecordingHistory", file: "src/main/tipc.ts" },

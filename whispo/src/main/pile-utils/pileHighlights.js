@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
-const glob = require('glob');
-const matter = require('gray-matter');
+import fs from 'fs';
+import path from 'path';
+import glob from 'glob';
+import matter from 'gray-matter';
 
 const defaultHighlights = new Map([
   ['Highlight', { color: '#FF703A', posts: [] }],
@@ -109,4 +109,6 @@ class PileHighlights {
   }
 }
 
-module.exports = new PileHighlights();
+const instance = new PileHighlights();
+export default instance;
+

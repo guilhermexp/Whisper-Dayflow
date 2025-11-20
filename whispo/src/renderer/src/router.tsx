@@ -2,42 +2,34 @@ import { createBrowserRouter } from "react-router-dom"
 
 export const router: ReturnType<typeof createBrowserRouter> =
   createBrowserRouter([
+    // Pile - Journaling App (Main Home)
     {
       path: "/",
-      lazy: () => import("./components/app-layout"),
+      lazy: () => import("./components/pile-layout"),
       children: [
         {
-          path: "settings",
-          lazy: () => import("./pages/settings"),
-          children: [
-            {
-              path: "",
-              lazy: () => import("./pages/settings-general"),
-            },
-            {
-              path: "models",
-              lazy: () => import("./pages/settings-models"),
-            },
-            {
-              path: "data",
-              lazy: () => import("./pages/settings-data"),
-            },
-            {
-              path: "enhancement",
-              lazy: () => import("./pages/settings-enhancement"),
-            },
-          ],
-        },
-        {
-          path: "dashboard",
-          lazy: () => import("./pages/dashboard"),
-        },
-        {
           path: "",
-          lazy: () => import("./pages/index"),
+          lazy: () => import("./pages/pile-redirect"),
+        },
+        {
+          path: "pile/:pileName",
+          lazy: () => import("./pages/pile"),
+        },
+        {
+          path: "create-pile",
+          lazy: () => import("./pages/create-pile"),
+        },
+        {
+          path: "whispo-config",
+          Component: () => {
+            const WhispoSettings = require("./pages/pile/WhispoSettings").default;
+            return <WhispoSettings />;
+          },
         },
       ],
     },
+
+    // Special Windows
     {
       path: "/setup",
       lazy: () => import("./pages/setup"),

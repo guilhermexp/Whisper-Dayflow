@@ -60,7 +60,9 @@ const VirtualTimeline = memo(({ data }) => {
       itemContent={renderItem}
       computeItemKey={getKey}
       components={{
-        Scroller: Scrollbar
+        Scroller: Scrollbar,
+        Footer: () => <div style={{ height: 20 }} />,
+        EmptyPlaceholder: () => <div></div>,
       }}
       overscan={5}
       defaultItemHeight={220}
@@ -68,11 +70,6 @@ const VirtualTimeline = memo(({ data }) => {
       initialTopMostItemIndex={0}
       followOutput={'smooth'}
       alignToBottom={false}
-      components={{
-        Scroller: Scrollbar,
-        Footer: () => <div style={{ height: 20 }} />,
-        EmptyPlaceholder: () => <div></div>,
-      }}
     />
   );
 });

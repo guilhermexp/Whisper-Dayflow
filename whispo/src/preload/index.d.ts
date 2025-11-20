@@ -1,8 +1,9 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
+import { ElectronHandler } from './index'
 
 declare global {
   interface Window {
-    electron: ElectronAPI
+    electron: ElectronHandler
     api: unknown
   }
 }

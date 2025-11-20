@@ -1,8 +1,8 @@
-// Feature specific IPC handlers
-import './handlers/keys';
-import './handlers/file';
-import './handlers/tags';
-import './handlers/highlights';
-import './handlers/index';
-import './handlers/links';
-import './handlers/store';
+// Feature specific IPC handlers for Pile
+import './pile-handlers/keys';
+import './pile-handlers/file';
+import './pile-handlers/tags';
+import './pile-handlers/highlights';
+import './pile-handlers/index';
+import './pile-handlers/links';
+import './pile-handlers/store';

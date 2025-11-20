@@ -1,9 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-const lunr = require('lunr');
-const matter = require('gray-matter');
-const { BrowserWindow } = require('electron');
-const { convertHTMLToPlainText } = require('../util');
+import fs from 'fs';
+import path from 'path';
+import lunr from 'lunr';
+import matter from 'gray-matter';
+import { BrowserWindow } from 'electron';
+import { convertHTMLToPlainText } from '../pile-util';
 
 class PileSearchIndex {
   constructor() {
@@ -83,4 +83,5 @@ class PileSearchIndex {
   }
 }
 
-module.exports = new PileSearchIndex();
+const instance = new PileSearchIndex();
+export default instance;

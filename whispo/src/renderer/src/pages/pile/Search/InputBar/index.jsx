@@ -14,6 +14,7 @@ import {
 import { useEffect, useState, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useAIContext } from 'renderer/context/AIContext';
+import { useTranslation } from 'react-i18next';
 import {
   availableThemes,
   usePilesContext,
@@ -37,12 +38,13 @@ export default function InputBar({
   querying = false,
   onSubmit,
 }) {
+  const { t } = useTranslation();
   const statusFromMain = useIPCListener('vector-index', '');
   const [setupRun, setSetupRun] = useState(false);
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState({
     type: 'loading',
-    message: 'Loading index...',
+    message: t('search.loadingIndex'),
   });
 
   useEffect(() => {
@@ -107,7 +109,7 @@ export default function InputBar({
             onChange={onChange}
             className={styles.textarea}
             onKeyDown={handleKeyPress}
-            placeholder={'What are you looking for?'}
+            placeholder={t('search.placeholder')}
           />
         </div>
         <div className={styles.buttons}>

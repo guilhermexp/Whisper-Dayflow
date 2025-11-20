@@ -8,6 +8,7 @@ import {
   shell,
   systemPreferences,
   dialog,
+  desktopCapturer,
 } from "electron"
 import path from "path"
 import { configStore, recordingsFolder } from "./config"
@@ -19,7 +20,7 @@ import type {
   RecordingHistorySearchFilters,
 } from "../shared/types"
 import { RendererHandlers } from "./renderer-handlers"
-import { postProcessTranscript } from "./llm"
+import { postProcessTranscript, generateAutoJournalSummaryFromHistory } from "./llm"
 import { enhancementService } from "./services/enhancement-service"
 import { abortOngoingTranscription, state } from "./state"
 import { updateTrayIcon } from "./tray"
@@ -286,6 +287,8 @@ export const router = {
       duration: number
       mimeType: string
       audioProfile?: RecordingAudioProfile
+      contextScreenshotPath?: string
+      contextCapturedAt?: number
     }>()
     .action(async ({ input }) => {
       fs.mkdirSync(recordingsFolder, { recursive: true })
@@ -515,6 +518,8 @@ export const router = {
         confidenceScore,
         tags: [],
         audioProfile: normalizedAudioProfile,
+        contextScreenshotPath: input.contextScreenshotPath,
+        contextCapturedAt: input.contextCapturedAt,
         // Enhancement metadata
         ...(enhancementMetadata && {
           originalTranscript: enhancementMetadata.originalTranscript,
@@ -603,6 +608,70 @@ export const router = {
   deleteRecordingHistory: t.procedure.action(async () => {
     historyStore.clear()
   }),
+
+  /**
+   * Capture a screenshot when a recording starts and store it next to recordings.
+   * This does NOT run OCR or call any LLMs – it only saves the image and returns its path
+   * and capture timestamp so it can be associated with the eventual RecordingHistoryItem.
+   */
+  captureRecordingScreenshot: t.procedure.action(async () => {
+    const capturedAt = Date.now()
+
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        thumbnailSize: { width: 1280, height: 720 },
+      })
+
+      if (!sources.length) {
+        console.warn("[auto-journal] No screen sources available for capture.")
+        return { path: "", capturedAt }
+      }
+
+      const primary = sources[0]
+      const image = primary.thumbnail
+      if (image.isEmpty()) {
+        console.warn("[auto-journal] Captured screen thumbnail is empty.")
+        return { path: "", capturedAt }
+      }
+
+      // Ensure a screenshots subfolder under recordingsFolder
+      const screenshotsDir = path.join(recordingsFolder, "screenshots")
+      fs.mkdirSync(screenshotsDir, { recursive: true })
+
+      const fileName = `screenshot-${capturedAt}.png`
+      const filePath = path.join(screenshotsDir, fileName)
+      const pngBuffer = image.toPNG()
+      fs.writeFileSync(filePath, pngBuffer)
+
+      console.log("[auto-journal] Captured recording screenshot:", filePath)
+
+      return {
+        path: filePath,
+        capturedAt,
+      }
+    } catch (error) {
+      console.error("[auto-journal] Failed to capture recording screenshot:", error)
+      return { path: "", capturedAt }
+    }
+  }),
+
+  /**
+   * Generate an auto-journal style summary of recent recordings.
+   *
+   * This is the first step of the Dayflow-like pipeline: it looks at a sliding
+   * time window of RecordingHistoryItem and returns a JSON summary with
+   * activity blocks. Currently this is exposed for experimentation and will
+   * later be wired into the Pile journal UI.
+   */
+  generateAutoJournalSummary: t.procedure
+    .input<{ windowMinutes?: number } | undefined>()
+    .action(async ({ input }) => {
+      const history = historyStore.readAll()
+      return generateAutoJournalSummaryFromHistory(history, {
+        windowMinutes: input?.windowMinutes ?? 60,
+      })
+    }),
 
   listModels: t.procedure.action(async () => {
     return modelManager.listAllModels()

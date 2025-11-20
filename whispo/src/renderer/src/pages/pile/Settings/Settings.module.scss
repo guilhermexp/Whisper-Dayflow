@@ -36,9 +36,21 @@
 }
 
 button,
-fieldset,
-input {
+fieldset {
   all: unset;
+}
+
+input:not([type="checkbox"]) {
+  all: unset;
+}
+
+input[type="checkbox"] {
+  appearance: auto;
+  -webkit-appearance: checkbox;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--active);
 }
 
 .DialogOverlay {
@@ -59,11 +71,12 @@ input {
   left: 50%;
   transform: translate(-50%, -50%);
   width: 90vw;
-  max-width: 500px;
-  max-height: 95vh;
-  padding: 18px;
+  max-width: 1000px;
+  min-width: 400px;
+  max-height: 85vh;
+  padding: 22px;
   animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  overflow-y: overlay;
+  overflow-y: auto;
 }
 
 .DialogContent:focus {
@@ -139,6 +152,10 @@ input {
   transition: all ease-in-out 120ms;
   stroke-width: 2px;
   color: var(--secondary);
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 10;
+  background: transparent;
 
   &:hover {
     cursor: pointer;

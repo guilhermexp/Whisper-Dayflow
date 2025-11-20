@@ -38,6 +38,9 @@ export type RecordingHistoryItem = {
   enhancementPromptId?: string
   enhancementProvider?: string
   enhancementProcessingTime?: number
+  // Context capture (experimental, for auto-journal pipeline)
+  contextScreenshotPath?: string
+  contextCapturedAt?: number
 }
 
 export type RecordingHistorySearchFilters = {
@@ -125,6 +128,31 @@ export type RecordingAnalyticsSnapshot = {
   // Model performance rankings
   sttModelRanking: Array<ModelPerformanceMetrics>
   enhancementModelRanking: Array<ModelPerformanceMetrics>
+}
+
+// Auto-journal / activity summary types
+export type AutoJournalActivity = {
+  /** Epoch ms for the first recording contributing to this activity */
+  startTs: number
+  /** Epoch ms for the last recording contributing to this activity */
+  endTs: number
+  /** Short, concrete title like "Debugging auth bug in app" */
+  title: string
+  /** 1–3 sentence factual summary of what happened in this block */
+  summary: string
+  /** Optional coarse category label, e.g. "Work", "Meeting", "Browsing" */
+  category?: string
+}
+
+export type AutoJournalSummary = {
+  /** Start of the time window used for this summary (epoch ms) */
+  windowStartTs: number
+  /** End of the time window used for this summary (epoch ms) */
+  windowEndTs: number
+  /** High-level summary of the whole window in a short paragraph */
+  summary: string
+  /** Activity blocks covering this window */
+  activities: AutoJournalActivity[]
 }
 
 export type SavedRecordingSearch = {

@@ -61,11 +61,15 @@ const withDefaults = (config?: Config): Config => {
     preferLocalModels: config?.preferLocalModels ?? false,
     language: config?.language ?? getDefaultLanguage(),
 
-    // Enhancement defaults
-    enhancementEnabled: config?.enhancementEnabled ?? false,
-    enhancementProvider: config?.enhancementProvider ?? "openai",
-    selectedPromptId: config?.selectedPromptId ?? "default",
-    customPrompts: config?.customPrompts ?? [],
+  // Enhancement defaults
+  enhancementEnabled: config?.enhancementEnabled ?? false,
+  enhancementProvider: config?.enhancementProvider ?? "openai",
+  selectedPromptId: config?.selectedPromptId ?? "default",
+  customPrompts: config?.customPrompts ?? [],
+
+  // Auto-journal (experimental) defaults
+  autoJournalEnabled: config?.autoJournalEnabled ?? false,
+  autoJournalWindowMinutes: config?.autoJournalWindowMinutes ?? 60,
 
     // Context capture defaults
     useClipboardContext: config?.useClipboardContext ?? false,

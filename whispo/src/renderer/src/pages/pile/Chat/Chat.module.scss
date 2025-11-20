@@ -167,11 +167,158 @@ input {
           transform: scale(0.97);
         }
 
+        &.disabled {
+          opacity: 0.4;
+          pointer-events: none;
+        }
+
         .icon {
           height: 20px;
           width: 20px;
           margin-right: 4px;
         }
+      }
+
+      .buttonGroup {
+        position: relative;
+      }
+
+      .themeSelector {
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-top: 8px;
+        background: var(--bg);
+        border-radius: 12px;
+        padding: 8px;
+        display: flex;
+        gap: 6px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        z-index: 100;
+
+        .themeOption {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          cursor: pointer;
+          transition: all ease-in-out 120ms;
+          border: 2px solid transparent;
+
+          &:hover {
+            transform: scale(1.1);
+          }
+
+          &.active {
+            border-color: var(--primary);
+          }
+        }
+      }
+    }
+  }
+}
+
+.mainContent {
+  position: relative;
+  display: flex;
+  height: calc(100vh - 44px - 100px);
+}
+
+.contextToggle {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-tertiary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all ease-in-out 150ms;
+  font-size: 12px;
+  color: var(--secondary);
+
+  &:hover {
+    background: var(--bg-secondary);
+  }
+
+  .chevron {
+    width: 14px;
+    height: 14px;
+  }
+
+  .contextCount {
+    white-space: nowrap;
+  }
+}
+
+.contextPanel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: var(--bg-tertiary);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  z-index: 5;
+
+  .contextHeader {
+    padding: 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--primary);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .contextList {
+    padding: 8px;
+    overflow-y: auto;
+    height: calc(100% - 50px);
+
+    .contextItem {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      background: var(--bg);
+      transition: all ease-in-out 120ms;
+
+      &:hover {
+        background: var(--bg-secondary);
+      }
+
+      .contextIndex {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--active);
+        color: var(--active-text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+
+      .contextPath {
+        flex: 1;
+        font-size: 11px;
+        color: var(--primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .contextScore {
+        font-size: 10px;
+        color: var(--secondary);
+        flex-shrink: 0;
       }
     }
   }

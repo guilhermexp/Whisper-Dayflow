@@ -12,6 +12,7 @@ import {
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useAIContext } from 'renderer/context/AIContext';
+import { useTranslation } from 'react-i18next';
 import {
   availableThemes,
   usePilesContext,
@@ -52,6 +53,7 @@ const filterResults = (results, options) => {
 };
 
 export default function Search() {
+  const { t } = useTranslation();
   const { currentTheme, setTheme } = usePilesContext();
   const {
     initVectorIndex,
@@ -164,7 +166,7 @@ export default function Search() {
         </Dialog.Trigger>
         <Dialog.Portal container={container}>
           <Dialog.Overlay className={styles.DialogOverlay} />
-          <Dialog.Content className={styles.DialogContent}>
+          <Dialog.Content className={styles.DialogContent} aria-describedby={undefined}>
             <div className={styles.wrapper}>
               <Dialog.Title className={styles.DialogTitle}>
                 <InputBar
@@ -182,21 +184,21 @@ export default function Search() {
               </Dialog.Title>
               {filtered && (
                 <div className={styles.meta}>
-                  {filtered?.length} thread{filtered?.length !== 1 && 's'}
+                  {filtered?.length} {filtered?.length !== 1 ? t('search.threads') : t('search.thread')}
                   <div className={styles.sep}></div>
                   {filtered.reduce(
                     (a, i) => a + 1 + i?.replies?.length,
                     0
                   )}{' '}
-                  entries
+                  {t('search.entries')}
                   <div className={styles.sep}></div>
-                  {filtered.filter((post) => post.highlight).length} highlighted
+                  {filtered.filter((post) => post.highlight).length} {t('search.highlighted')}
                   <div className={styles.sep}></div>
                   {filtered.reduce(
                     (a, i) => a + i?.attachments?.length,
                     0
                   )}{' '}
-                  attachments
+                  {t('search.attachments')}
                 </div>
               )}
               <AnimatePresence mode="wait">

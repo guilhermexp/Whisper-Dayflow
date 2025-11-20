@@ -8,7 +8,7 @@ import icon from '../../../../assets/logo.png';
 import { motion } from 'framer-motion';
 const pilesList = ['Users/uj/Personal', 'Users/uj/Startup', 'Users/uj/School'];
 
-export default function CreatePile() {
+export function Component() {
   const navigate = useNavigate();
   const { createPile } = usePilesContext();
   const [folderExists, setFolderExists] = useState(false);
@@ -16,11 +16,13 @@ export default function CreatePile() {
   const [path, setPath] = useState('');
 
   useEffect(() => {
+    // @ts-expect-error - Pile-specific IPC channel not in base type definitions
     window.electron.ipc.on('selected-directory', (path: string) => {
       setPath(path);
     });
 
     return () => {
+      // @ts-expect-error - Pile-specific IPC channel not in base type definitions
       window.electron.ipc.removeAllListeners('selected-directory');
     };
   }, []);
@@ -30,6 +32,7 @@ export default function CreatePile() {
   };
 
   const handleClick = () => {
+    // @ts-expect-error - Pile-specific IPC channel not in base type definitions
     window.electron.ipc.sendMessage('open-file-dialog');
   };
 
@@ -86,7 +89,7 @@ export default function CreatePile() {
               Pick a place to store this pile
             </div>
 
-            <button placeholder="Location" onClick={handleClick}>
+            <button onClick={handleClick}>
               {path ? path : 'Choose a location'}
             </button>
           </div>

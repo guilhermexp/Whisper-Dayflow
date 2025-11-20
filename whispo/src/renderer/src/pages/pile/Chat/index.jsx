@@ -1,42 +1,43 @@
 import styles from './Chat.module.scss';
 import {
-  SettingsIcon,
   CrossIcon,
-  ReflectIcon,
   RefreshIcon,
-  DiscIcon,
-  DownloadIcon,
-  FlameIcon,
   ChatIcon,
+  SettingsIcon,
+  DownloadIcon,
+  ColorsIcon,
+  ChevronRightIcon,
+  ChevronLeftIcon,
 } from 'renderer/icons';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useAIContext } from 'renderer/context/AIContext';
+import { useTranslation } from 'react-i18next';
 import {
   availableThemes,
   usePilesContext,
 } from 'renderer/context/PilesContext';
-import { useIndexContext } from 'renderer/context/IndexContext';
-import Post from '../Posts/Post';
 import TextareaAutosize from 'react-textarea-autosize';
-import Waiting from '../Toasts/Toast/Loaders/Waiting';
 import Thinking from '../Toasts/Toast/Loaders/Thinking';
 import Status from './Status';
-import { AnimatePresence, motion } from 'framer-motion';
 import VirtualList from './VirtualList';
 import Blobs from './Blobs';
 import useChat from 'renderer/hooks/useChat';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export default function Chat() {
+  const { t } = useTranslation();
   const { validKey } = useAIContext();
   const { currentTheme, setTheme } = usePilesContext();
-  const { getAIResponse, addMessage, resetMessages } = useChat();
+  const { getAIResponse, addMessage, resetMessages, relevantEntries } = useChat();
   const [container, setContainer] = useState(null);
   const [ready, setReady] = useState(false);
   const [text, setText] = useState('');
   const [querying, setQuerying] = useState(false);
   const [history, setHistory] = useState([]);
   const [aiApiKeyValid, setAiApiKeyValid] = useState(false);
+  const [showContext, setShowContext] = useState(false);
+  const [showThemeSelector, setShowThemeSelector] = useState(false);
 
   // Check if the AI API key is valid
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function Chat() {
           { role: 'system', content: last?.content + (token ?? '') },
         ];
       }
+      return history;
     });
   };
 
@@ -83,15 +85,35 @@ export default function Chat() {
   };
 
   const handleKeyPress = (event) => {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.shiftKey) {
       onSubmit();
       event.preventDefault();
       return false;
     }
   };
 
-  const renderHistory = () => {
-    return history.map((text) => <div className={styles.text}>{text}</div>);
+  const exportChat = useCallback(() => {
+    if (history.length === 0) return;
+
+    const chatContent = history.map((msg, index) => {
+      const role = msg.role === 'user' ? 'You' : 'AI';
+      return `[${role}]\n${msg.content}\n`;
+    }).join('\n---\n\n');
+
+    const blob = new Blob([chatContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-export-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [history]);
+
+  const handleThemeChange = (theme) => {
+    setTheme(theme);
+    setShowThemeSelector(false);
   };
 
   const osStyles = useMemo(
@@ -99,87 +121,185 @@ export default function Chat() {
     []
   );
 
+  const themeColors = {
+    light: '#ffffff',
+    blue: '#3b82f6',
+    purple: '#8b5cf6',
+    yellow: '#eab308',
+    green: '#22c55e',
+  };
+
   return (
     <>
       <Dialog.Root>
         <Dialog.Trigger asChild>
           <div
             className={`${styles.iconHolder} ${!aiApiKeyValid ? styles.disabled : ''}`}
-            onClick={!aiApiKeyValid ? (e) => e.preventDefault() : undefined} // Prevent click if no AI api key is set
+            onClick={!aiApiKeyValid ? (e) => e.preventDefault() : undefined}
           >
             <ChatIcon className={styles.chatIcon} />
           </div>
         </Dialog.Trigger>
         <Dialog.Portal container={container}>
           <Dialog.Overlay className={styles.DialogOverlay} />
-          <Dialog.Content className={styles.DialogContent}>
+          <Dialog.Content className={styles.DialogContent} aria-describedby={undefined}>
             <div className={styles.scroller}>
-              <AnimatePresence>
-                <div className={styles.header}>
-                  <div className={styles.wrapper}>
-                    <Blobs show={querying} />
-                    <Dialog.Title className={styles.DialogTitle}>
-                      <Status setReady={setReady} />
-                    </Dialog.Title>
-                    <div className={styles.buttons}>
+              <div className={styles.header}>
+                <div className={styles.wrapper}>
+                  <Blobs show={querying} />
+                  <Dialog.Title className={styles.DialogTitle}>
+                    <Status setReady={setReady} />
+                  </Dialog.Title>
+                  <div className={styles.buttons}>
+                    {/* Theme Selector Button */}
+                    <div className={styles.buttonGroup}>
                       <div
                         className={styles.button}
-                        onClick={onResetConversation}
+                        onClick={() => setShowThemeSelector(!showThemeSelector)}
+                        title={t('chat.changeTheme')}
                       >
-                        <RefreshIcon className={styles.icon} />
-                        Clear chat
+                        <ColorsIcon className={styles.icon} />
                       </div>
-                      <Dialog.Close asChild>
-                        <button
-                          className={`${styles.close} ${osStyles}`}
-                          aria-label="Close Chat"
-                        >
-                          <CrossIcon />
-                        </button>
-                      </Dialog.Close>
+                      <AnimatePresence>
+                        {showThemeSelector && (
+                          <motion.div
+                            className={styles.themeSelector}
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                          >
+                            {Object.keys(availableThemes).map((theme) => (
+                              <div
+                                key={theme}
+                                className={`${styles.themeOption} ${currentTheme === theme ? styles.active : ''}`}
+                                onClick={() => handleThemeChange(theme)}
+                                style={{ backgroundColor: themeColors[theme] }}
+                                title={theme}
+                              />
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
+
+                    {/* Export Button */}
+                    <div
+                      className={`${styles.button} ${history.length === 0 ? styles.disabled : ''}`}
+                      onClick={exportChat}
+                      title={t('chat.exportChat')}
+                    >
+                      <DownloadIcon className={styles.icon} />
+                    </div>
+
+                    {/* Clear Chat Button */}
+                    <div
+                      className={styles.button}
+                      onClick={onResetConversation}
+                    >
+                      <RefreshIcon className={styles.icon} />
+                      {t('chat.clearChat')}
+                    </div>
+
+                    {/* Close Button */}
+                    <Dialog.Close asChild>
+                      <button
+                        className={`${styles.close} ${osStyles}`}
+                        aria-label="Close Chat"
+                      >
+                        <CrossIcon />
+                      </button>
+                    </Dialog.Close>
                   </div>
                 </div>
+              </div>
 
+              <div className={styles.mainContent}>
+                {/* Context Panel Toggle */}
+                {relevantEntries.length > 0 && (
+                  <motion.div
+                    className={styles.contextToggle}
+                    onClick={() => setShowContext(!showContext)}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    {showContext ? (
+                      <ChevronLeftIcon className={styles.chevron} />
+                    ) : (
+                      <ChevronRightIcon className={styles.chevron} />
+                    )}
+                    <span className={styles.contextCount}>
+                      {relevantEntries.length} {t('chat.relevantEntries')}
+                    </span>
+                  </motion.div>
+                )}
+
+                {/* Context Panel */}
+                <AnimatePresence>
+                  {showContext && relevantEntries.length > 0 && (
+                    <motion.div
+                      className={styles.contextPanel}
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: 250, opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className={styles.contextHeader}>
+                        {t('chat.contextUsed')}
+                      </div>
+                      <div className={styles.contextList}>
+                        {relevantEntries.map((entry, index) => (
+                          <div key={entry.path} className={styles.contextItem}>
+                            <div className={styles.contextIndex}>{index + 1}</div>
+                            <div className={styles.contextPath}>
+                              {entry.path.split('/').pop().replace('.md', '')}
+                            </div>
+                            <div className={styles.contextScore}>
+                              {Math.round(entry.score * 100)}%
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Chat Messages */}
                 <div className={styles.answer}>
                   <VirtualList data={history} />
                 </div>
-              </AnimatePresence>
+              </div>
 
               <div className={styles.inputBar}>
-                <AnimatePresence>
-                  <div className={styles.holder}>
-                    <div className={styles.inputbaroverlay}></div>
-                    <div className={styles.bar}>
-                      <TextareaAutosize
-                        value={text}
-                        onChange={onChangeText}
-                        className={styles.textarea}
-                        onKeyDown={handleKeyPress}
-                        placeholder="Start chatting..."
-                        autoFocus
-                      />
+                <div className={styles.holder}>
+                  <div className={styles.inputbaroverlay}></div>
+                  <div className={styles.bar}>
+                    <TextareaAutosize
+                      value={text}
+                      onChange={onChangeText}
+                      className={styles.textarea}
+                      onKeyDown={handleKeyPress}
+                      placeholder={t('chat.placeholder')}
+                      autoFocus
+                    />
 
-                      <button
-                        className={`${styles.ask} ${
-                          querying && styles.processing
-                        }`}
-                        onClick={onSubmit}
-                        disabled={querying}
-                      >
-                        {querying ? (
-                          <Thinking className={styles.spinner} />
-                        ) : (
-                          'Ask'
-                        )}
-                      </button>
-                    </div>
-                    <div className={styles.disclaimer}>
-                      *AI can make mistakes. Consider checking important
-                      information.
-                    </div>
+                    <button
+                      className={`${styles.ask} ${
+                        querying && styles.processing
+                      }`}
+                      onClick={onSubmit}
+                      disabled={querying}
+                    >
+                      {querying ? (
+                        <Thinking className={styles.spinner} />
+                      ) : (
+                        t('chat.ask')
+                      )}
+                    </button>
                   </div>
-                </AnimatePresence>
+                  <div className={styles.disclaimer}>
+                    {t('chat.disclaimer')}
+                  </div>
+                </div>
               </div>
             </div>
           </Dialog.Content>

@@ -1,4 +1,4 @@
-import { Menu, Tray } from "electron"
+import { Menu, Tray, MenuItemConstructorOptions } from "electron"
 import path from "path"
 import {
   getWindowRendererHandlers,
@@ -7,12 +7,59 @@ import {
   stopRecordingAndHidePanelWindow,
 } from "./window"
 import { state } from "./state"
+import { configStore } from "./config"
 
 const defaultIcon = path.join(__dirname, `../../resources/${process.env.IS_MAC ? 'trayIconTemplate.png' : 'trayIcon.ico'}`)
 const stopIcon = path.join(
   __dirname,
   "../../resources/stopTrayIconTemplate.png",
 )
+
+const enhancementProviders: Array<{ id: "openai" | "groq" | "gemini" | "openrouter" | "custom", label: string }> = [
+  { id: "openai", label: "OpenAI" },
+  { id: "groq", label: "Groq" },
+  { id: "gemini", label: "Gemini" },
+  { id: "openrouter", label: "OpenRouter" },
+  { id: "custom", label: "Custom" },
+]
+
+const buildEnhancementSubmenu = (): MenuItemConstructorOptions[] => {
+  const config = configStore.get()
+  const isEnabled = config.enhancementEnabled ?? false
+  const currentProvider = config.enhancementProvider ?? "openai"
+
+  const submenu: MenuItemConstructorOptions[] = [
+    {
+      label: isEnabled ? "Disable Enhancement" : "Enable Enhancement",
+      type: "checkbox",
+      checked: isEnabled,
+      click() {
+        configStore.save({
+          ...config,
+          enhancementEnabled: !isEnabled,
+        })
+      },
+    },
+    { type: "separator" },
+  ]
+
+  enhancementProviders.forEach((provider) => {
+    submenu.push({
+      label: provider.label,
+      type: "radio",
+      checked: currentProvider === provider.id,
+      enabled: isEnabled,
+      click() {
+        configStore.save({
+          ...config,
+          enhancementProvider: provider.id,
+        })
+      },
+    })
+  })
+
+  return submenu
+}
 
 const buildMenu = (tray: Tray) =>
   Menu.buildFromTemplate([
@@ -31,7 +78,7 @@ const buildMenu = (tray: Tray) =>
       },
     },
     {
-      label: "View History",
+      label: "Open Pile",
       click() {
         showMainWindow("/")
       },
@@ -40,10 +87,14 @@ const buildMenu = (tray: Tray) =>
       type: "separator",
     },
     {
+      label: "Enhancement",
+      submenu: buildEnhancementSubmenu(),
+    },
+    {
       label: "Settings",
       accelerator: "CmdOrCtrl+,",
       click() {
-        showMainWindow("/settings")
+        showMainWindow("/")
       },
     },
     {

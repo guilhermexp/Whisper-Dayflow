@@ -1,7 +1,7 @@
 import PileLayout from './Layout';
 import Posts from './Posts';
 
-export default function Pile() {
+export function Component() {
   return (
     <PileLayout>
       <Posts />

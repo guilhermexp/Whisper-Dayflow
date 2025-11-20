@@ -311,11 +311,11 @@
   font-family: 'Porpora';
   font-weight: 400;
   font-display: swap;
-  src: url('../../assets/porpora/Porpora-Regular.woff2') format('woff2'),
-    url('../../assets/porpora/Porpora-Regular.woff') format('woff');
+  src: url('../../../assets/porpora/Porpora-Regular.woff2') format('woff2'),
+    url('../../../assets/porpora/Porpora-Regular.woff') format('woff');
 }
 
-@import '../../assets/inter/inter.css';
+@import '../../../assets/inter/inter.css';
 
 html {
   font-family: 'Inter', sans-serif;

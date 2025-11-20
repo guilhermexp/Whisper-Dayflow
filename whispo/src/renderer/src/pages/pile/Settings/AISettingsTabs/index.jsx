@@ -8,8 +8,10 @@ import {
 } from 'renderer/context/PilesContext';
 import { CardIcon, OllamaIcon, BoxOpenIcon } from 'renderer/icons';
 import { useIndexContext } from 'renderer/context/IndexContext';
+import { useTranslation } from 'react-i18next';
 
 export default function AISettingTabs({ APIkey, setCurrentKey }) {
+  const { t } = useTranslation();
   const {
     prompt,
     setPrompt,
@@ -67,7 +69,7 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
           } ${pileAIProvider === 'openai' ? styles.activeRight : ''}`}
           value="subscription"
         >
-          Subscription
+          {t('settingsDialog.journal.subscription')}
           <CardIcon className={styles.icon} />
         </Tabs.Trigger>
         <Tabs.Trigger
@@ -76,7 +78,7 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
           } ${pileAIProvider === 'openai' ? styles.activeRight : ''}`}
           value="ollama"
         >
-          Ollama API
+          {t('settingsDialog.journal.ollamaApi')}
           <OllamaIcon className={styles.icon} />
         </Tabs.Trigger>
         <Tabs.Trigger
@@ -85,7 +87,7 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
           }`}
           value="openai"
         >
-          OpenAI API
+          {t('settingsDialog.journal.openaiApi')}
           <BoxOpenIcon className={styles.icon} />
         </Tabs.Trigger>
       </Tabs.List>
@@ -93,25 +95,19 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
       <Tabs.Content className={styles.tabsContent} value="subscription">
         <div className={styles.providers}>
           <div className={styles.pitch}>
-            One simple subscription to use best-in-class AI with Pile, and
-            support the project.
+            {t('settingsDialog.journal.subscriptionPitch')}
           </div>
           <div>
             <div className={styles.pro}>
               <div className={styles.left}>
-                <div className={styles.price}>$9/month</div>
+                <div className={styles.price}>{t('settingsDialog.journal.subscriptionPrice')}</div>
               </div>
               <div className={styles.right}>
-                <div className={styles.subscribe}>Coming soon!</div>
+                <div className={styles.subscribe}>{t('settingsDialog.journal.comingSoon')}</div>
               </div>
             </div>
             <div className={styles.disclaimer}>
-              AI subscription for Pile is provided separately by{' '}
-              <a href="https://un.ms" target="_blank">
-                UNMS
-              </a>
-              . Subject to availability and capacity limits. Fair-use policy
-              applies.
+              {t('settingsDialog.journal.subscriptionDisclaimer')}
             </div>
           </div>
         </div>
@@ -120,14 +116,13 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
       <Tabs.Content className={styles.tabsContent} value="ollama">
         <div className={styles.providers}>
           <div className={styles.pitch}>
-            Setup Ollama and set your preferred models here to use your local AI
-            in Pile.
+            {t('settingsDialog.journal.ollamaPitch')}
           </div>
 
           <div className={styles.group}>
             <fieldset className={styles.fieldset}>
               <label className={styles.label} htmlFor="ollama-model">
-                Model
+                {t('settingsDialog.journal.model')}
               </label>
               <input
                 id="ollama-model"
@@ -140,7 +135,7 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
             </fieldset>
             <fieldset className={styles.fieldset}>
               <label className={styles.label} htmlFor="ollama-embedding-model">
-                Embedding model
+                {t('settingsDialog.journal.embeddingModel')}
               </label>
               <input
                 id="ollama-embedding-model"
@@ -155,13 +150,7 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
           </div>
 
           <div className={styles.disclaimer}>
-            Ollama is the easiest way to run AI models on your own computer.
-            Remember to pull your models in Ollama before using them in Pile.
-            Learn more and download Ollama from{' '}
-            <a href="https://ollama.com" target="_blank">
-              ollama.com
-            </a>
-            .
+            {t('settingsDialog.journal.ollamaDisclaimer')}
           </div>
         </div>
       </Tabs.Content>
@@ -169,14 +158,13 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
       <Tabs.Content className={styles.tabsContent} value="openai">
         <div className={styles.providers}>
           <div className={styles.pitch}>
-            Create an API key in your OpenAI account and paste it here to start
-            using GPT AI models in Pile.
+            {t('settingsDialog.journal.openaiPitch')}
           </div>
 
           <div className={styles.group}>
             <fieldset className={styles.fieldset}>
               <label className={styles.label} htmlFor="openai-base-url">
-                Base URL
+                {t('settingsDialog.journal.baseUrl')}
               </label>
               <input
                 id="openai-base-url"
@@ -188,7 +176,7 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
             </fieldset>
             <fieldset className={styles.fieldset}>
               <label className={styles.label} htmlFor="openai-model">
-                Model
+                {t('settingsDialog.journal.model')}
               </label>
               <input
                 id="openai-model"
@@ -201,19 +189,18 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
           </div>
           <fieldset className={styles.fieldset}>
             <label className={styles.label} htmlFor="openai-api-key">
-              OpenAI API key
+              {t('settingsDialog.journal.openaiApiKey')}
             </label>
             <input
               id="openai-api-key"
               className={styles.input}
               onChange={handleInputChange(setCurrentKey)}
               value={APIkey}
-              placeholder="Paste an OpenAI API key to enable AI reflections"
+              placeholder={t('settingsDialog.journal.openaiKeyPlaceholder')}
             />
           </fieldset>
           <div className={styles.disclaimer}>
-            Remember to manage your spend by setting up a budget in the API
-            service you choose to use.
+            {t('settingsDialog.journal.openaiDisclaimer')}
           </div>
         </div>
       </Tabs.Content>
