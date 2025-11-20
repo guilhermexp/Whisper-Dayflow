@@ -54,18 +54,34 @@ Este guia orienta qualquer agente a entender a aplicação, executar localmente,
 ## UI Components (Pile)
 ### Settings Dialog
 - Acesso: ícone de engrenagem no nav bar
-- Tabs: Journal, Whisper, Enhancement
+- Tabs: Diário, Whisper, Melhorias
 - Arquivo: `whispo/src/renderer/src/pages/pile/Settings/index.jsx`
+- **Prompt Editor**: Modal para visualizar/editar prompts de enhancement (z-index corrigido para aparecer sobre Settings)
 
 ### Analytics Dialog
 - Acesso: ícone de gauge no nav bar
-- Tabs: Analytics (stats, performance), History (todas transcrições)
+- Tabs: Analytics (stats, performance), History (todas transcrições ordenadas por data decrescente)
 - Arquivo: `whispo/src/renderer/src/pages/pile/Analytics/index.jsx`
 
 ### Dashboard Dialog
 - Acesso: ícone de card no nav bar
 - Conteúdo: Timeline chart (Recharts), Provider breakdown pie chart, Stats cards
 - Arquivo: `whispo/src/renderer/src/pages/pile/Dashboard/index.jsx`
+
+### Chat Dialog
+- Acesso: ícone de chat no nav bar
+- **Funcionalidades**:
+  - Painel de contexto (toggle lateral mostrando entradas relevantes do jornal usadas como contexto)
+  - Seletor de tema (dropdown com 5 cores: light, blue, purple, yellow, green)
+  - Exportar conversa (salva como .txt)
+  - Animações suaves com AnimatePresence
+- Arquivo: `whispo/src/renderer/src/pages/pile/Chat/index.jsx`
+- Hook: `whispo/src/renderer/src/hooks/useChat.jsx` (retorna `relevantEntries`)
+
+### Search Dialog
+- Acesso: ícone de lupa no nav bar
+- Busca semântica no jornal usando vector search
+- Arquivo: `whispo/src/renderer/src/pages/pile/Search/index.jsx`
 
 ### Tray Menu
 - Start/Cancel Recording

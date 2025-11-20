@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Agent Development Guide
 
-**Last Updated:** November 19, 2024
+**Last Updated:** November 20, 2024
 **Project:** Whisper-Dayflow (Whispo) - AI-powered dictation tool with integrated journaling
 **Version:** 0.2.0
 
@@ -169,11 +169,29 @@ Visual analytics dashboard with Recharts graphs:
 **Location:** `src/renderer/src/pages/pile/Settings/index.jsx`
 
 Unified settings with three main tabs:
-- **Journal:** Pile/journaling settings (theme, AI integration)
-- **AI:** LLM provider configuration (OpenAI, Groq, Gemini, OpenRouter, Ollama)
-- **Transcription:** Whisper/STT settings, enhancement options
+- **Diário (Journal):** Pile/journaling settings (theme, AI integration)
+- **IA (AI):** LLM provider configuration (OpenAI, Groq, Gemini, OpenRouter, Ollama)
+- **Transcrição (Transcription):** Whisper/STT settings, enhancement options
 
 Contains TranscriptionSettingsTabs and AISettingsTabs sub-components.
+
+**Prompt Editor:** Modal for viewing/editing enhancement prompts (AI personality). Z-index is handled by rendering inside Dialog.Content.
+
+### Chat Dialog
+**Location:** `src/renderer/src/pages/pile/Chat/index.jsx`
+
+AI chat interface with journal context:
+- **Context Panel:** Toggle lateral showing relevant journal entries used as context (with similarity scores)
+- **Theme Selector:** Dropdown with 5 color themes (light, blue, purple, yellow, green)
+- **Export Chat:** Save conversation as .txt file
+- **Animations:** Smooth transitions with Framer Motion AnimatePresence
+
+**Hook:** `src/renderer/src/hooks/useChat.jsx` (returns `relevantEntries` for context display)
+
+### Search Dialog
+**Location:** `src/renderer/src/pages/pile/Search/index.jsx`
+
+Semantic search in journal using vector search with AI embeddings.
 
 ### System Tray
 **Location:** `src/main/tray.ts`
