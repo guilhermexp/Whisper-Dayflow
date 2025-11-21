@@ -72,7 +72,9 @@ export type RecordingHistoryItemHighlight = {
 }
 
 export type RecordingHistorySearchResult = {
-  items: Array<RecordingHistoryItem & { highlight?: RecordingHistoryItemHighlight }>
+  items: Array<
+    RecordingHistoryItem & { highlight?: RecordingHistoryItemHighlight }
+  >
   total: number
   stats: {
     totalDurationMs: number
@@ -112,7 +114,11 @@ export type RecordingAnalyticsSnapshot = {
     averageAccuracy: number | null
   }>
   peakHours: Array<{ hour: number; count: number }>
-  providerBreakdown: Array<{ providerId: string; count: number; durationMs: number }>
+  providerBreakdown: Array<{
+    providerId: string
+    count: number
+    durationMs: number
+  }>
   productivity: {
     wordsPerMinute: {
       average: number | null
@@ -238,4 +244,8 @@ export type Config = {
 
   // Media Control
   isPauseMediaEnabled?: boolean
+
+  // Auto-journal (experimental)
+  autoJournalEnabled?: boolean
+  autoJournalWindowMinutes?: number
 }
