@@ -22,8 +22,14 @@ export async function postProcessTranscript(
   // NEW: Use enhancement service if enabled
   if (config.enhancementEnabled) {
     console.log("[enhancement] Enhancement ENABLED")
-    console.log("[enhancement] Selected prompt ID:", config.selectedPromptId || "default")
-    console.log("[enhancement] Provider:", config.enhancementProvider || "openai")
+    console.log(
+      "[enhancement] Selected prompt ID:",
+      config.selectedPromptId || "default",
+    )
+    console.log(
+      "[enhancement] Provider:",
+      config.enhancementProvider || "openai",
+    )
 
     try {
       const result = await enhancementService.enhanceTranscript(transcript, {
@@ -32,23 +38,46 @@ export async function postProcessTranscript(
 
       // Log error if enhancement failed but returned original
       if (result.error) {
-        console.log("[enhancement] ⚠️  Enhancement failed, using original transcript")
+        console.log(
+          "[enhancement] ⚠️  Enhancement failed, using original transcript",
+        )
         console.log("[enhancement] Error:", result.error)
-        console.log("[enhancement] Processing time:", result.processingTime, "ms")
+        console.log(
+          "[enhancement] Processing time:",
+          result.processingTime,
+          "ms",
+        )
         console.log("[enhancement] Provider used:", result.provider || "none")
         console.log("[enhancement] Prompt used:", result.promptId || "none")
       } else {
         console.log("[enhancement] ✅ Enhancement completed successfully")
-        console.log("[enhancement] Original length:", result.originalText.length, "chars")
-        console.log("[enhancement] Enhanced length:", result.enhancedText.length, "chars")
-        console.log("[enhancement] Processing time:", result.processingTime, "ms")
+        console.log(
+          "[enhancement] Original length:",
+          result.originalText.length,
+          "chars",
+        )
+        console.log(
+          "[enhancement] Enhanced length:",
+          result.enhancedText.length,
+          "chars",
+        )
+        console.log(
+          "[enhancement] Processing time:",
+          result.processingTime,
+          "ms",
+        )
         console.log("[enhancement] Provider used:", result.provider)
-        console.log("[enhancement] Model used:", config.enhancementProvider === "openrouter"
-          ? config.openrouterModel || "openai/gpt-4o-mini"
-          : config.enhancementProvider === "openai" ? config.openaiModel || "gpt-4o-mini"
-          : config.enhancementProvider === "groq" ? config.groqModel || "llama-3.1-70b-versatile"
-          : config.enhancementProvider === "gemini" ? config.geminiModel || "gemini-1.5-flash-002"
-          : config.customEnhancementModel || "gpt-4o-mini"
+        console.log(
+          "[enhancement] Model used:",
+          config.enhancementProvider === "openrouter"
+            ? config.openrouterModel || "openai/gpt-4o-mini"
+            : config.enhancementProvider === "openai"
+              ? config.openaiModel || "gpt-4o-mini"
+              : config.enhancementProvider === "groq"
+                ? config.groqModel || "llama-3.1-70b-versatile"
+                : config.enhancementProvider === "gemini"
+                  ? config.geminiModel || "gemini-1.5-flash-002"
+                  : config.customEnhancementModel || "gpt-4o-mini",
         )
         console.log("[enhancement] Prompt used:", result.promptId)
       }
@@ -69,7 +98,10 @@ export async function postProcessTranscript(
 
       return result.enhancedText
     } catch (error) {
-      console.error("[enhancement] ❌ Enhancement service threw exception:", error)
+      console.error(
+        "[enhancement] ❌ Enhancement service threw exception:",
+        error,
+      )
       // Fallback to original transcript on error
       if (options.returnMetadata) {
         return { text: transcript, metadata: {} }
@@ -99,7 +131,9 @@ export async function postProcessTranscript(
     if (!config.geminiApiKey) throw new Error("Gemini API key is required")
 
     const gai = new GoogleGenerativeAI(config.geminiApiKey)
-    const gModel = gai.getGenerativeModel({ model: config.geminiModel || "gemini-1.5-flash-002" })
+    const gModel = gai.getGenerativeModel({
+      model: config.geminiModel || "gemini-1.5-flash-002",
+    })
 
     ensureNotAborted()
     const result = await gModel.generateContent([prompt], {
@@ -147,11 +181,18 @@ export async function postProcessTranscript(
   }
 
   // Validate API response structure
-  if (!chatJson.choices || !Array.isArray(chatJson.choices) || chatJson.choices.length === 0) {
+  if (
+    !chatJson.choices ||
+    !Array.isArray(chatJson.choices) ||
+    chatJson.choices.length === 0
+  ) {
     throw new Error("Invalid API response: missing or empty choices array")
   }
 
-  if (!chatJson.choices[0].message || typeof chatJson.choices[0].message.content !== "string") {
+  if (
+    !chatJson.choices[0].message ||
+    typeof chatJson.choices[0].message.content !== "string"
+  ) {
     throw new Error("Invalid API response: missing or invalid message content")
   }
 
@@ -176,6 +217,7 @@ export async function generateAutoJournalSummaryFromHistory(
      */
     windowMinutes?: number
     signal?: AbortSignal
+    promptOverride?: string
   } = {},
 ): Promise<AutoJournalSummary> {
   const config = configStore.get()
@@ -216,7 +258,7 @@ export async function generateAutoJournalSummaryFromHistory(
     }
   }
 
-  // Build a compact, human-readable log of the window
+  // Build a compact, human-readable log of the window with timestamps
   const formatClock = (ts: number) => {
     const d = new Date(ts)
     return d.toLocaleTimeString(undefined, {
@@ -226,71 +268,172 @@ export async function generateAutoJournalSummaryFromHistory(
   }
 
   const lines = windowItems.map((item) => {
-    const start = formatClock(item.createdAt)
-    const end = formatClock(item.createdAt + (item.duration || 0))
+    const startTs = item.createdAt
+    const endTs = item.createdAt + (item.duration || 0)
+    const start = formatClock(startTs)
+    const end = formatClock(endTs)
     const transcript = item.transcript.replace(/\s+/g, " ").trim()
-    return `[${start} - ${end}]: ${transcript}`
+    // Include epoch timestamps so LLM can use them directly
+    return `[${start} - ${end}] (${startTs} - ${endTs}): ${transcript}`
   })
 
-  const logText = lines.join("\n")
+  const MAX_LOG_CHARS = 8000
+  const joinedLog = lines.join("\n")
+  const truncated = joinedLog.length > MAX_LOG_CHARS
+  const logText = truncated ? joinedLog.slice(0, MAX_LOG_CHARS) : joinedLog
 
-  // Prompt: condensed version of the Dayflow "digital anthropologist" concept,
-  // tuned for text-only observations (no screen/video).
+  // Prompt: follows exact Dayflow guidelines for card generation
+  // Build prompt dynamically based on user customization settings
+
+  // Default title guidelines
+  const defaultTitleGuidelines = `## TITLE GUIDELINES
+Write titles like you're texting a friend about what you did. Natural, conversational, direct, specific.
+
+Rules:
+- Be specific and clear (not creative or vague)
+- Keep it short - aim for 5-10 words
+- Don't reference other activities or assume context
+- Include specific app/tool/project names, not generic activities
+- Use specific verbs: "Debugged Python script" not "Worked on code"
+
+Good examples:
+- "Debugando fluxo de autenticação no React"
+- "Análise de orçamento no Excel para Q4"
+- "Reunião no Zoom com equipe de design"
+- "Respondendo emails de clientes"
+- "Pesquisa sobre opções de integração de API"
+
+Bad examples:
+- "Sessão produtiva da manhã" (muito vago)
+- "Trabalhei no projeto" (não específico)
+- "Várias tarefas e atividades" (sem sentido)
+- "Continuando do anterior" (referencia outros cards)`
+
+  // Default summary guidelines
+  const defaultSummaryGuidelines = `## SUMMARY GUIDELINES
+Write brief factual summaries optimized for quick scanning. First person perspective without "I".
+
+Critical rules - NEVER:
+- Use third person ("The session", "The work", "The user")
+- Assume future actions, mental states, or unverifiable details
+- Add filler phrases like "kicked off", "dove into", "started with", "began by"
+- Write more than 2-3 short sentences
+- Repeat the same phrases across summaries
+
+Style guidelines:
+- State what happened directly - no lead-ins
+- List activities and tools concisely
+- Mention major interruptions or context switches briefly
+- Keep technical terms simple
+
+Content rules:
+- Maximum 2-3 sentences
+- Just the facts: what you did, which tools/projects, major blockers
+- Include specific names (apps, tools, files) not generic terms
+- Note pattern interruptions without elaborating
+
+Good example:
+"Refatorou módulo de autenticação no React, adicionou suporte OAuth. Debugou problemas de CORS com API backend por uma hora. Postou pergunta no Stack Overflow quando a correção não funcionou."
+
+Bad examples:
+- "Começou a manhã entrando em trabalho de design antes de fazer transição para tarefas de desenvolvimento. A sessão foi bastante produtiva no geral." (Muito vago, frases de preenchimento)
+- "Começou refatorando o sistema de autenticação antes de passar a debugar alguns problemas que surgiram. Acabou gastando tempo pesquisando soluções online." (Prolixo, falta especificidade)`
+
+  // Use custom prompts if enabled, otherwise use defaults
+  const titleGuidelines = config.autoJournalTitlePromptEnabled && config.autoJournalTitlePrompt?.trim()
+    ? `## TITLE GUIDELINES\n${config.autoJournalTitlePrompt.trim()}`
+    : defaultTitleGuidelines
+
+  const summaryGuidelines = config.autoJournalSummaryPromptEnabled && config.autoJournalSummaryPrompt?.trim()
+    ? `## SUMMARY GUIDELINES\n${config.autoJournalSummaryPrompt.trim()}`
+    : defaultSummaryGuidelines
+
+  const userPrompt =
+    options.promptOverride?.trim() || config.autoJournalPrompt?.trim() || ""
   const basePrompt = `
-You are a digital anthropologist observing a user's raw speech transcripts over a short period of time.
-Your goal is to synthesize this log into a small set of high‑level activity blocks that describe what they were working on.
+You are analyzing a user's voice transcriptions to create a structured activity timeline.
+Your job is to synthesize these transcripts into meaningful activity blocks.
 
-CRITICAL RULES:
-- Focus on factual, observable activity only (what they did, which tools/projects, major decisions).
-- Do not invent tasks, feelings, or future plans.
-- Prefer a few long, meaningful blocks (15–60 minutes) over many tiny ones.
+**IMPORTANT: Generate ALL content (titles, summaries, descriptions) in PORTUGUESE (Brazilian Portuguese).**
 
-OUTPUT FORMAT:
-You must return ONLY a single JSON object with this exact shape:
+## GOLDEN RULE: Aim for 1-3 activity blocks per time window (fewer is better)
+
+Group by PURPOSE, not by tool. "Pesquisando projeto em múltiplas fontes" = ONE block, not many.
+
+## OUTPUT FORMAT
+Return ONLY a JSON object with this exact shape:
 {
-  "summary": "one short paragraph summarizing the whole window in first-person style without using 'I'",
+  "summary": "2-3 sentence overview of the entire period",
   "activities": [
     {
       "startTs": 1732042800000,
       "endTs": 1732045500000,
-      "title": "Short, concrete title of the block",
-      "summary": "1-3 short sentences describing what happened in this block.",
-      "category": "Work" // optional coarse label like Work, Meeting, Study, Admin, Browsing, Personal, Idle
+      "title": "5-10 word conversational title",
+      "summary": "2-3 factual sentences",
+      "category": "Work",
+      "detailedSummary": [
+        {
+          "startTs": 1732042800000,
+          "endTs": 1732043100000,
+          "description": "Brief description of this moment"
+        }
+      ]
     }
   ]
 }
 
-TIMING RULES:
-- startTs and endTs must be UNIX epoch milliseconds within the provided window.
-- Activities must collectively cover as much of the observed time as possible without overlapping.
-- You can merge small gaps/interruptions into the nearest meaningful block.
+${titleGuidelines}
 
-STYLE GUIDELINES:
-- Titles: write like a quick note to a colleague ("Debugging auth bug in app", "Writing email to client about contract").
-- Summaries: 1–3 short factual sentences, no fluff, no metaphors, no narrative intros.
-- Categories: use a small set of coarse labels; omit the field if you're unsure.
+${summaryGuidelines}
 
-INPUT LOG:
+## CATEGORY RULES
+Use exactly one of: Work, Personal, Distraction, Idle
+- Work: productive tasks, projects, meetings, emails
+- Personal: personal errands, health, family
+- Distraction: unrelated browsing, social media rabbit holes
+- Idle: breaks, waiting, no activity
+
+## DETAILED SUMMARY
+For each activity, create a granular breakdown using the EXACT timestamps from the input transcriptions.
+- Each transcription entry in the input has timestamps in parentheses (startTs - endTs)
+- Create one detailedSummary entry per transcription, using those exact epoch timestamps
+- The description should summarize what that specific transcription was about (10-20 words)
+- This creates a timeline of exactly what happened and when
+
+## TIMING RULES
+- startTs and endTs must be UNIX epoch milliseconds
+- Window start: ${windowStartTs}
+- Window end: ${windowEndTs}
+- Activities should cover the observed time without overlapping
+- Merge small gaps into nearest meaningful block
+
+## INPUT TRANSCRIPTIONS
 ${logText}
 
-Return ONLY the JSON object, with no extra text or explanation.
+Return ONLY the JSON object. No markdown, no explanation, no extra text.
 `
+  const finalPrompt = userPrompt ? `${userPrompt}\n\n${basePrompt}` : basePrompt
 
   // Use the same provider configuration as enhancement, since this is
   // conceptually another "meta" AI feature on top of transcripts.
   const provider = config.enhancementProvider ?? "openai"
+  let debugModel = "unknown"
+  const debugProvider = provider
 
   const callWithGemini = async (): Promise<string> => {
     if (!config.geminiApiKey) {
-      throw new Error("Gemini API key is required for auto-journal when provider=gemini")
+      throw new Error(
+        "Gemini API key is required for auto-journal when provider=gemini",
+      )
     }
 
     const gai = new GoogleGenerativeAI(config.geminiApiKey)
     const modelId = config.geminiModel || "gemini-1.5-flash-002"
+    debugModel = modelId
     const gModel = gai.getGenerativeModel({ model: modelId })
 
     ensureNotAborted()
-    const result = await gModel.generateContent([basePrompt], {
+    const result = await gModel.generateContent([finalPrompt], {
       baseUrl: config.geminiBaseUrl,
     })
     return result.response.text()
@@ -329,6 +472,7 @@ Return ONLY the JSON object, with no extra text or explanation.
           : provider === "groq"
             ? config.groqModel || "llama-3.1-70b-versatile"
             : config.openaiModel || "gpt-4o-mini"
+    debugModel = model
 
     const timeout = config.enhancementTimeout ?? 30000
     const controller = new AbortController()
@@ -353,7 +497,7 @@ Return ONLY the JSON object, with no extra text or explanation.
           messages: [
             {
               role: "user",
-              content: basePrompt,
+              content: finalPrompt,
             },
           ],
         }),
@@ -364,7 +508,8 @@ Return ONLY the JSON object, with no extra text or explanation.
         let errorDetails = ""
         try {
           const data = await response.json()
-          errorDetails = data.error?.message || data.message || JSON.stringify(data)
+          errorDetails =
+            data.error?.message || data.message || JSON.stringify(data)
         } catch {
           errorDetails = await response.text()
         }
@@ -382,7 +527,9 @@ Return ONLY the JSON object, with no extra text or explanation.
         !data.choices[0].message ||
         typeof data.choices[0].message.content !== "string"
       ) {
-        throw new Error("Invalid API response: missing or invalid message content")
+        throw new Error(
+          "Invalid API response: missing or invalid message content",
+        )
       }
 
       return data.choices[0].message.content as string
@@ -415,7 +562,10 @@ Return ONLY the JSON object, with no extra text or explanation.
     }
     parsed = JSON.parse(trimmed.slice(jsonStart, jsonEnd + 1))
   } catch (error) {
-    console.error("[auto-journal] Failed to parse model response as JSON:", error)
+    console.error(
+      "[auto-journal] Failed to parse model response as JSON:",
+      error,
+    )
     console.error("[auto-journal] Raw response:", raw.slice(0, 500))
     throw error
   }
@@ -425,23 +575,36 @@ Return ONLY the JSON object, with no extra text or explanation.
       ? parsed.summary.trim()
       : "No summary generated."
 
+  const validCategories = ["Work", "Personal", "Distraction", "Idle"]
+
   const activities: AutoJournalSummary["activities"] = Array.isArray(
     parsed.activities,
   )
     ? parsed.activities
         .map((a: any) => ({
-          startTs:
-            typeof a.startTs === "number" ? a.startTs : windowStartTs,
+          startTs: typeof a.startTs === "number" ? a.startTs : windowStartTs,
           endTs: typeof a.endTs === "number" ? a.endTs : windowEndTs,
           title: typeof a.title === "string" ? a.title : "Untitled activity",
           summary:
-            typeof a.summary === "string"
-              ? a.summary
-              : "No summary provided.",
+            typeof a.summary === "string" ? a.summary : "No summary provided.",
           category:
-            typeof a.category === "string" && a.category.trim().length
+            typeof a.category === "string" && validCategories.includes(a.category)
               ? a.category
               : undefined,
+          detailedSummary: Array.isArray(a.detailedSummary)
+            ? a.detailedSummary
+                .filter(
+                  (d: any) =>
+                    typeof d.startTs === "number" &&
+                    typeof d.endTs === "number" &&
+                    typeof d.description === "string"
+                )
+                .map((d: any) => ({
+                  startTs: d.startTs,
+                  endTs: d.endTs,
+                  description: d.description,
+                }))
+            : undefined,
         }))
         .filter(
           (a) =>
@@ -456,5 +619,15 @@ Return ONLY the JSON object, with no extra text or explanation.
     windowEndTs,
     summary,
     activities,
+    debug: {
+      provider: debugProvider,
+      model: debugModel,
+      windowStartTs,
+      windowEndTs,
+      windowMinutes,
+      itemsUsed: windowItems.length,
+      truncated,
+      logChars: logText.length,
+    },
   }
 }

@@ -1,0 +1,771 @@
+// Full page container
+.pageContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  background: var(--bg);
+  overflow: hidden;
+  padding: 24px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pageTitle {
+  font-family: 'Porpora', serif;
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--primary);
+  margin: 0;
+}
+
+.backBtn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--secondary);
+  transition: all 0.2s;
+
+  &:hover {
+    background: var(--bg-secondary);
+    color: var(--primary);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.tabsRoot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.iconHolder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 36px;
+  border-radius: 8px;
+  transition: all ease-in-out 120ms;
+  -webkit-app-region: none;
+  background: transparent;
+  margin-right: -2px;
+
+  .autoJournalIcon {
+    color: var(--secondary);
+    height: 19px;
+    width: 19px;
+    transition: all ease-in-out 220ms;
+    transition-delay: 40ms;
+    opacity: 0.5;
+  }
+
+  &:hover {
+    cursor: pointer;
+    background: var(--bg-secondary);
+    color: var(--primary);
+
+    .autoJournalIcon {
+      opacity: 1;
+    }
+  }
+
+  &:active {
+    background: var(--bg-tertiary);
+  }
+}
+
+button,
+fieldset,
+input {
+  all: unset;
+}
+
+.DialogOverlay {
+  background-color: var(--bg-tertiary);
+  position: fixed;
+  inset: 0;
+  animation: overlayShow 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0.9;
+  z-index: 40;
+}
+
+.DialogContent {
+  z-index: 50;
+  background-color: var(--bg);
+  border-radius: 22px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90vw;
+  max-width: 720px;
+  min-width: 420px;
+  max-height: 85vh;
+  padding: 22px;
+  animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+}
+
+.DialogContent:focus {
+  outline: none;
+}
+
+.DialogTitle {
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+  font-family: 'Porpora';
+  font-size: var(--font-title);
+  color: var(--primary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.IconButton {
+  font-family: inherit;
+  border-radius: 100%;
+  height: 28px;
+  width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  transition: all ease-in-out 120ms;
+  stroke-width: 2px;
+  color: var(--secondary);
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 10;
+  background: transparent;
+
+  &:hover {
+    cursor: pointer;
+    color: var(--primary);
+    background-color: var(--bg-secondary);
+  }
+}
+
+.RefreshButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--bg-secondary);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.TabsList {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.TabTrigger {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: var(--font-small);
+  color: var(--secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    background: var(--bg-secondary);
+    color: var(--primary);
+  }
+
+  &[data-state='active'] {
+    background: var(--bg-tertiary);
+    color: var(--primary);
+    font-weight: 500;
+  }
+}
+
+.Container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.EmptyState {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--secondary);
+  font-size: 12px;
+}
+
+.GenerateCard {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.GenerateHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--font-small);
+  color: var(--secondary);
+}
+
+.ActionBtn {
+  padding: 6px 10px;
+  font-size: var(--font-small);
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: var(--active);
+  color: var(--active-text);
+  transition: opacity 0.2s;
+  white-space: nowrap;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  &:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+}
+
+.RunList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.RunItem {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: var(--secondary);
+  }
+
+  &.selected {
+    border-color: var(--active);
+    background: var(--bg-secondary);
+  }
+}
+
+.RunHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.RunDate {
+  font-size: var(--font-small);
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.RunStatus {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+
+  &.success {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+  }
+
+  &.error {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+}
+
+.RunMeta {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--secondary);
+  margin-bottom: 4px;
+}
+
+.RunPreview {
+  font-size: var(--font-small);
+  color: var(--secondary);
+  line-height: 1.4;
+}
+
+.RunError {
+  font-size: var(--font-small);
+  color: #ef4444;
+  margin-top: 4px;
+}
+
+.RunDetails {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.RunDetailsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.SectionTitle {
+  font-size: var(--font-body);
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.SummaryBox {
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.SummaryTitle {
+  font-size: var(--font-small);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.SummaryText {
+  font-size: var(--font-small);
+  color: var(--secondary);
+  line-height: 1.4;
+}
+
+.ActivitiesList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+// Dayflow-style Activity Card
+.ActivityCard {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 12px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ActivityCardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ActivityCardTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+  line-height: 1.3;
+}
+
+.ActivityCardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ActivityTimeRange {
+  font-size: 12px;
+  color: var(--secondary);
+}
+
+.CategoryBadge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.categoryWork {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.categoryPersonal {
+  background: rgba(14, 165, 233, 0.15);
+  color: #0ea5e9;
+}
+
+.categoryDistraction {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+}
+
+.categoryIdle {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}
+
+.ActivityCardSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ActivityCardLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--secondary);
+  letter-spacing: 0.5px;
+}
+
+.ActivityCardText {
+  font-size: var(--font-small);
+  color: var(--primary);
+  line-height: 1.5;
+}
+
+.DetailedList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.DetailedItem {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.DetailedTime {
+  color: var(--secondary);
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+.DetailedDesc {
+  color: var(--primary);
+  flex: 1;
+}
+
+.OverallSummary {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+// Legacy styles for backwards compatibility
+.ActivityItem {
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  font-size: var(--font-small);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-tertiary);
+}
+
+.ActivityHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.ActivityTitle {
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.ActivityTime {
+  font-size: 10px;
+  color: var(--secondary);
+}
+
+.ActivityCategory {
+  font-size: 10px;
+  color: var(--secondary);
+  font-style: italic;
+}
+
+.ActivitySummary {
+  font-size: var(--font-small);
+  color: var(--secondary);
+  line-height: 1.3;
+}
+
+.Diagnostics {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  font-size: var(--font-small);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.DiagnosticsRow {
+  display: flex;
+  justify-content: space-between;
+  color: var(--secondary);
+}
+
+// Settings styles
+.SettingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.SettingBlock {
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.SettingInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.SettingLabel {
+  font-size: var(--font-body);
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.SettingDesc {
+  font-size: var(--font-small);
+  color: var(--secondary);
+}
+
+.Select {
+  font-size: var(--font-small);
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--primary);
+  outline: none;
+  cursor: pointer;
+  min-width: 120px;
+
+  &:hover {
+    border-color: var(--secondary);
+  }
+}
+
+.TextArea {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--primary);
+  font-size: var(--font-small);
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+
+  &:focus {
+    border-color: var(--active);
+  }
+
+  &::placeholder {
+    color: var(--secondary);
+    opacity: 0.6;
+  }
+}
+
+// Switch styles
+.SwitchRoot {
+  width: 42px;
+  height: 25px;
+  background-color: var(--bg-secondary);
+  border-radius: 9999px;
+  position: relative;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &[data-state='checked'] {
+    background-color: var(--active);
+    border-color: var(--active);
+  }
+}
+
+.SwitchThumb {
+  display: block;
+  width: 21px;
+  height: 21px;
+  background-color: white;
+  border-radius: 9999px;
+  transition: transform 0.2s;
+  transform: translateX(2px);
+  will-change: transform;
+
+  &[data-state='checked'] {
+    transform: translateX(19px);
+  }
+}
+
+// Prompt Customization Section (Dayflow-style)
+.PromptSection {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.PromptHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.PromptHeaderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.PromptHeaderTitle {
+  font-size: var(--font-body);
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.PromptHeaderDesc {
+  font-size: var(--font-small);
+  color: var(--secondary);
+}
+
+.PromptContent {
+  padding: 12px;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.PromptLabel {
+  font-size: var(--font-small);
+  color: var(--secondary);
+}
+
+.PromptTextArea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--primary);
+  font-size: 12px;
+  font-family: monospace;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+
+  &:focus {
+    border-color: var(--active);
+  }
+
+  &::placeholder {
+    color: var(--secondary);
+    opacity: 0.6;
+  }
+}
+
+@keyframes overlayShow {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 0.9;
+  }
+}
+
+@keyframes contentShow {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}

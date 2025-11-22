@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import styles from './PileLayout.module.scss';
-import { HomeIcon } from 'renderer/icons';
+import { HomeIcon, ClockIcon, NotebookIcon } from 'renderer/icons';
 import Sidebar from './Sidebar/Timeline/index';
 import { useIndexContext } from 'renderer/context/IndexContext';
 import { useEffect, useState, useMemo } from 'react';
@@ -84,6 +84,12 @@ export default function PileLayout({ children }) {
               <Chat />
               <Search />
               <Settings />
+              <Link to="/timeline" className={styles.iconHolder}>
+                <ClockIcon className={styles.timelineIcon} />
+              </Link>
+              <Link to="/auto-journal" className={styles.iconHolder}>
+                <NotebookIcon className={styles.autoJournalIcon} />
+              </Link>
               <Dashboard />
               <Analytics />
               <Link to="/" className={`${styles.iconHolder}`}>

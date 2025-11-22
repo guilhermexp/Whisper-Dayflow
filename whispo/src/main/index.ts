@@ -17,6 +17,7 @@ import { isAccessibilityGranted } from "./utils"
 import { globalShortcutManager } from "./global-shortcut"
 import { mediaController } from "./services/media-controller"
 import { configStore } from "./config"
+import { startAutoJournalScheduler } from "./services/auto-journal-service"
 
 // Register Pile IPC handlers
 import "./pile-ipc"
@@ -62,6 +63,9 @@ app.whenReady().then(() => {
   const config = configStore.get()
   mediaController.setEnabled(config.isPauseMediaEnabled ?? false)
   console.log('[MediaController] Initialized, enabled:', mediaController.isEnabled())
+
+  // Auto-journal scheduler (manual runs still available via IPC)
+  startAutoJournalScheduler()
 
   import("./updater").then((res) => res.init()).catch(console.error)
 

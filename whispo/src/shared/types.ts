@@ -137,17 +137,45 @@ export type RecordingAnalyticsSnapshot = {
 }
 
 // Auto-journal / activity summary types
+/** Granular timestamp entry for detailed summary */
+export type AutoJournalDetailedEntry = {
+  /** Epoch ms for start of this entry */
+  startTs: number
+  /** Epoch ms for end of this entry */
+  endTs: number
+  /** Brief description of what happened in this moment */
+  description: string
+}
+
 export type AutoJournalActivity = {
   /** Epoch ms for the first recording contributing to this activity */
   startTs: number
   /** Epoch ms for the last recording contributing to this activity */
   endTs: number
-  /** Short, concrete title like "Debugging auth bug in app" */
+  /** Short, concrete title like "Debugging auth bug in app" (5-10 words) */
   title: string
-  /** 1–3 sentence factual summary of what happened in this block */
+  /** 2-3 sentence factual summary of what happened in this block */
   summary: string
-  /** Optional coarse category label, e.g. "Work", "Meeting", "Browsing" */
-  category?: string
+  /** Optional coarse category label: Work, Personal, Distraction, Idle */
+  category?: "Work" | "Personal" | "Distraction" | "Idle"
+  /** Granular breakdown of sub-activities with timestamps */
+  detailedSummary?: AutoJournalDetailedEntry[]
+}
+
+export type AutoJournalDebug = {
+  /** Provider used (openai | groq | gemini | openrouter | custom) */
+  provider: string
+  /** Model used for the request */
+  model: string
+  /** Window boundaries and params used */
+  windowStartTs: number
+  windowEndTs: number
+  windowMinutes: number
+  /** How many transcripts were used and whether the log was truncated */
+  itemsUsed: number
+  truncated: boolean
+  /** Length of the prompt log text after truncation */
+  logChars: number
 }
 
 export type AutoJournalSummary = {
@@ -159,6 +187,18 @@ export type AutoJournalSummary = {
   summary: string
   /** Activity blocks covering this window */
   activities: AutoJournalActivity[]
+  /** Optional diagnostics for UI/debug */
+  debug?: AutoJournalDebug
+}
+
+export type AutoJournalRun = {
+  id: string
+  startedAt: number
+  finishedAt: number
+  status: "success" | "error"
+  windowMinutes: number
+  summary?: AutoJournalSummary
+  error?: string
 }
 
 export type SavedRecordingSearch = {
@@ -248,4 +288,12 @@ export type Config = {
   // Auto-journal (experimental)
   autoJournalEnabled?: boolean
   autoJournalWindowMinutes?: number
+  autoJournalTargetPilePath?: string
+  autoJournalPrompt?: string // Legacy - kept for backwards compatibility
+
+  // Auto-journal prompt customization (Dayflow-style)
+  autoJournalTitlePromptEnabled?: boolean
+  autoJournalTitlePrompt?: string
+  autoJournalSummaryPromptEnabled?: boolean
+  autoJournalSummaryPrompt?: string
 }

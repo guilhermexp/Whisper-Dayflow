@@ -14,13 +14,18 @@ import path from "path"
 import { configStore, recordingsFolder } from "./config"
 import { modelManager } from "./model-manager"
 import type {
+  AutoJournalActivity,
   Config,
   RecordingAudioProfile,
   RecordingHistoryItem,
   RecordingHistorySearchFilters,
 } from "../shared/types"
+import matter from "gray-matter"
 import { RendererHandlers } from "./renderer-handlers"
-import { postProcessTranscript, generateAutoJournalSummaryFromHistory } from "./llm"
+import {
+  postProcessTranscript,
+  generateAutoJournalSummaryFromHistory,
+} from "./llm"
 import { enhancementService } from "./services/enhancement-service"
 import { abortOngoingTranscription, state } from "./state"
 import { updateTrayIcon } from "./tray"
@@ -30,6 +35,12 @@ import { clipboardManager } from "./clipboard-manager"
 import { transcribeWithLocalModel } from "./local-transcriber"
 import { historyStore } from "./history-store"
 import { buildAnalyticsSnapshot, runHistorySearch } from "./history-analytics"
+import {
+  listAutoJournalRuns,
+  runAutoJournalOnce,
+  startAutoJournalScheduler,
+  stopAutoJournalScheduler,
+} from "./services/auto-journal-service"
 
 const t = tipc.create()
 
@@ -68,6 +79,28 @@ const CLOUD_STT_MODEL_LABELS: Record<string, string> = {
 
 const LOCAL_PROVIDER_PREFIX = "local:"
 
+const monthShort = (date: Date) =>
+  date.toLocaleString("default", { month: "short" })
+
+const buildNewPostPath = (pilePath: string, timestamp = new Date()) => {
+  const yearFolder = String(timestamp.getFullYear())
+  const fileName = [
+    String(timestamp.getFullYear()).slice(-2),
+    String(timestamp.getMonth() + 1).padStart(2, "0"),
+    String(timestamp.getDate()).padStart(2, "0"),
+    "-",
+    String(timestamp.getHours()).padStart(2, "0"),
+    String(timestamp.getMinutes()).padStart(2, "0"),
+    String(timestamp.getSeconds()).padStart(2, "0"),
+  ].join("")
+
+  const relDir = path.join(yearFolder, monthShort(timestamp))
+  const absDir = path.join(pilePath, relDir)
+  const absPath = path.join(absDir, `${fileName}.md`)
+  const relPath = path.join(relDir, `${fileName}.md`)
+  return { absDir, absPath, relPath }
+}
+
 const deriveSttProviderId = (config: Config) => {
   const preferLocal = config.preferLocalModels === true
   const hasDefaultLocal = Boolean(config.defaultLocalModel)
@@ -97,20 +130,26 @@ const resolveActiveSttModelInfo = async (config: Config) => {
         const models = await modelManager.listAllModels()
         const target = models.find(
           (model) =>
-            (model.provider === "local" || model.provider === "local-imported") &&
+            (model.provider === "local" ||
+              model.provider === "local-imported") &&
             model.id === localModelId,
         )
 
         if (target) {
           const origin =
-            target.provider === "local-imported" ? "imported local model" : "local catalog model"
+            target.provider === "local-imported"
+              ? "imported local model"
+              : "local catalog model"
           return {
             providerId,
             description: `${origin}: ${target.displayName} [${target.id}]`,
           }
         }
       } catch (error) {
-        console.warn("[transcription] Failed to resolve local model metadata", error)
+        console.warn(
+          "[transcription] Failed to resolve local model metadata",
+          error,
+        )
       }
 
       return {
@@ -137,9 +176,11 @@ const safeWordCount = (text: string) => {
   return normalized.split(/\s+/).length
 }
 
-const estimateConfidenceScore = (
-  options: { words: number; duration: number; providerId: string },
-) => {
+const estimateConfidenceScore = (options: {
+  words: number
+  duration: number
+  providerId: string
+}) => {
   if (!options.words || !options.duration) return null
   const wpm = (options.words / options.duration) * 60000
   const base = options.providerId.startsWith(LOCAL_PROVIDER_PREFIX)
@@ -335,12 +376,14 @@ export const router = {
       )
 
       // Declare enhancementMetadata outside try block so it's accessible later
-      let enhancementMetadata: {
-        originalTranscript?: string
-        enhancementPromptId?: string
-        enhancementProvider?: string
-        enhancementProcessingTime?: number
-      } | undefined
+      let enhancementMetadata:
+        | {
+            originalTranscript?: string
+            enhancementPromptId?: string
+            enhancementProvider?: string
+            enhancementProcessingTime?: number
+          }
+        | undefined
 
       try {
         let baseTranscript: string | null = null
@@ -368,9 +411,7 @@ export const router = {
             signal: controller.signal,
           })
         } else {
-          console.log(
-            `[transcription] Using cloud provider ${providerId}`,
-          )
+          console.log(`[transcription] Using cloud provider ${providerId}`)
           const form = new FormData()
           form.append(
             "file",
@@ -427,9 +468,7 @@ export const router = {
 
           if (!transcriptResponse.ok) {
             const raw = await transcriptResponse.text()
-            throw new Error(
-              normalizeProviderError.stt(transcriptResponse, raw),
-            )
+            throw new Error(normalizeProviderError.stt(transcriptResponse, raw))
           }
 
           const json: { text: string } = await transcriptResponse.json()
@@ -504,7 +543,10 @@ export const router = {
         createdAt: recordedAt,
         duration: input.duration,
         transcript,
-        filePath: path.join(recordingsFolder, `${recordingId}.${fileExtension}`),
+        filePath: path.join(
+          recordingsFolder,
+          `${recordingId}.${fileExtension}`,
+        ),
         fileSize: recordingBuffer.byteLength,
         transcriptWordCount,
         transcriptCharacterCount,
@@ -525,7 +567,8 @@ export const router = {
           originalTranscript: enhancementMetadata.originalTranscript,
           enhancementPromptId: enhancementMetadata.enhancementPromptId,
           enhancementProvider: enhancementMetadata.enhancementProvider,
-          enhancementProcessingTime: enhancementMetadata.enhancementProcessingTime,
+          enhancementProcessingTime:
+            enhancementMetadata.enhancementProcessingTime,
         }),
       }
 
@@ -599,7 +642,9 @@ export const router = {
   updateRecordingItem: t.procedure
     .input<{
       id: string
-      patch: Partial<Pick<RecordingHistoryItem, "tags" | "accuracyScore" | "confidenceScore">>
+      patch: Partial<
+        Pick<RecordingHistoryItem, "tags" | "accuracyScore" | "confidenceScore">
+      >
     }>()
     .action(async ({ input }) => {
       return historyStore.update(input.id, input.patch)
@@ -651,7 +696,10 @@ export const router = {
         capturedAt,
       }
     } catch (error) {
-      console.error("[auto-journal] Failed to capture recording screenshot:", error)
+      console.error(
+        "[auto-journal] Failed to capture recording screenshot:",
+        error,
+      )
       return { path: "", capturedAt }
     }
   }),
@@ -670,7 +718,171 @@ export const router = {
       const history = historyStore.readAll()
       return generateAutoJournalSummaryFromHistory(history, {
         windowMinutes: input?.windowMinutes ?? 60,
+        promptOverride: configStore.get().autoJournalPrompt,
       })
+    }),
+
+  runAutoJournalNow: t.procedure
+    .input<{ windowMinutes?: number } | undefined>()
+    .action(async ({ input }) => {
+      return runAutoJournalOnce(input?.windowMinutes)
+    }),
+
+  listAutoJournalRuns: t.procedure
+    .input<{ limit?: number } | undefined>()
+    .action(async ({ input }) => {
+      return listAutoJournalRuns(input?.limit ?? 50)
+    }),
+
+  getAutoJournalSettings: t.procedure.action(async () => {
+    const cfg = configStore.get()
+    return {
+      autoJournalEnabled: cfg.autoJournalEnabled ?? false,
+      autoJournalWindowMinutes: cfg.autoJournalWindowMinutes ?? 60,
+      autoJournalTargetPilePath: cfg.autoJournalTargetPilePath ?? "",
+      autoJournalPrompt: cfg.autoJournalPrompt ?? "",
+      autoJournalTitlePromptEnabled: cfg.autoJournalTitlePromptEnabled ?? false,
+      autoJournalTitlePrompt: cfg.autoJournalTitlePrompt ?? "",
+      autoJournalSummaryPromptEnabled: cfg.autoJournalSummaryPromptEnabled ?? false,
+      autoJournalSummaryPrompt: cfg.autoJournalSummaryPrompt ?? "",
+    }
+  }),
+
+  saveAutoJournalSettings: t.procedure
+    .input<{
+      autoJournalEnabled?: boolean
+      autoJournalWindowMinutes?: number
+      autoJournalTargetPilePath?: string
+      autoJournalPrompt?: string
+      autoJournalTitlePromptEnabled?: boolean
+      autoJournalTitlePrompt?: string
+      autoJournalSummaryPromptEnabled?: boolean
+      autoJournalSummaryPrompt?: string
+    }>()
+    .action(async ({ input }) => {
+      const cfg = configStore.get()
+      configStore.save({
+        ...cfg,
+        autoJournalEnabled:
+          input.autoJournalEnabled ?? cfg.autoJournalEnabled ?? false,
+        autoJournalWindowMinutes:
+          input.autoJournalWindowMinutes ?? cfg.autoJournalWindowMinutes ?? 60,
+        autoJournalTargetPilePath:
+          input.autoJournalTargetPilePath ?? cfg.autoJournalTargetPilePath ?? "",
+        autoJournalPrompt: input.autoJournalPrompt ?? cfg.autoJournalPrompt ?? "",
+        autoJournalTitlePromptEnabled:
+          input.autoJournalTitlePromptEnabled ?? cfg.autoJournalTitlePromptEnabled ?? false,
+        autoJournalTitlePrompt:
+          input.autoJournalTitlePrompt ?? cfg.autoJournalTitlePrompt ?? "",
+        autoJournalSummaryPromptEnabled:
+          input.autoJournalSummaryPromptEnabled ?? cfg.autoJournalSummaryPromptEnabled ?? false,
+        autoJournalSummaryPrompt:
+          input.autoJournalSummaryPrompt ?? cfg.autoJournalSummaryPrompt ?? "",
+      })
+
+      stopAutoJournalScheduler()
+      startAutoJournalScheduler()
+
+      const updatedCfg = configStore.get()
+      return {
+        autoJournalEnabled: updatedCfg.autoJournalEnabled,
+        autoJournalWindowMinutes: updatedCfg.autoJournalWindowMinutes,
+        autoJournalTargetPilePath: updatedCfg.autoJournalTargetPilePath,
+        autoJournalPrompt: updatedCfg.autoJournalPrompt,
+        autoJournalTitlePromptEnabled: updatedCfg.autoJournalTitlePromptEnabled,
+        autoJournalTitlePrompt: updatedCfg.autoJournalTitlePrompt,
+        autoJournalSummaryPromptEnabled: updatedCfg.autoJournalSummaryPromptEnabled,
+        autoJournalSummaryPrompt: updatedCfg.autoJournalSummaryPrompt,
+      }
+    }),
+
+  /**
+   * Persist an auto-journal summary as a new post in the current pile.
+   */
+  createAutoJournalEntry: t.procedure
+    .input<{
+      pilePath: string
+      summary: string
+      activities: AutoJournalActivity[]
+      windowStartTs?: number
+      windowEndTs?: number
+    }>()
+    .action(async ({ input }) => {
+      const { pilePath, summary, activities, windowStartTs, windowEndTs } =
+        input
+
+      if (!pilePath || !fs.existsSync(pilePath)) {
+        throw new Error("Invalid pile path")
+      }
+
+      const timestamp = new Date()
+      const { absDir, absPath, relPath } = buildNewPostPath(pilePath, timestamp)
+      await fs.promises.mkdir(absDir, { recursive: true })
+
+      // Format time helper
+      const formatTime = (ts: number) => {
+        const d = new Date(ts)
+        return d.toLocaleTimeString(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })
+      }
+
+      // Build clean, Dayflow-style content
+      const contentLines: string[] = []
+
+      // Main summary
+      contentLines.push(summary)
+      contentLines.push("")
+
+      // Activities - clean format
+      activities.forEach((act) => {
+        const timeRange =
+          act.startTs && act.endTs
+            ? `${formatTime(act.startTs)} - ${formatTime(act.endTs)}`
+            : ""
+
+        contentLines.push(`### ${act.title}`)
+        if (timeRange) {
+          contentLines.push(`*${timeRange}*`)
+        }
+        contentLines.push("")
+        contentLines.push(act.summary)
+        contentLines.push("")
+      })
+
+      const content = contentLines.join("\n").trim()
+      const nowIso = timestamp.toISOString()
+
+      // Use first activity title or generic title
+      const mainTitle =
+        activities.length === 1 && activities[0].title
+          ? activities[0].title
+          : activities.length > 0
+            ? `${activities[0].title}${activities.length > 1 ? ` (+${activities.length - 1} more)` : ""}`
+            : `Auto Journal ${nowIso.slice(0, 10)}`
+
+      const data = {
+        title: mainTitle,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        isAI: true,
+        isReply: false,
+        tags: ["auto-journal"],
+        replies: [],
+        attachments: [],
+        windowStartTs: windowStartTs ?? null,
+        windowEndTs: windowEndTs ?? null,
+      }
+
+      const markdown = matter.stringify(content, data)
+      await fs.promises.writeFile(absPath, markdown, "utf-8")
+
+      return {
+        path: absPath,
+        relativePath: relPath,
+      }
     }),
 
   listModels: t.procedure.action(async () => {
@@ -704,7 +916,12 @@ export const router = {
       title: "Import local Whisper model",
       buttonLabel: "Import",
       properties: ["openFile"],
-      filters: [{ name: "Whisper GGML/GGUF models", extensions: ["bin", "ggml", "gguf"] }],
+      filters: [
+        {
+          name: "Whisper GGML/GGUF models",
+          extensions: ["bin", "ggml", "gguf"],
+        },
+      ],
     })
 
     if (result.canceled || result.filePaths.length === 0) {
@@ -834,7 +1051,9 @@ export const router = {
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch OpenRouter models: ${response.statusText}`)
+        throw new Error(
+          `Failed to fetch OpenRouter models: ${response.statusText}`,
+        )
       }
 
       const data = await response.json()

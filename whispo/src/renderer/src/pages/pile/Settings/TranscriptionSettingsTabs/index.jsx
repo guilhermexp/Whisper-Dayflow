@@ -139,10 +139,10 @@ export default function TranscriptionSettingsTabs() {
               value={config.sttProviderId || 'openai'}
               onChange={handleInputChange('sttProviderId')}
             >
-              <option value="openai">OpenAI</option>
-              <option value="groq">Groq</option>
-              <option value="gemini">Gemini</option>
-              <option value="openrouter">OpenRouter</option>
+              <option value="openai">{t('providers.openai')}</option>
+              <option value="groq">{t('providers.groq')}</option>
+              <option value="gemini">{t('providers.gemini')}</option>
+              <option value="openrouter">{t('providers.openrouter')}</option>
               {localModels.filter(m => m.isDownloaded || m.provider === 'local-imported').map(model => (
                 <option key={model.id} value={`local:${model.id}`}>
                   Local: {model.displayName}
@@ -171,7 +171,7 @@ export default function TranscriptionSettingsTabs() {
                 }}
                 onClick={() => setExpandedProvider(expandedProvider === 'openai' ? null : 'openai')}
               >
-                <span>OpenAI Whisper</span>
+                <span>{t('providers.openaiWhisper')}</span>
                 <ChevronRightIcon
                   style={{
                     height: '14px',
@@ -185,7 +185,7 @@ export default function TranscriptionSettingsTabs() {
                 <div style={{ padding: '0 12px 12px' }}>
                   <div className={styles.group}>
                     <fieldset className={styles.fieldset}>
-                      <label className={styles.label}>API Key</label>
+                      <label className={styles.label}>{t('settingsDialog.transcription.apiKey')}</label>
                       <input
                         className={styles.input}
                         type="password"
@@ -195,7 +195,7 @@ export default function TranscriptionSettingsTabs() {
                       />
                     </fieldset>
                     <fieldset className={styles.fieldset}>
-                      <label className={styles.label}>Model</label>
+                      <label className={styles.label}>{t('settingsDialog.transcription.model')}</label>
                       <select
                         className={styles.input}
                         value={config.openaiWhisperModel || 'whisper-1'}
@@ -227,7 +227,7 @@ export default function TranscriptionSettingsTabs() {
                 }}
                 onClick={() => setExpandedProvider(expandedProvider === 'groq' ? null : 'groq')}
               >
-                <span>Groq Whisper</span>
+                <span>{t('providers.groqWhisper')}</span>
                 <ChevronRightIcon
                   style={{
                     height: '14px',
@@ -241,7 +241,7 @@ export default function TranscriptionSettingsTabs() {
                 <div style={{ padding: '0 12px 12px' }}>
                   <div className={styles.group}>
                     <fieldset className={styles.fieldset}>
-                      <label className={styles.label}>API Key</label>
+                      <label className={styles.label}>{t('settingsDialog.transcription.apiKey')}</label>
                       <input
                         className={styles.input}
                         type="password"
@@ -251,7 +251,7 @@ export default function TranscriptionSettingsTabs() {
                       />
                     </fieldset>
                     <fieldset className={styles.fieldset}>
-                      <label className={styles.label}>Model</label>
+                      <label className={styles.label}>{t('settingsDialog.transcription.model')}</label>
                       <select
                         className={styles.input}
                         value={config.groqWhisperModel || 'whisper-large-v3'}
@@ -285,7 +285,7 @@ export default function TranscriptionSettingsTabs() {
                 }}
                 onClick={() => setExpandedProvider(expandedProvider === 'gemini' ? null : 'gemini')}
               >
-                <span>Gemini</span>
+                <span>{t('providers.gemini')}</span>
                 <ChevronRightIcon
                   style={{
                     height: '14px',
@@ -299,7 +299,7 @@ export default function TranscriptionSettingsTabs() {
                 <div style={{ padding: '0 12px 12px' }}>
                   <div className={styles.group}>
                     <fieldset className={styles.fieldset}>
-                      <label className={styles.label}>API Key</label>
+                      <label className={styles.label}>{t('settingsDialog.transcription.apiKey')}</label>
                       <input
                         className={styles.input}
                         type="password"
@@ -309,7 +309,7 @@ export default function TranscriptionSettingsTabs() {
                       />
                     </fieldset>
                     <fieldset className={styles.fieldset}>
-                      <label className={styles.label}>Model</label>
+                      <label className={styles.label}>{t('settingsDialog.transcription.model')}</label>
                       <select
                         className={styles.input}
                         value={config.geminiModel || 'gemini-1.5-flash'}
@@ -342,7 +342,7 @@ export default function TranscriptionSettingsTabs() {
                 }}
                 onClick={() => setExpandedProvider(expandedProvider === 'openrouter' ? null : 'openrouter')}
               >
-                <span>OpenRouter</span>
+                <span>{t('providers.openrouter')}</span>
                 <ChevronRightIcon
                   style={{
                     height: '14px',
@@ -356,7 +356,7 @@ export default function TranscriptionSettingsTabs() {
                 <div style={{ padding: '0 12px 12px' }}>
                   <div className={styles.group}>
                     <fieldset className={styles.fieldset}>
-                      <label className={styles.label}>API Key</label>
+                      <label className={styles.label}>{t('settingsDialog.transcription.apiKey')}</label>
                       <input
                         className={styles.input}
                         type="password"
@@ -366,7 +366,7 @@ export default function TranscriptionSettingsTabs() {
                       />
                     </fieldset>
                     <fieldset className={styles.fieldset}>
-                      <label className={styles.label}>Model</label>
+                      <label className={styles.label}>{t('settingsDialog.transcription.model')}</label>
                       <input
                         className={styles.input}
                         value={config.openrouterModel || ''}
@@ -426,7 +426,7 @@ export default function TranscriptionSettingsTabs() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                       <Dialog.Title style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>
-                        Add Custom STT Model
+                        {t('settingsDialog.transcription.addCustomModel')}
                       </Dialog.Title>
                       <Dialog.Close asChild>
                         <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
@@ -436,7 +436,7 @@ export default function TranscriptionSettingsTabs() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <fieldset className={styles.fieldset}>
-                        <label className={styles.label}>Display Name</label>
+                        <label className={styles.label}>{t('settingsDialog.transcription.displayName')}</label>
                         <input
                           className={styles.input}
                           value={customForm.displayName}
@@ -445,16 +445,16 @@ export default function TranscriptionSettingsTabs() {
                         />
                       </fieldset>
                       <fieldset className={styles.fieldset}>
-                        <label className={styles.label}>Description</label>
+                        <label className={styles.label}>{t('settingsDialog.transcription.description')}</label>
                         <input
                           className={styles.input}
                           value={customForm.description}
                           onChange={(e) => setCustomForm(prev => ({ ...prev, description: e.target.value }))}
-                          placeholder="Brief description"
+                          placeholder={t('settingsDialog.transcription.description')}
                         />
                       </fieldset>
                       <fieldset className={styles.fieldset}>
-                        <label className={styles.label}>Endpoint URL</label>
+                        <label className={styles.label}>{t('settingsDialog.transcription.endpointUrl')}</label>
                         <input
                           className={styles.input}
                           value={customForm.endpoint}
@@ -463,7 +463,7 @@ export default function TranscriptionSettingsTabs() {
                         />
                       </fieldset>
                       <fieldset className={styles.fieldset}>
-                        <label className={styles.label}>Model Identifier</label>
+                        <label className={styles.label}>{t('settingsDialog.transcription.modelIdentifier')}</label>
                         <input
                           className={styles.input}
                           value={customForm.modelIdentifier}
@@ -472,7 +472,7 @@ export default function TranscriptionSettingsTabs() {
                         />
                       </fieldset>
                       <div className={styles.switch}>
-                        <label className={styles.Label}>Multilingual</label>
+                        <label className={styles.Label}>{t('settingsDialog.transcription.multilingual')}</label>
                         <label className={styles.switchRoot}>
                           <input
                             type="checkbox"
@@ -486,7 +486,7 @@ export default function TranscriptionSettingsTabs() {
                         </label>
                       </div>
                       <div className={styles.switch}>
-                        <label className={styles.Label}>Requires API Key</label>
+                        <label className={styles.Label}>{t('settingsDialog.transcription.requiresApiKey')}</label>
                         <label className={styles.switchRoot}>
                           <input
                             type="checkbox"
@@ -502,7 +502,7 @@ export default function TranscriptionSettingsTabs() {
                         onClick={handleAddCustomModel}
                         disabled={!customForm.displayName || !customForm.endpoint || addCustomModelMutation.isPending}
                       >
-                        {addCustomModelMutation.isPending ? 'Adding...' : 'Add Model'}
+                        {addCustomModelMutation.isPending ? t('settingsDialog.transcription.adding') : t('settingsDialog.transcription.addModel')}
                       </button>
                     </div>
                   </Dialog.Content>
@@ -553,7 +553,7 @@ export default function TranscriptionSettingsTabs() {
                           }}
                           onClick={() => saveConfig({ sttProviderId: `custom:${model.id}` })}
                         >
-                          {config.sttProviderId === `custom:${model.id}` ? 'Active' : 'Use'}
+                          {config.sttProviderId === `custom:${model.id}` ? t('settingsDialog.transcription.active') : t('settingsDialog.transcription.use')}
                         </button>
                         <button
                           style={{

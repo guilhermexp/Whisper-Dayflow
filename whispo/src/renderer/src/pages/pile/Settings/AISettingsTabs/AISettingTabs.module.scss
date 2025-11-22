@@ -9,7 +9,7 @@
   padding: 0 14px;
   line-height: 28px;
   color: var(--base-text);
-  font-size: 0.85em;
+  font-size: var(--font-body);
   border-radius: 90px;
   user-select: none;
 
@@ -95,7 +95,7 @@
     align-items: center;
     gap: 7px;
     color: var(--secondary);
-    font-size: 13px;
+    font-size: var(--font-body);
     margin: 0;
 
     .icon {
@@ -161,7 +161,7 @@
 }
 
 .disclaimer {
-  font-size: 0.8em;
+  font-size: var(--font-small);
   color: var(--secondary);
   margin-top: 10px;
   line-height: 1.4;
@@ -177,7 +177,7 @@
 }
 
 .label {
-  font-size: 12px;
+  font-size: var(--font-label);
   color: var(--secondary);
   margin-bottom: 8px;
 }
@@ -189,7 +189,7 @@
   justify-content: center;
   border-radius: 7px;
   padding: 8px 10px;
-  font-size: 14px;
+  font-size: var(--font-body);
   line-height: 1;
   color: var(--primary);
   background: var(--bg-tertiary);
@@ -238,15 +238,15 @@
   flex-direction: column;
   width: 100%;
   margin-bottom: 5px;
+  border: 2px solid var(--bg-tertiary);
+  border-radius: 17px;
+  overflow: hidden;
 }
 
 .tabsList {
   flex-shrink: 0;
   display: flex;
-  border: 2px solid var(--bg-tertiary);
-  border-bottom: none;
-  border-bottom-width: 1px;
-  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid var(--bg-tertiary);
 }
 
 .tabsTrigger {
@@ -257,12 +257,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: var(--font-body);
   line-height: 1;
   color: var(--secondary);
   user-select: none;
-  font-size: 0.85em;
-  border-bottom: 2px solid var(--bg-tertiary);
   gap: 10px;
   justify-content: space-between;
   // background: var(--bg-tertiary);
@@ -288,7 +286,6 @@
   &[data-state='active'] {
     color: var(--active);
     background-color: var(--bg);
-    border-bottom: 2px solid var(--bg);
   }
 
   &:focus {
@@ -332,11 +329,7 @@
 .tabsContent {
   flex-grow: 1;
   padding: 12px;
-  border-bottom-left-radius: 17px;
-  border-bottom-right-radius: 17px;
   outline: none;
-  border: 2px solid var(--bg-tertiary);
-  border-top: none;
   color: var(--primary);
   // height: 200px;
   // background: var(--bg-secondary);
@@ -359,14 +352,14 @@
   justify-content: center;
   border-radius: 4px;
   padding: 0 15px;
-  font-size: 15px;
+  font-size: var(--font-body);
   line-height: 1;
   font-weight: 500;
   height: 35px;
 }
 
 .pitch {
-  font-size: 0.9em;
+  font-size: var(--font-body);
   line-height: 1.5;
   color: var(--primary);
   width: 80%;
@@ -390,7 +383,7 @@
     .subscribe {
       background: var(--active);
       border-radius: 90px;
-      font-size: 0.85em;
+      font-size: var(--font-body);
       padding: 6px 14px;
       font-weight: 500;
       color: var(--active-text);

@@ -26,6 +26,14 @@ export const router: ReturnType<typeof createBrowserRouter> =
             return <WhispoSettings />;
           },
         },
+        {
+          path: "timeline",
+          lazy: () => import("./pages/pile/Timeline"),
+        },
+        {
+          path: "auto-journal",
+          lazy: () => import("./pages/pile/AutoJournal"),
+        },
       ],
     },
 

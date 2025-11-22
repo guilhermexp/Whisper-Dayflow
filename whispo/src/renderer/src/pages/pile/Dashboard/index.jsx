@@ -1,11 +1,12 @@
-import styles from './Dashboard.module.scss';
-import { CardIcon, CrossIcon, RefreshIcon } from 'renderer/icons';
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import * as Dialog from '@radix-ui/react-dialog';
-import { tipcClient } from 'renderer/lib/tipc-client';
-import dayjs from 'dayjs';
-import { useTranslation } from 'react-i18next';
+import styles from "./Dashboard.module.scss"
+import { CardIcon, CrossIcon, RefreshIcon } from "renderer/icons"
+import { useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import * as Dialog from "@radix-ui/react-dialog"
+import { tipcClient } from "renderer/lib/tipc-client"
+import dayjs from "dayjs"
+import { useTranslation } from "react-i18next"
+import { usePilesContext } from "renderer/context/PilesContext"
 import {
   ResponsiveContainer,
   LineChart,
@@ -17,52 +18,86 @@ import {
   PieChart,
   Pie,
   Cell,
-} from 'recharts';
+} from "recharts"
 
-const PIE_COLORS = ['#3b82f6', '#0ea5e9', '#14b8a6', '#f59e0b', '#64748b'];
+const PIE_COLORS = ["#3b82f6", "#0ea5e9", "#14b8a6", "#f59e0b", "#64748b"]
 
 export default function Dashboard() {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
+  const { getCurrentPilePath } = usePilesContext()
   const analyticsQuery = useQuery({
-    queryKey: ['recording-analytics'],
+    queryKey: ["recording-analytics"],
     queryFn: async () => tipcClient.getRecordingAnalytics(),
-  });
+  })
 
-  const [autoJournalWindow, setAutoJournalWindow] = useState(60);
+  const [autoJournalWindow, setAutoJournalWindow] = useState(60)
   const autoJournalQuery = useQuery({
-    queryKey: ['auto-journal-summary', autoJournalWindow],
+    queryKey: ["auto-journal-summary", autoJournalWindow],
     enabled: false, // manual trigger
     queryFn: async () =>
-      tipcClient.generateAutoJournalSummary({ windowMinutes: autoJournalWindow }),
-  });
+      tipcClient.generateAutoJournalSummary({
+        windowMinutes: autoJournalWindow,
+      }),
+  })
 
-  const data = analyticsQuery.data;
+  const data = analyticsQuery.data
+  const autoJournalData = autoJournalQuery.data
+  const autoJournalError =
+    autoJournalQuery.error instanceof Error
+      ? autoJournalQuery.error.message
+      : autoJournalQuery.error
+        ? String(autoJournalQuery.error)
+        : null
+  const [savingToJournal, setSavingToJournal] = useState(false)
 
   const timelineData = useMemo(() => {
-    if (!data || !data.timeline) return [];
+    if (!data || !data.timeline) return []
     return data.timeline.map((entry) => ({
       ...entry,
-      label: dayjs(entry.date).format('MMM D'),
+      label: dayjs(entry.date).format("MMM D"),
       durationMinutes: Number((entry.durationMs / 60000).toFixed(2)),
-    }));
-  }, [data]);
+    }))
+  }, [data])
 
-  const providerData = data?.providerBreakdown || [];
+  const providerData = data?.providerBreakdown || []
+
+  const handleSaveToJournal = async () => {
+    if (!autoJournalData) return
+    const pilePath = getCurrentPilePath()
+    if (!pilePath) {
+      console.error("No pile selected; cannot save auto journal entry.")
+      return
+    }
+    try {
+      setSavingToJournal(true)
+      await tipcClient.createAutoJournalEntry({
+        pilePath,
+        summary: autoJournalData.summary,
+        activities: autoJournalData.activities || [],
+        windowStartTs: autoJournalData.windowStartTs,
+        windowEndTs: autoJournalData.windowEndTs,
+      })
+    } catch (error) {
+      console.error("Failed to save auto journal entry:", error)
+    } finally {
+      setSavingToJournal(false)
+    }
+  }
 
   // Helper functions
   const formatDurationLong = (ms) => {
-    if (!ms) return '0m';
-    const minutes = Math.round(ms / 60000);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const remaining = minutes % 60;
-    return `${hours}h ${remaining}m`;
-  };
+    if (!ms) return "0m"
+    const minutes = Math.round(ms / 60000)
+    if (minutes < 60) return `${minutes}m`
+    const hours = Math.floor(minutes / 60)
+    const remaining = minutes % 60
+    return `${hours}h ${remaining}m`
+  }
 
   const formatNumber = (value, precision = 0) => {
-    if (value == null) return '--';
-    return Number(value).toFixed(precision);
-  };
+    if (value == null) return "--"
+    return Number(value).toFixed(precision)
+  }
 
   return (
     <Dialog.Root>
@@ -71,104 +106,113 @@ export default function Dashboard() {
           <CardIcon className={styles.dashboardIcon} />
         </div>
       </Dialog.Trigger>
-      <Dialog.Portal container={document.getElementById('dialog')}>
+      <Dialog.Portal container={document.getElementById("dialog")}>
         <Dialog.Overlay className={styles.DialogOverlay} />
-        <Dialog.Content className={styles.DialogContent} aria-describedby={undefined}>
+        <Dialog.Content
+          className={styles.DialogContent}
+          aria-describedby={undefined}
+        >
           <Dialog.Title className={styles.DialogTitle}>
-            <span>{t('dashboard.title')}</span>
+            <span>{t("dashboard.title")}</span>
             <button
               onClick={() => analyticsQuery.refetch()}
               disabled={analyticsQuery.isRefetching}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: analyticsQuery.isRefetching ? 'not-allowed' : 'pointer',
-                padding: '4px',
-                marginLeft: '8px',
-                opacity: analyticsQuery.isRefetching ? 0.5 : 1,
-              }}
+              className={styles.RefreshButton}
             >
-              <RefreshIcon style={{ height: '14px', width: '14px', color: 'var(--secondary)' }} />
+              <RefreshIcon
+                style={{
+                  height: "14px",
+                  width: "14px",
+                  color: "var(--secondary)",
+                }}
+              />
             </button>
           </Dialog.Title>
 
           {!data ? (
-            <div style={{
-              padding: '40px 20px',
-              textAlign: 'center',
-              color: 'var(--secondary)',
-              fontSize: '12px',
-            }}>
-              {analyticsQuery.isLoading ? t('dashboard.loadingAnalytics') : t('dashboard.noAnalytics')}
+            <div className={styles.EmptyState}>
+              {analyticsQuery.isLoading
+                ? t("dashboard.loadingAnalytics")
+                : t("dashboard.noAnalytics")}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className={styles.Container}>
               {/* Stats Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: 'var(--primary)' }}>
+              <div className={styles.Grid2}>
+                <div className={styles.Card}>
+                  <div className={styles.StatValue}>
                     {data.totals?.recordings?.toLocaleString() || 0}
                   </div>
-                  <div style={{ fontSize: '10px', color: 'var(--secondary)', marginTop: '4px' }}>
-                    {t('dashboard.totalRecordings')}
+                  <div className={styles.StatLabel}>
+                    {t("dashboard.totalRecordings")}
                   </div>
-                  <div style={{ fontSize: '9px', color: 'var(--secondary)', marginTop: '2px' }}>
-                    {t('dashboard.avgSession', { duration: formatDurationLong(data.totals?.averageSessionMs) })}
+                  <div className={styles.StatSubLabel}>
+                    {t("dashboard.avgSession", {
+                      duration: formatDurationLong(
+                        data.totals?.averageSessionMs,
+                      ),
+                    })}
                   </div>
                 </div>
-                <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: 'var(--primary)' }}>
+                <div className={styles.Card}>
+                  <div className={styles.StatValue}>
                     {formatDurationLong(data.totals?.durationMs)}
                   </div>
-                  <div style={{ fontSize: '10px', color: 'var(--secondary)', marginTop: '4px' }}>
-                    {t('dashboard.totalDuration')}
+                  <div className={styles.StatLabel}>
+                    {t("dashboard.totalDuration")}
                   </div>
                 </div>
-                <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: 'var(--primary)' }}>
+                <div className={styles.Card}>
+                  <div className={styles.StatValue}>
                     {data.totals?.averageAccuracy == null
-                      ? '--'
+                      ? "--"
                       : `${Math.round(data.totals.averageAccuracy * 100)}%`}
                   </div>
-                  <div style={{ fontSize: '10px', color: 'var(--secondary)', marginTop: '4px' }}>
-                    {t('dashboard.avgAccuracy')}
+                  <div className={styles.StatLabel}>
+                    {t("dashboard.avgAccuracy")}
                   </div>
                 </div>
-                <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: 'var(--primary)' }}>
+                <div className={styles.Card}>
+                  <div className={styles.StatValue}>
                     {formatNumber(data.totals?.averageWpm)}
                   </div>
-                  <div style={{ fontSize: '10px', color: 'var(--secondary)', marginTop: '4px' }}>
-                    {t('dashboard.avgWpm')}
+                  <div className={styles.StatLabel}>
+                    {t("dashboard.avgWpm")}
                   </div>
                 </div>
               </div>
 
               {/* Timeline Chart */}
               {timelineData.length > 0 && (
-                <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--primary)', marginBottom: '10px' }}>
-                    {t('dashboard.timeline')}
+                <div className={`${styles.Card} ${styles.AlignLeft}`}>
+                  <div className={styles.SectionTitle}>
+                    {t("dashboard.timeline")}
                   </div>
-                  <div style={{ height: '160px' }}>
+                  <div className={styles.ChartContainer}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={timelineData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
+                      <LineChart
+                        data={timelineData}
+                        margin={{ top: 8, right: 8, bottom: 0, left: -20 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          strokeOpacity={0.1}
+                        />
                         <XAxis
                           dataKey="label"
                           tickLine={false}
-                          tick={{ fontSize: 10, fill: 'var(--secondary)' }}
+                          tick={{ fontSize: 10, fill: "var(--secondary)" }}
                         />
                         <YAxis
                           tickLine={false}
-                          tick={{ fontSize: 10, fill: 'var(--secondary)' }}
+                          tick={{ fontSize: 10, fill: "var(--secondary)" }}
                         />
                         <RechartsTooltip
                           contentStyle={{
-                            background: 'var(--bg)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '6px',
-                            fontSize: '11px',
+                            background: "var(--bg)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "6px",
+                            fontSize: "11px",
                           }}
                         />
                         <Line
@@ -194,186 +238,106 @@ export default function Dashboard() {
               )}
 
               {/* Auto Journal (manual preview) */}
-              <div
-                style={{
-                  background: 'transparent',
-                  border: '1px dashed var(--border)',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px',
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: '500',
-                        color: 'var(--primary)',
-                      }}
-                    >
+              <div className={styles.AutoJournalCard}>
+                <div className={styles.AutoJournalHeader}>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span className={styles.AutoJournalTitle}>
                       Auto Journal (beta)
                     </span>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        color: 'var(--secondary)',
-                        marginTop: '2px',
-                      }}
-                    >
-                      Generate a summary of what you&apos;ve been doing based on recent recordings.
+                    <span className={styles.AutoJournalDesc}>
+                      Generate a summary of what you&apos;ve been doing based on
+                      recent recordings.
                     </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     <select
                       value={autoJournalWindow}
-                      onChange={(e) => setAutoJournalWindow(Number(e.target.value) || 60)}
-                      style={{
-                        fontSize: '11px',
-                        padding: '4px 6px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border)',
-                        background: 'var(--bg-tertiary)',
-                        color: 'var(--primary)',
-                      }}
+                      onChange={(e) =>
+                        setAutoJournalWindow(Number(e.target.value) || 60)
+                      }
+                      className={styles.Select}
                     >
-                      <option value={30}>Last 30 min</option>
-                      <option value={60}>Last 60 min</option>
-                      <option value={120}>Last 2 hours</option>
+                      <option value={30}>{t("autoJournal.last30min")}</option>
+                      <option value={60}>{t("autoJournal.last60min")}</option>
+                      <option value={120}>{t("autoJournal.last2hours")}</option>
                     </select>
                     <button
                       onClick={() => autoJournalQuery.refetch()}
                       disabled={autoJournalQuery.isFetching}
-                      style={{
-                        padding: '6px 10px',
-                        fontSize: '11px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        cursor: autoJournalQuery.isFetching ? 'not-allowed' : 'pointer',
-                        background: 'var(--active)',
-                        color: 'var(--active-text)',
-                        opacity: autoJournalQuery.isFetching ? 0.7 : 1,
-                      }}
+                      className={styles.ActionBtn}
                     >
-                      {autoJournalQuery.isFetching ? 'Generating...' : 'Generate now'}
+                      {autoJournalQuery.isFetching
+                        ? t("autoJournal.generating")
+                        : t("autoJournal.generateNow")}
                     </button>
+                    {autoJournalData && (
+                      <button
+                        onClick={handleSaveToJournal}
+                        disabled={savingToJournal}
+                        className={styles.ActionBtn}
+                        style={{
+                          background: "var(--bg-secondary)",
+                          color: "var(--primary)",
+                        }}
+                      >
+                        {savingToJournal
+                          ? t("autoJournal.saving")
+                          : t("autoJournal.saveToJournal")}
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {autoJournalQuery.data && (
-                  <div
-                    style={{
-                      marginTop: '6px',
-                      padding: '8px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-tertiary)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '6px',
-                      maxHeight: '180px',
-                      overflow: 'auto',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: '11px',
-                        color: 'var(--primary)',
-                        fontWeight: 500,
-                      }}
-                    >
-                      Summary
+                {autoJournalData && (
+                  <div className={styles.SummaryBox}>
+                    <div className={styles.SummaryTitle}>
+                      {t("autoJournal.summary")}
                     </div>
-                    <div
-                      style={{
-                        fontSize: '11px',
-                        color: 'var(--secondary)',
-                      }}
-                    >
-                      {autoJournalQuery.data.summary}
+                    <div className={styles.SummaryText}>
+                      {autoJournalData.summary}
                     </div>
 
-                    {autoJournalQuery.data.activities?.length > 0 && (
+                    {autoJournalData.activities?.length > 0 && (
                       <>
                         <div
-                          style={{
-                            fontSize: '11px',
-                            color: 'var(--primary)',
-                            fontWeight: 500,
-                            marginTop: '4px',
-                          }}
+                          className={styles.SummaryTitle}
+                          style={{ marginTop: "4px" }}
                         >
-                          Activities
+                          {t("autoJournal.activities")}
                         </div>
                         <div
                           style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "4px",
                           }}
                         >
-                          {autoJournalQuery.data.activities.map((act, idx) => (
+                          {autoJournalData.activities.map((act, idx) => (
                             <div
                               key={`${act.startTs}-${act.endTs}-${idx}`}
-                              style={{
-                                borderRadius: '6px',
-                                border: '1px solid var(--border)',
-                                padding: '6px 8px',
-                                fontSize: '11px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '2px',
-                              }}
+                              className={styles.ActivityItem}
                             >
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  gap: '6px',
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    fontWeight: 500,
-                                    color: 'var(--primary)',
-                                  }}
-                                >
+                              <div className={styles.ActivityHeader}>
+                                <span className={styles.ActivityTitle}>
                                   {act.title}
                                 </span>
-                                <span
-                                  style={{
-                                    fontSize: '10px',
-                                    color: 'var(--secondary)',
-                                  }}
-                                >
-                                  {dayjs(act.startTs).format('HH:mm')}–{dayjs(act.endTs).format('HH:mm')}
+                                <span className={styles.ActivityTime}>
+                                  {dayjs(act.startTs).format("HH:mm")}–
+                                  {dayjs(act.endTs).format("HH:mm")}
                                 </span>
                               </div>
                               {act.category && (
-                                <span
-                                  style={{
-                                    fontSize: '10px',
-                                    color: 'var(--secondary)',
-                                  }}
-                                >
+                                <span className={styles.ActivityTime}>
                                   {act.category}
                                 </span>
                               )}
-                              <span
-                                style={{
-                                  fontSize: '10px',
-                                  color: 'var(--secondary)',
-                                }}
-                              >
+                              <span className={styles.ActivityTime}>
                                 {act.summary}
                               </span>
                             </div>
@@ -381,29 +345,65 @@ export default function Dashboard() {
                         </div>
                       </>
                     )}
+                    {autoJournalData.debug && (
+                      <div className={styles.Diagnostics}>
+                        <div
+                          className={styles.SummaryTitle}
+                          style={{ marginTop: "6px" }}
+                        >
+                          {t("autoJournal.diagnostics")}
+                        </div>
+                        <div className={styles.DiagnosticsRow}>
+                          <span>{t("dashboard.provider")}</span>
+                          <span>{autoJournalData.debug.provider}</span>
+                        </div>
+                        <div className={styles.DiagnosticsRow}>
+                          <span>{t("settingsDialog.journal.model")}</span>
+                          <span>{autoJournalData.debug.model}</span>
+                        </div>
+                        <div className={styles.DiagnosticsRow}>
+                          <span>{t("autoJournal.itemsUsed")}</span>
+                          <span>{autoJournalData.debug.itemsUsed}</span>
+                        </div>
+                        <div className={styles.DiagnosticsRow}>
+                          <span>{t("autoJournal.window")}</span>
+                          <span>{autoJournalData.debug.windowMinutes} min</span>
+                        </div>
+                        <div className={styles.DiagnosticsRow}>
+                          <span>{t("autoJournal.logLength")}</span>
+                          <span>
+                            {autoJournalData.debug.logChars}{" "}
+                            {t("autoJournal.chars")}
+                            {autoJournalData.debug.truncated
+                              ? ` (${t("autoJournal.truncated")})`
+                              : ""}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {autoJournalQuery.isError && (
                   <div
-                    style={{
-                      fontSize: '11px',
-                      color: 'var(--error, #ff6b6b)',
-                    }}
+                    style={{ fontSize: "11px", color: "var(--error, #ff6b6b)" }}
                   >
-                    Failed to generate auto journal. Check console for details.
+                    {t("autoJournal.error")}
+                    {autoJournalError ? ` ${autoJournalError}` : ""}
                   </div>
                 )}
               </div>
 
               {/* Provider Breakdown */}
               {providerData.length > 0 && (
-                <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--primary)', marginBottom: '10px' }}>
-                    {t('dashboard.providerBreakdown')}
+                <div className={`${styles.Card} ${styles.AlignLeft}`}>
+                  <div className={styles.SectionTitle}>
+                    {t("dashboard.providerBreakdown")}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ height: '120px', width: '120px', flexShrink: 0 }}>
+                  <div className={styles.PieChartContainer}>
+                    <div
+                      style={{ height: "120px", width: "120px", flexShrink: 0 }}
+                    >
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -415,44 +415,40 @@ export default function Dashboard() {
                             paddingAngle={2}
                           >
                             {providerData.map((_, index) => (
-                              <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                              <Cell
+                                key={index}
+                                fill={PIE_COLORS[index % PIE_COLORS.length]}
+                              />
                             ))}
                           </Pie>
                           <RechartsTooltip
                             contentStyle={{
-                              background: 'var(--bg)',
-                              border: '1px solid var(--border)',
-                              borderRadius: '6px',
-                              fontSize: '11px',
+                              background: "var(--bg)",
+                              border: "1px solid var(--border)",
+                              borderRadius: "6px",
+                              fontSize: "11px",
                             }}
                           />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div className={styles.PieLegend}>
                       {providerData.map((entry, index) => (
                         <div
                           key={entry.providerId}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            fontSize: '11px',
-                          }}
+                          className={styles.PieLegendItem}
                         >
                           <span
+                            className={styles.PieLegendDot}
                             style={{
-                              display: 'inline-block',
-                              height: '8px',
-                              width: '8px',
-                              borderRadius: '50%',
-                              backgroundColor: PIE_COLORS[index % PIE_COLORS.length],
+                              backgroundColor:
+                                PIE_COLORS[index % PIE_COLORS.length],
                             }}
                           />
-                          <span style={{ color: 'var(--primary)', fontWeight: '500' }}>
+                          <span className={styles.PieLegendLabel}>
                             {entry.providerId}
                           </span>
-                          <span style={{ color: 'var(--secondary)', marginLeft: 'auto' }}>
+                          <span className={styles.PieLegendValue}>
                             {entry.count}
                           </span>
                         </div>
@@ -472,5 +468,5 @@ export default function Dashboard() {
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-  );
+  )
 }

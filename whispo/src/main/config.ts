@@ -61,15 +61,18 @@ const withDefaults = (config?: Config): Config => {
     preferLocalModels: config?.preferLocalModels ?? false,
     language: config?.language ?? getDefaultLanguage(),
 
-  // Enhancement defaults
-  enhancementEnabled: config?.enhancementEnabled ?? false,
-  enhancementProvider: config?.enhancementProvider ?? "openai",
-  selectedPromptId: config?.selectedPromptId ?? "default",
-  customPrompts: config?.customPrompts ?? [],
+    // Enhancement defaults
+    enhancementEnabled: config?.enhancementEnabled ?? false,
+    enhancementProvider: config?.enhancementProvider ?? "openai",
+    selectedPromptId: config?.selectedPromptId ?? "default",
+    customPrompts: config?.customPrompts ?? [],
+    enhancementTimeout: config?.enhancementTimeout ?? 30000,
 
-  // Auto-journal (experimental) defaults
-  autoJournalEnabled: config?.autoJournalEnabled ?? false,
-  autoJournalWindowMinutes: config?.autoJournalWindowMinutes ?? 60,
+    // Auto-journal (experimental) defaults
+    autoJournalEnabled: config?.autoJournalEnabled ?? false,
+    autoJournalWindowMinutes: config?.autoJournalWindowMinutes ?? 60,
+    autoJournalTargetPilePath: config?.autoJournalTargetPilePath ?? "",
+    autoJournalPrompt: config?.autoJournalPrompt ?? "",
 
     // Context capture defaults
     useClipboardContext: config?.useClipboardContext ?? false,
@@ -80,7 +83,9 @@ const withDefaults = (config?: Config): Config => {
   }
 }
 
-const applyConfigMigrations = (config: Config): { config: Config; modified: boolean } => {
+const applyConfigMigrations = (
+  config: Config,
+): { config: Config; modified: boolean } => {
   let modified = false
   const nextConfig = { ...config }
 
@@ -89,7 +94,10 @@ const applyConfigMigrations = (config: Config): { config: Config; modified: bool
     modified = true
   }
 
-  if (nextConfig.defaultLocalModel && nextConfig.preferLocalModels === undefined) {
+  if (
+    nextConfig.defaultLocalModel &&
+    nextConfig.preferLocalModels === undefined
+  ) {
     nextConfig.preferLocalModels = true
     modified = true
   }
@@ -102,7 +110,8 @@ class ConfigStore {
 
   constructor() {
     const initialConfig = withDefaults(getConfig())
-    const { config: migratedConfig, modified } = applyConfigMigrations(initialConfig)
+    const { config: migratedConfig, modified } =
+      applyConfigMigrations(initialConfig)
     this.config = migratedConfig
     syncAutoLaunchSetting(this.config.launchOnStartup ?? false)
     if (modified) {
