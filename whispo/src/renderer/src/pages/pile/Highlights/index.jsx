@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useAIContext } from 'renderer/context/AIContext';
 import { useHighlightsContext } from 'renderer/context/HighlightsContext';
+import { useTranslation } from 'react-i18next';
 
 // UNDER CONSTRUCTION
 export default function HighlightsDialog() {
+  const { t } = useTranslation();
   const { open, onOpenChange } = useHighlightsContext();
 
   return (
@@ -14,13 +16,13 @@ export default function HighlightsDialog() {
       <Dialog.Portal>
         <Dialog.Overlay className={styles.DialogOverlay} />
         <Dialog.Content className={styles.DialogContent}>
-          <Dialog.Title className={styles.DialogTitle}>Highlights</Dialog.Title>
+          <Dialog.Title className={styles.DialogTitle}>{t('highlights.title')}</Dialog.Title>
           <Dialog.Description className={styles.DialogDescription}>
-            Manage your hightlights for this Pile
+            {t('highlights.description')}
           </Dialog.Description>
           <fieldset className={styles.Fieldset}>
             <label className={styles.Label} htmlFor="name">
-              API key (OpenAI / UNMS)
+              {t('highlights.apiKey')}
             </label>
             {/* <input
               className={styles.Input}
@@ -31,7 +33,7 @@ export default function HighlightsDialog() {
           </fieldset>
           <fieldset className={styles.Fieldset}>
             <label className={styles.Label} htmlFor="name">
-              Prompt (locked)
+              {t('highlights.promptLocked')}
             </label>
             <textarea
               className={styles.Textarea}
@@ -47,11 +49,11 @@ export default function HighlightsDialog() {
             }}
           >
             <Dialog.Close asChild>
-              <button className={styles.Button}>Save changes</button>
+              <button className={styles.Button}>{t('settingsDialog.saveChanges')}</button>
             </Dialog.Close>
           </div>
           <Dialog.Close asChild>
-            <button className={styles.IconButton} aria-label="Close">
+            <button className={styles.IconButton} aria-label={t('common.close')}>
               <CrossIcon />
             </button>
           </Dialog.Close>

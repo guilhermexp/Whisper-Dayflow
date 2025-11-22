@@ -112,47 +112,17 @@ export default function Analytics() {
 
           {/* Tabs */}
           <Tabs.Root value={mainTab} onValueChange={setMainTab} style={{ marginTop: '16px' }}>
-            <Tabs.List style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <Tabs.List className={styles.TabsList}>
               <Tabs.Trigger
                 value="analytics"
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '10px 16px',
-                  background: mainTab === 'analytics' ? 'var(--active)' : 'var(--bg-tertiary)',
-                  color: mainTab === 'analytics' ? 'var(--active-text)' : 'var(--secondary)',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease',
-                }}
+                className={styles.TabTrigger}
               >
                 <GaugeIcon style={{ height: '16px', width: '16px' }} />
                 {t('analytics.title')}
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="history"
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '10px 16px',
-                  background: mainTab === 'history' ? 'var(--active)' : 'var(--bg-tertiary)',
-                  color: mainTab === 'history' ? 'var(--active-text)' : 'var(--secondary)',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease',
-                }}
+                className={styles.TabTrigger}
               >
                 <ClockIcon style={{ height: '16px', width: '16px' }} />
                 {t('navigation.history')}
@@ -161,55 +131,46 @@ export default function Analytics() {
 
             {/* Analytics Tab */}
             <Tabs.Content value="analytics">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className={styles.Container}>
                 {/* Stats Cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                  <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '20px', fontWeight: '600', color: 'var(--primary)' }}>
+                <div className={styles.Grid3}>
+                  <div className={styles.Card}>
+                    <div className={styles.StatValue}>
                       {historyData.length.toLocaleString()}
                     </div>
-                    <div style={{ fontSize: '10px', color: 'var(--secondary)', marginTop: '4px' }}>
+                    <div className={styles.StatLabel}>
                       {t('dashboard.totalRecordings')}
                     </div>
                   </div>
-                  <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '20px', fontWeight: '600', color: 'var(--primary)' }}>
+                  <div className={styles.Card}>
+                    <div className={styles.StatValue}>
                       {formatBytes(totalSize)}
                     </div>
-                    <div style={{ fontSize: '10px', color: 'var(--secondary)', marginTop: '4px' }}>
+                    <div className={styles.StatLabel}>
                       {t('analytics.storageUsed')}
                     </div>
                   </div>
-                  <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '20px', fontWeight: '600', color: 'var(--primary)' }}>
+                  <div className={styles.Card}>
+                    <div className={styles.StatValue}>
                       {formatDurationLong(totalDuration)}
                     </div>
-                    <div style={{ fontSize: '10px', color: 'var(--secondary)', marginTop: '4px' }}>
+                    <div className={styles.StatLabel}>
                       {t('dashboard.totalDuration')}
                     </div>
                   </div>
                 </div>
 
                 {/* Delete All */}
-                <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className={`${styles.Card} ${styles.AlignLeft}`}>
+                  <div className={styles.SectionHeader}>
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--primary)' }}>{t('analytics.recordingHistory')}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--secondary)', marginTop: '2px' }}>
+                      <div className={styles.SectionTitle}>{t('analytics.recordingHistory')}</div>
+                      <div className={styles.SectionSubLabel}>
                         {t('analytics.recordingsStoredLocally', { count: historyData.length })}
                       </div>
                     </div>
                     <button
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '11px',
-                        background: 'var(--error, #ef4444)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: historyData.length === 0 ? 'not-allowed' : 'pointer',
-                        opacity: historyData.length === 0 ? 0.5 : 1,
-                      }}
+                      className={styles.DeleteBtn}
                       disabled={historyData.length === 0}
                       onClick={() => {
                         if (window.confirm(t('analytics.deleteAllConfirm'))) {
@@ -224,41 +185,41 @@ export default function Analytics() {
 
                 {/* STT Model Performance */}
                 {analytics && analytics.sttModelRanking && analytics.sttModelRanking.length > 0 && (
-                  <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--primary)', marginBottom: '10px' }}>
+                  <div className={`${styles.Card} ${styles.AlignLeft}`}>
+                    <div className={styles.SectionTitle}>
                       {t('analytics.sttModelPerformance')}
                     </div>
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                    <div className={styles.TableContainer}>
+                      <table className={styles.Table}>
                         <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--secondary)' }}>
-                            <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: '500' }}>#</th>
-                            <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: '500' }}>{t('analytics.model')}</th>
-                            <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '500' }}>{t('analytics.uses')}</th>
-                            <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '500' }}>{t('analytics.avg')}</th>
-                            <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '500' }}>{t('analytics.success')}</th>
+                          <tr>
+                            <th>#</th>
+                            <th>{t('analytics.model')}</th>
+                            <th>{t('analytics.uses')}</th>
+                            <th>{t('analytics.avg')}</th>
+                            <th>{t('analytics.success')}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {analytics.sttModelRanking.slice(0, 5).map((model, index) => (
-                            <tr key={model.modelId} style={{ borderBottom: '1px solid var(--border)' }}>
-                              <td style={{ padding: '6px 8px', color: 'var(--secondary)' }}>{index + 1}</td>
-                              <td style={{ padding: '6px 8px', color: 'var(--primary)' }}>
+                            <tr key={model.modelId}>
+                              <td>{index + 1}</td>
+                              <td style={{ color: 'var(--primary)' }}>
                                 {model.modelName}
                                 {index === 0 && ' \u{1F451}'}
                               </td>
-                              <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--secondary)' }}>{model.count}</td>
-                              <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--secondary)' }}>
+                              <td>{model.count}</td>
+                              <td>
                                 {formatProcessing(model.averageLatencyMs)}
                               </td>
-                              <td style={{ padding: '6px 8px', textAlign: 'right' }}>
-                                <span style={{
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  fontSize: '10px',
-                                  background: model.successRate >= 0.95 ? 'rgba(34, 197, 94, 0.2)' : model.successRate >= 0.8 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                  color: model.successRate >= 0.95 ? '#22c55e' : model.successRate >= 0.8 ? '#eab308' : '#ef4444',
-                                }}>
+                              <td>
+                                <span
+                                  className={styles.SuccessRate}
+                                  style={{
+                                    background: model.successRate >= 0.95 ? 'rgba(34, 197, 94, 0.2)' : model.successRate >= 0.8 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                    color: model.successRate >= 0.95 ? '#22c55e' : model.successRate >= 0.8 ? '#eab308' : '#ef4444',
+                                  }}
+                                >
                                   {(model.successRate * 100).toFixed(0)}%
                                 </span>
                               </td>
@@ -272,24 +233,24 @@ export default function Analytics() {
 
                 {/* Productivity Metrics */}
                 {analytics && analytics.productivity && (
-                  <div style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--primary)', marginBottom: '10px' }}>
+                  <div className={`${styles.Card} ${styles.AlignLeft}`}>
+                    <div className={styles.SectionTitle}>
                       {t('analytics.productivityMetrics')}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                    <div className={styles.Grid2}>
                       <div style={{ padding: '8px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--primary)' }}>
+                        <div className={styles.StatValue} style={{ fontSize: '16px' }}>
                           {analytics.productivity.wordsPerMinute.average?.toFixed(0) || '--'}
                         </div>
-                        <div style={{ fontSize: '10px', color: 'var(--secondary)', marginTop: '2px' }}>
+                        <div className={styles.StatLabel}>
                           {t('dashboard.avgWpm')}
                         </div>
                       </div>
                       <div style={{ padding: '8px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--primary)' }}>
+                        <div className={styles.StatValue} style={{ fontSize: '16px' }}>
                           {formatProcessing(analytics.productivity.processingTimeMs.average)}
                         </div>
-                        <div style={{ fontSize: '10px', color: 'var(--secondary)', marginTop: '2px' }}>
+                        <div className={styles.StatLabel}>
                           {t('analytics.avgProcessing')}
                         </div>
                       </div>
@@ -298,12 +259,7 @@ export default function Analytics() {
                 )}
 
                 {(!analytics || ((!analytics.sttModelRanking || analytics.sttModelRanking.length === 0) && (!analytics.enhancementModelRanking || analytics.enhancementModelRanking.length === 0))) && (
-                  <div style={{
-                    padding: '20px',
-                    textAlign: 'center',
-                    color: 'var(--secondary)',
-                    fontSize: '12px',
-                  }}>
+                  <div className={styles.EmptyState}>
                     {t('analytics.noAnalyticsData')}
                   </div>
                 )}
@@ -312,45 +268,27 @@ export default function Analytics() {
 
             {/* History Tab */}
             <Tabs.Content value="history">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '60vh', overflowY: 'auto' }}>
+              <div className={styles.HistoryList}>
                 {historyData.length === 0 ? (
-                  <div style={{
-                    padding: '40px 20px',
-                    textAlign: 'center',
-                    color: 'var(--secondary)',
-                    fontSize: '12px',
-                  }}>
+                  <div className={styles.EmptyState}>
                     {t('analytics.noRecordingsYet')}
                   </div>
                 ) : (
                   historyData.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((item, index) => (
                     <div
                       key={`${item.id}-${index}`}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid var(--border)',
-                        borderRadius: '12px',
-                        padding: '12px',
-                      }}
+                      className={styles.HistoryItem}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                        <div style={{ fontSize: '11px', color: 'var(--secondary)' }}>
+                      <div className={styles.HistoryHeader}>
+                        <div className={styles.HistoryDate}>
                           {formatDate(item.createdAt)}
                         </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <span style={{ fontSize: '10px', color: 'var(--secondary)' }}>
+                        <div className={styles.HistoryActions}>
+                          <span className={styles.HistoryDuration}>
                             {formatDuration(item.duration)}
                           </span>
                           <button
-                            style={{
-                              padding: '2px 6px',
-                              fontSize: '10px',
-                              background: 'transparent',
-                              color: 'var(--error, #ef4444)',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                            }}
+                            className={styles.DeleteIconBtn}
                             onClick={() => {
                               if (window.confirm(t('history.deleteConfirm'))) {
                                 deleteRecordingMutation.mutate(item.id);
@@ -361,22 +299,22 @@ export default function Analytics() {
                           </button>
                         </div>
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--primary)', lineHeight: '1.4', marginBottom: '8px' }}>
+                      <div className={styles.HistoryTranscript}>
                         {item.transcript || t('analytics.noTranscription')}
                       </div>
-                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      <div className={styles.HistoryMeta}>
                         {item.providerId && (
-                          <span style={{ fontSize: '10px', color: 'var(--secondary)' }}>
+                          <span className={styles.MetaItem}>
                             {t('analytics.stt')}: {item.providerId}
                           </span>
                         )}
                         {(item.confidenceScore != null || item.accuracyScore != null) && (
-                          <span style={{ fontSize: '10px', color: 'var(--secondary)' }}>
+                          <span className={styles.MetaItem}>
                             {t('analytics.confidence')}: {formatConfidence(item.confidenceScore ?? item.accuracyScore)}
                           </span>
                         )}
                         {item.fileSize && (
-                          <span style={{ fontSize: '10px', color: 'var(--secondary)' }}>
+                          <span className={styles.MetaItem}>
                             {formatBytes(item.fileSize)}
                           </span>
                         )}

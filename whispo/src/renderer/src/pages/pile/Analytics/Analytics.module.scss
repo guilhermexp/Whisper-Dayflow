@@ -16,12 +16,17 @@
     width: 19px;
     transition: all ease-in-out 220ms;
     transition-delay: 40ms;
+    opacity: 0.5;
   }
 
   &:hover {
     cursor: pointer;
     background: var(--bg-secondary);
     color: var(--primary);
+
+    .analyticsIcon {
+      opacity: 1;
+    }
   }
 
   &:active {
@@ -53,8 +58,8 @@ input {
   left: 50%;
   transform: translate(-50%, -50%);
   width: 90vw;
-  max-width: 1000px;
-  min-width: 400px;
+  max-width: 960px;
+  min-width: 420px;
   max-height: 85vh;
   padding: 22px;
   animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -70,7 +75,7 @@ input {
   padding: 0;
   line-height: 1;
   font-family: 'Porpora';
-  font-size: 1.4em;
+  font-size: var(--font-title);
   color: var(--primary);
   margin-bottom: 16px;
 }
@@ -100,6 +105,235 @@ input {
     color: var(--primary);
     background-color: var(--bg-secondary);
   }
+}
+
+.TabsList {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.TabTrigger {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg-tertiary);
+  color: var(--secondary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: var(--font-body);
+  font-weight: 500;
+  transition: all 0.2s ease;
+
+  &[data-state='active'] {
+    background: var(--active);
+    color: var(--active-text);
+  }
+
+  &:hover:not([data-state='active']) {
+    background: var(--bg-secondary);
+    color: var(--primary);
+  }
+}
+
+.Container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.Grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.Grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.Card {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+
+  &.AlignLeft {
+    text-align: left;
+  }
+}
+
+.StatValue {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.StatLabel {
+  font-size: var(--font-small);
+  color: var(--secondary);
+  margin-top: 4px;
+}
+
+.SectionTitle {
+  font-size: var(--font-body);
+  font-weight: 500;
+  color: var(--primary);
+  margin-bottom: 10px;
+}
+
+.SectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.SectionSubLabel {
+  font-size: var(--font-small);
+  color: var(--secondary);
+  margin-top: 2px;
+}
+
+.DeleteBtn {
+  padding: 6px 12px;
+  font-size: var(--font-small);
+  background: var(--error, #ef4444);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.TableContainer {
+  overflow-x: auto;
+}
+
+.Table {
+  width: 100%;
+  font-size: 11px;
+  border-collapse: collapse;
+
+  th {
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    color: var(--secondary);
+
+    &:not(:first-child) {
+      text-align: right;
+    }
+  }
+
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    color: var(--secondary);
+
+    &:not(:first-child) {
+      text-align: right;
+    }
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.SuccessRate {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.EmptyState {
+  padding: 20px;
+  text-align: center;
+  color: var(--secondary);
+  font-size: 12px;
+}
+
+.HistoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.HistoryItem {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.HistoryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.HistoryDate {
+  font-size: 11px;
+  color: var(--secondary);
+}
+
+.HistoryActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.HistoryDuration {
+  font-size: 10px;
+  color: var(--secondary);
+}
+
+.DeleteIconBtn {
+  padding: 2px 6px;
+  font-size: 10px;
+  background: transparent;
+  color: var(--error, #ef4444);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bg-secondary);
+  }
+}
+
+.HistoryTranscript {
+  font-size: 12px;
+  color: var(--primary);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.HistoryMeta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.MetaItem {
+  font-size: 10px;
+  color: var(--secondary);
 }
 
 @keyframes overlayShow {

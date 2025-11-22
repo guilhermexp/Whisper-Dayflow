@@ -315,7 +315,7 @@ export default function Settings() {
             {/* Whisper Tab */}
             <Tabs.Content value="whisper">
               <fieldset className={styles.Fieldset}>
-                <label className={styles.Label}>Transcription provider</label>
+                <label className={styles.Label}>{t('settingsDialog.whisper.transcriptionProvider')}</label>
                 <TranscriptionSettingsTabs />
               </fieldset>
 
@@ -605,7 +605,7 @@ export default function Settings() {
                         {expandedSection === 'prompts' && (
                           <div style={{ padding: '0 12px 12px' }}>
                             {/* Predefined Prompts */}
-                            <div style={{ fontSize: '10px', color: 'var(--secondary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Predefined</div>
+                            <div style={{ fontSize: '10px', color: 'var(--secondary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('settingsDialog.enhancement.predefined')}</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                               {PREDEFINED_PROMPTS.map((prompt) => {
                                 const isActive = whispoConfigQuery.data.selectedPromptId === prompt.id || (!whispoConfigQuery.data.selectedPromptId && prompt.id === 'default');
@@ -635,7 +635,7 @@ export default function Settings() {
                                     </div>
                                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                       {isActive && (
-                                        <span style={{ fontSize: '10px', background: 'var(--active-text)', color: 'var(--active)', padding: '2px 6px', borderRadius: '4px' }}>Active</span>
+                                        <span style={{ fontSize: '10px', background: 'var(--active-text)', color: 'var(--active)', padding: '2px 6px', borderRadius: '4px' }}>{t('settingsDialog.enhancement.active')}</span>
                                       )}
                                       <button
                                         style={{
@@ -651,7 +651,7 @@ export default function Settings() {
                                           handleViewPrompt(prompt);
                                         }}
                                       >
-                                        View
+                                        {t('settingsDialog.enhancement.view')}
                                       </button>
                                     </div>
                                   </div>
@@ -661,7 +661,7 @@ export default function Settings() {
 
                             {/* Custom Prompts */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', marginBottom: '6px' }}>
-                              <div style={{ fontSize: '10px', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Custom</div>
+                              <div style={{ fontSize: '10px', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('settingsDialog.enhancement.custom')}</div>
                               <button
                                 style={{
                                   display: 'flex',
@@ -677,13 +677,13 @@ export default function Settings() {
                                 }}
                                 onClick={handleCreatePrompt}
                               >
-                                + New
+                                + {t('settingsDialog.enhancement.promptEditor.newPrompt')}
                               </button>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                               {(whispoConfigQuery.data.customPrompts || []).length === 0 ? (
                                 <div style={{ fontSize: '11px', color: 'var(--secondary)', textAlign: 'center', padding: '12px' }}>
-                                  No custom prompts yet
+                                  {t('settingsDialog.enhancement.noCustomPrompts')}
                                 </div>
                               ) : (
                                 (whispoConfigQuery.data.customPrompts || []).map((prompt) => (
@@ -714,7 +714,7 @@ export default function Settings() {
                                     </div>
                                     <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
                                       {whispoConfigQuery.data.selectedPromptId === prompt.id && (
-                                        <span style={{ fontSize: '10px', background: 'var(--active-text)', color: 'var(--active)', padding: '2px 6px', borderRadius: '4px', marginRight: '4px' }}>Active</span>
+                                        <span style={{ fontSize: '10px', background: 'var(--active-text)', color: 'var(--active)', padding: '2px 6px', borderRadius: '4px', marginRight: '4px' }}>{t('settingsDialog.enhancement.active')}</span>
                                       )}
                                       <button
                                         style={{
@@ -725,9 +725,9 @@ export default function Settings() {
                                           color: 'var(--secondary)',
                                         }}
                                         onClick={() => handleEditPrompt(prompt)}
-                                        title="Edit"
+                                        title={t('common.edit')}
                                       >
-                                        Edit
+                                        {t('common.edit')}
                                       </button>
                                       <button
                                         style={{
@@ -738,9 +738,9 @@ export default function Settings() {
                                           color: 'var(--error, #ff6b6b)',
                                         }}
                                         onClick={() => handleDeletePrompt(prompt.id)}
-                                        title="Delete"
+                                        title={t('common.delete')}
                                       >
-                                        Del
+                                        {t('common.delete')}
                                       </button>
                                     </div>
                                   </div>
@@ -874,40 +874,40 @@ export default function Settings() {
                 overflow: 'auto',
               }}>
                 <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600' }}>
-                  {viewingPrompt ? 'View Prompt' : editingPrompt ? 'Edit Prompt' : 'New Prompt'}
+                  {viewingPrompt ? t('settingsDialog.enhancement.promptEditor.viewPrompt') : editingPrompt ? t('settingsDialog.enhancement.promptEditor.editPrompt') : t('settingsDialog.enhancement.promptEditor.newPrompt')}
                 </h3>
 
                 <fieldset className={styles.Fieldset}>
-                  <label className={styles.Label}>Title</label>
+                  <label className={styles.Label}>{t('settingsDialog.enhancement.promptEditor.title')}</label>
                   <input
                     className={styles.Input}
                     value={promptForm.title}
                     onChange={(e) => setPromptForm({ ...promptForm, title: e.target.value })}
-                    placeholder="My Custom Prompt"
+                    placeholder={t('settingsDialog.enhancement.promptEditor.titlePlaceholder')}
                     readOnly={!!viewingPrompt}
                     style={viewingPrompt ? { opacity: 0.8, cursor: 'default' } : {}}
                   />
                 </fieldset>
 
                 <fieldset className={styles.Fieldset}>
-                  <label className={styles.Label}>Description</label>
+                  <label className={styles.Label}>{t('settingsDialog.enhancement.promptEditor.description')}</label>
                   <input
                     className={styles.Input}
                     value={promptForm.description}
                     onChange={(e) => setPromptForm({ ...promptForm, description: e.target.value })}
-                    placeholder="Short description..."
+                    placeholder={t('settingsDialog.enhancement.promptEditor.descPlaceholder')}
                     readOnly={!!viewingPrompt}
                     style={viewingPrompt ? { opacity: 0.8, cursor: 'default' } : {}}
                   />
                 </fieldset>
 
                 <fieldset className={styles.Fieldset}>
-                  <label className={styles.Label}>Prompt Text</label>
+                  <label className={styles.Label}>{t('settingsDialog.enhancement.promptEditor.promptText')}</label>
                   <textarea
                     className={styles.Textarea}
                     value={promptForm.promptText}
                     onChange={(e) => setPromptForm({ ...promptForm, promptText: e.target.value })}
-                    placeholder="Enter the enhancement instructions..."
+                    placeholder={t('settingsDialog.enhancement.promptEditor.promptPlaceholder')}
                     rows={8}
                     readOnly={!!viewingPrompt}
                     style={viewingPrompt ? { opacity: 0.8, cursor: 'default' } : {}}

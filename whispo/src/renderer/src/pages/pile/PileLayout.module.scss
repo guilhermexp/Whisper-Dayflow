@@ -116,6 +116,24 @@
         opacity: 0.5;
       }
 
+      .timelineIcon {
+        color: var(--secondary);
+        height: 19px;
+        width: 19px;
+        transition: all ease-in-out 220ms;
+        transition-delay: 40ms;
+        opacity: 0.5;
+      }
+
+      .autoJournalIcon {
+        color: var(--secondary);
+        height: 19px;
+        width: 19px;
+        transition: all ease-in-out 220ms;
+        transition-delay: 40ms;
+        opacity: 0.5;
+      }
+
       &.active {
         background: var(--bg-secondary);
       }
@@ -126,7 +144,9 @@
         color: var(--primary);
 
         .homeIcon,
-        .settingsIcon {
+        .settingsIcon,
+        .timelineIcon,
+        .autoJournalIcon {
           opacity: 1;
         }
       }

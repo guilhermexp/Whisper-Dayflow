@@ -1,3 +1,10 @@
+:global(:root) {
+  --font-title: 1.4em;
+  --font-label: 12px;
+  --font-body: 13px;
+  --font-small: 11px;
+}
+
 .iconHolder {
   display: flex;
   align-items: center;
@@ -71,8 +78,8 @@ input[type="checkbox"] {
   left: 50%;
   transform: translate(-50%, -50%);
   width: 90vw;
-  max-width: 1000px;
-  min-width: 400px;
+  max-width: 960px;
+  min-width: 420px;
   max-height: 85vh;
   padding: 22px;
   animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -88,14 +95,14 @@ input[type="checkbox"] {
   padding: 0;
   line-height: 1;
   font-family: 'Porpora';
-  font-size: 1.4em;
+  font-size: var(--font-title);
   color: var(--primary);
 }
 
 .DialogDescription {
   margin: 6px 0 0;
   color: var(--secondary);
-  font-size: 15px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -110,7 +117,7 @@ input[type="checkbox"] {
   padding: 0 14px;
   line-height: 28px;
   color: var(--base-text);
-  font-size: 0.85em;
+  font-size: var(--font-body);
   border-radius: 90px;
   user-select: none;
 
@@ -282,7 +289,7 @@ input[type="checkbox"] {
 }
 
 .Label {
-  font-size: 12px;
+  font-size: var(--font-label);
   color: var(--secondary);
   margin-bottom: 8px;
 }
