@@ -1,12 +1,17 @@
 export const GaugeIcon = (props) => {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            xmlns="http://www.w3.org/2000/svg"
-            {...props}
-        >
-            <path d="M12 2C6.48 2 2 6.48 2 12h20c0-5.52-4.48-10-10-10zm1 9h-2V6h2v5z" />
-        </svg>
-    );
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="1200pt"
+      height="1200pt"
+      version="1.1"
+      viewBox="0 0 1200 1200"
+    >
+      <path
+        d="m150 337.5h300c41.422 0 75 33.578 75 75v637.5c0 41.422-33.578 75-75 75h-300c-41.422 0-75-33.578-75-75v-637.5c0-41.422 33.578-75 75-75zm600-262.5h300c41.422 0 75 33.578 75 75v900c0 41.422-33.578 75-75 75h-300c-41.422 0-75-33.578-75-75v-900c0-41.422 33.578-75 75-75z"
+        fill="currentColor"
+      />
+    </svg>
+  );
 };

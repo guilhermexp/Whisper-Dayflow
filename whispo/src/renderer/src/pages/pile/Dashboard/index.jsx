@@ -1,8 +1,9 @@
 import styles from "./Dashboard.module.scss"
-import { CardIcon, CrossIcon, RefreshIcon } from "renderer/icons"
+import { CardIcon, CrossIcon, RefreshIcon, ClockIcon, GaugeIcon, CopyIcon } from "renderer/icons"
 import { useMemo, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation } from "@tanstack/react-query"
 import * as Dialog from "@radix-ui/react-dialog"
+import * as Tabs from "@radix-ui/react-tabs"
 import { tipcClient } from "renderer/lib/tipc-client"
 import dayjs from "dayjs"
 import { useTranslation } from "react-i18next"
@@ -25,31 +26,42 @@ const PIE_COLORS = ["#3b82f6", "#0ea5e9", "#14b8a6", "#f59e0b", "#64748b"]
 export default function Dashboard() {
   const { t } = useTranslation()
   const { getCurrentPilePath } = usePilesContext()
+  const [mainTab, setMainTab] = useState("dashboard")
+
+  // Analytics queries
   const analyticsQuery = useQuery({
     queryKey: ["recording-analytics"],
     queryFn: async () => tipcClient.getRecordingAnalytics(),
   })
 
-  const [autoJournalWindow, setAutoJournalWindow] = useState(60)
-  const autoJournalQuery = useQuery({
-    queryKey: ["auto-journal-summary", autoJournalWindow],
-    enabled: false, // manual trigger
-    queryFn: async () =>
-      tipcClient.generateAutoJournalSummary({
-        windowMinutes: autoJournalWindow,
-      }),
+  const historyQuery = useQuery({
+    queryKey: ["recording-history"],
+    queryFn: async () => tipcClient.getRecordingHistory(),
   })
 
-  const data = analyticsQuery.data
-  const autoJournalData = autoJournalQuery.data
-  const autoJournalError =
-    autoJournalQuery.error instanceof Error
-      ? autoJournalQuery.error.message
-      : autoJournalQuery.error
-        ? String(autoJournalQuery.error)
-        : null
-  const [savingToJournal, setSavingToJournal] = useState(false)
+  // Mutations
+  const deleteRecordingHistoryMutation = useMutation({
+    mutationFn: tipcClient.deleteRecordingHistory,
+    onSuccess() {
+      historyQuery.refetch()
+      analyticsQuery.refetch()
+    },
+  })
 
+  const deleteRecordingMutation = useMutation({
+    mutationFn: (id) => tipcClient.deleteRecording({ id }),
+    onSuccess() {
+      historyQuery.refetch()
+      analyticsQuery.refetch()
+    },
+  })
+
+  // History data
+  const historyData = historyQuery.data || []
+  const totalSize = historyData.reduce((acc, item) => acc + (item.fileSize || 0), 0)
+  const totalDuration = historyData.reduce((acc, item) => acc + (item.duration || 0), 0)
+
+  const data = analyticsQuery.data
   const timelineData = useMemo(() => {
     if (!data || !data.timeline) return []
     return data.timeline.map((entry) => ({
@@ -60,29 +72,6 @@ export default function Dashboard() {
   }, [data])
 
   const providerData = data?.providerBreakdown || []
-
-  const handleSaveToJournal = async () => {
-    if (!autoJournalData) return
-    const pilePath = getCurrentPilePath()
-    if (!pilePath) {
-      console.error("No pile selected; cannot save auto journal entry.")
-      return
-    }
-    try {
-      setSavingToJournal(true)
-      await tipcClient.createAutoJournalEntry({
-        pilePath,
-        summary: autoJournalData.summary,
-        activities: autoJournalData.activities || [],
-        windowStartTs: autoJournalData.windowStartTs,
-        windowEndTs: autoJournalData.windowEndTs,
-      })
-    } catch (error) {
-      console.error("Failed to save auto journal entry:", error)
-    } finally {
-      setSavingToJournal(false)
-    }
-  }
 
   // Helper functions
   const formatDurationLong = (ms) => {
@@ -99,6 +88,50 @@ export default function Dashboard() {
     return Number(value).toFixed(precision)
   }
 
+  const formatBytes = (bytes) => {
+    if (!bytes) return "0 B"
+    const units = ["B", "KB", "MB", "GB"]
+    let unitIndex = 0
+    let value = bytes
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024
+      unitIndex += 1
+    }
+    return `${value.toFixed(1)} ${units[unitIndex]}`
+  }
+
+  const formatDuration = (ms) => {
+    if (!ms) return "0s"
+    const seconds = Math.round(ms / 1000)
+    if (seconds < 60) return `${seconds}s`
+    const minutes = Math.floor(seconds / 60)
+    const remaining = seconds % 60
+    return `${minutes}m ${remaining}s`
+  }
+
+  const formatProcessing = (value) => {
+    if (value == null) return "--"
+    if (value < 1000) return `${value.toFixed(0)}ms`
+    return `${(value / 1000).toFixed(2)}s`
+  }
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return "--"
+    const date = new Date(timestamp)
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  const formatConfidence = (score) => {
+    if (typeof score !== "number") return "--"
+    return `${Math.round(score * 100)}%`
+  }
+
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
@@ -112,359 +145,352 @@ export default function Dashboard() {
           className={styles.DialogContent}
           aria-describedby={undefined}
         >
-          <Dialog.Title className={styles.DialogTitle}>
-            <span>{t("dashboard.title")}</span>
-            <button
-              onClick={() => analyticsQuery.refetch()}
-              disabled={analyticsQuery.isRefetching}
-              className={styles.RefreshButton}
-            >
-              <RefreshIcon
-                style={{
-                  height: "14px",
-                  width: "14px",
-                  color: "var(--secondary)",
-                }}
-              />
-            </button>
-          </Dialog.Title>
-
-          {!data ? (
-            <div className={styles.EmptyState}>
-              {analyticsQuery.isLoading
-                ? t("dashboard.loadingAnalytics")
-                : t("dashboard.noAnalytics")}
-            </div>
-          ) : (
-            <div className={styles.Container}>
-              {/* Stats Cards */}
-              <div className={styles.Grid2}>
-                <div className={styles.Card}>
-                  <div className={styles.StatValue}>
-                    {data.totals?.recordings?.toLocaleString() || 0}
-                  </div>
-                  <div className={styles.StatLabel}>
-                    {t("dashboard.totalRecordings")}
-                  </div>
-                  <div className={styles.StatSubLabel}>
-                    {t("dashboard.avgSession", {
-                      duration: formatDurationLong(
-                        data.totals?.averageSessionMs,
-                      ),
-                    })}
-                  </div>
-                </div>
-                <div className={styles.Card}>
-                  <div className={styles.StatValue}>
-                    {formatDurationLong(data.totals?.durationMs)}
-                  </div>
-                  <div className={styles.StatLabel}>
-                    {t("dashboard.totalDuration")}
-                  </div>
-                </div>
-                <div className={styles.Card}>
-                  <div className={styles.StatValue}>
-                    {data.totals?.averageAccuracy == null
-                      ? "--"
-                      : `${Math.round(data.totals.averageAccuracy * 100)}%`}
-                  </div>
-                  <div className={styles.StatLabel}>
-                    {t("dashboard.avgAccuracy")}
-                  </div>
-                </div>
-                <div className={styles.Card}>
-                  <div className={styles.StatValue}>
-                    {formatNumber(data.totals?.averageWpm)}
-                  </div>
-                  <div className={styles.StatLabel}>
-                    {t("dashboard.avgWpm")}
-                  </div>
-                </div>
-              </div>
-
-              {/* Timeline Chart */}
-              {timelineData.length > 0 && (
-                <div className={`${styles.Card} ${styles.AlignLeft}`}>
-                  <div className={styles.SectionTitle}>
-                    {t("dashboard.timeline")}
-                  </div>
-                  <div className={styles.ChartContainer}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={timelineData}
-                        margin={{ top: 8, right: 8, bottom: 0, left: -20 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          strokeOpacity={0.1}
-                        />
-                        <XAxis
-                          dataKey="label"
-                          tickLine={false}
-                          tick={{ fontSize: 10, fill: "var(--secondary)" }}
-                        />
-                        <YAxis
-                          tickLine={false}
-                          tick={{ fontSize: 10, fill: "var(--secondary)" }}
-                        />
-                        <RechartsTooltip
-                          contentStyle={{
-                            background: "var(--bg)",
-                            border: "1px solid var(--border)",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="count"
-                          stroke="#3b82f6"
-                          strokeWidth={2}
-                          dot={false}
-                          name="Recordings"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="durationMinutes"
-                          stroke="#0ea5e9"
-                          strokeWidth={2}
-                          dot={false}
-                          name="Duration (min)"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              )}
-
-              {/* Auto Journal (manual preview) */}
-              <div className={styles.AutoJournalCard}>
-                <div className={styles.AutoJournalHeader}>
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span className={styles.AutoJournalTitle}>
-                      Auto Journal (beta)
-                    </span>
-                    <span className={styles.AutoJournalDesc}>
-                      Generate a summary of what you&apos;ve been doing based on
-                      recent recordings.
-                    </span>
-                  </div>
-                  <div
+          <div className={styles.header}>
+            <div className={styles.wrapper}>
+              <Dialog.Title className={styles.DialogTitle}>
+                <span>{t("dashboard.title")}</span>
+                <button
+                  onClick={() => analyticsQuery.refetch()}
+                  disabled={analyticsQuery.isRefetching}
+                  className={styles.RefreshButton}
+                >
+                  <RefreshIcon
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
+                      height: "14px",
+                      width: "14px",
+                      color: "var(--secondary)",
                     }}
-                  >
-                    <select
-                      value={autoJournalWindow}
-                      onChange={(e) =>
-                        setAutoJournalWindow(Number(e.target.value) || 60)
-                      }
-                      className={styles.Select}
-                    >
-                      <option value={30}>{t("autoJournal.last30min")}</option>
-                      <option value={60}>{t("autoJournal.last60min")}</option>
-                      <option value={120}>{t("autoJournal.last2hours")}</option>
-                    </select>
-                    <button
-                      onClick={() => autoJournalQuery.refetch()}
-                      disabled={autoJournalQuery.isFetching}
-                      className={styles.ActionBtn}
-                    >
-                      {autoJournalQuery.isFetching
-                        ? t("autoJournal.generating")
-                        : t("autoJournal.generateNow")}
-                    </button>
-                    {autoJournalData && (
-                      <button
-                        onClick={handleSaveToJournal}
-                        disabled={savingToJournal}
-                        className={styles.ActionBtn}
-                        style={{
-                          background: "var(--bg-secondary)",
-                          color: "var(--primary)",
-                        }}
-                      >
-                        {savingToJournal
-                          ? t("autoJournal.saving")
-                          : t("autoJournal.saveToJournal")}
-                      </button>
-                    )}
+                  />
+                </button>
+              </Dialog.Title>
+              <Dialog.Close asChild>
+                <button className={styles.close} aria-label="Close">
+                  <CrossIcon style={{ height: 14, width: 14 }} />
+                </button>
+              </Dialog.Close>
+            </div>
+          </div>
+
+          <div className={styles.mainContent}>
+            <Tabs.Root
+              value={mainTab}
+              onValueChange={setMainTab}
+              className={styles.tabsRoot}
+            >
+              <Tabs.List className={styles.TabsList}>
+                <Tabs.Trigger value="dashboard" className={styles.TabTrigger}>
+                  <GaugeIcon style={{ height: "16px", width: "16px" }} />
+                  {t("dashboard.title")}
+                </Tabs.Trigger>
+                <Tabs.Trigger value="history" className={styles.TabTrigger}>
+                  <ClockIcon style={{ height: "16px", width: "16px" }} />
+                  {t("navigation.history")}
+                </Tabs.Trigger>
+              </Tabs.List>
+
+              {/* Dashboard Tab */}
+              <Tabs.Content value="dashboard" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                {!data ? (
+                  <div className={styles.EmptyState}>
+                    {analyticsQuery.isLoading
+                      ? t("dashboard.loadingAnalytics")
+                      : t("dashboard.noAnalytics")}
                   </div>
-                </div>
-
-                {autoJournalData && (
-                  <div className={styles.SummaryBox}>
-                    <div className={styles.SummaryTitle}>
-                      {t("autoJournal.summary")}
-                    </div>
-                    <div className={styles.SummaryText}>
-                      {autoJournalData.summary}
-                    </div>
-
-                    {autoJournalData.activities?.length > 0 && (
-                      <>
-                        <div
-                          className={styles.SummaryTitle}
-                          style={{ marginTop: "4px" }}
-                        >
-                          {t("autoJournal.activities")}
+                ) : (
+                  <div className={styles.DashboardFrame}>
+                    {/* Stats Row - 4 compact cards */}
+                    <div className={styles.StatsRow}>
+                      <div className={styles.StatCard}>
+                        <div className={styles.StatValue}>
+                          {data.totals?.recordings?.toLocaleString() || 0}
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "4px",
-                          }}
-                        >
-                          {autoJournalData.activities.map((act, idx) => (
-                            <div
-                              key={`${act.startTs}-${act.endTs}-${idx}`}
-                              className={styles.ActivityItem}
-                            >
-                              <div className={styles.ActivityHeader}>
-                                <span className={styles.ActivityTitle}>
-                                  {act.title}
-                                </span>
-                                <span className={styles.ActivityTime}>
-                                  {dayjs(act.startTs).format("HH:mm")}–
-                                  {dayjs(act.endTs).format("HH:mm")}
-                                </span>
-                              </div>
-                              {act.category && (
-                                <span className={styles.ActivityTime}>
-                                  {act.category}
-                                </span>
-                              )}
-                              <span className={styles.ActivityTime}>
-                                {act.summary}
-                              </span>
+                        <div className={styles.StatLabel}>
+                          {t("dashboard.totalRecordings")}
+                        </div>
+                      </div>
+                      <div className={styles.StatCard}>
+                        <div className={styles.StatValue}>
+                          {formatDurationLong(data.totals?.durationMs)}
+                        </div>
+                        <div className={styles.StatLabel}>
+                          {t("dashboard.totalDuration")}
+                        </div>
+                      </div>
+                      <div className={styles.StatCard}>
+                        <div className={styles.StatValue}>
+                          {data.totals?.averageAccuracy == null
+                            ? "--"
+                            : `${Math.round(data.totals.averageAccuracy * 100)}%`}
+                        </div>
+                        <div className={styles.StatLabel}>
+                          {t("dashboard.avgAccuracy")}
+                        </div>
+                      </div>
+                      <div className={styles.StatCard}>
+                        <div className={styles.StatValue}>
+                          {formatNumber(data.totals?.averageWpm)}
+                        </div>
+                        <div className={styles.StatLabel}>
+                          {t("dashboard.avgWpm")}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Charts Section - Timeline + Pie side by side */}
+                    <div className={styles.ChartsSection}>
+                      {/* Timeline Chart */}
+                      {timelineData.length > 0 && (
+                        <div className={styles.TimelineCard}>
+                          <div className={styles.CardTitle}>
+                            {t("dashboard.timeline")}
+                          </div>
+                          <div className={styles.TimelineChart}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart
+                                data={timelineData}
+                                margin={{ top: 8, right: 8, bottom: 0, left: -20 }}
+                              >
+                                <CartesianGrid
+                                  strokeDasharray="3 3"
+                                  strokeOpacity={0.1}
+                                />
+                                <XAxis
+                                  dataKey="label"
+                                  tickLine={false}
+                                  tick={{ fontSize: 10, fill: "var(--secondary)" }}
+                                />
+                                <YAxis
+                                  tickLine={false}
+                                  tick={{ fontSize: 10, fill: "var(--secondary)" }}
+                                />
+                                <RechartsTooltip
+                                  contentStyle={{
+                                    background: "var(--bg)",
+                                    border: "1px solid var(--border)",
+                                    borderRadius: "6px",
+                                    fontSize: "11px",
+                                  }}
+                                />
+                                <Line
+                                  type="monotone"
+                                  dataKey="count"
+                                  stroke="#3b82f6"
+                                  strokeWidth={2}
+                                  dot={false}
+                                  name="Recordings"
+                                />
+                                <Line
+                                  type="monotone"
+                                  dataKey="durationMinutes"
+                                  stroke="#0ea5e9"
+                                  strokeWidth={2}
+                                  dot={false}
+                                  name="Duration (min)"
+                                />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Provider Breakdown */}
+                      {providerData.length > 0 && (
+                        <div className={styles.ProviderCard}>
+                          <div className={styles.CardTitle}>
+                            {t("dashboard.providerBreakdown")}
+                          </div>
+                          <div className={styles.ProviderContent}>
+                            <div className={styles.PieWrapper}>
+                              <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                  <Pie
+                                    data={providerData}
+                                    dataKey="count"
+                                    nameKey="providerId"
+                                    innerRadius={25}
+                                    outerRadius={45}
+                                    paddingAngle={2}
+                                  >
+                                    {providerData.map((_, index) => (
+                                      <Cell
+                                        key={index}
+                                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                                      />
+                                    ))}
+                                  </Pie>
+                                </PieChart>
+                              </ResponsiveContainer>
                             </div>
-                          ))}
+                            <div className={styles.PieLegend}>
+                              {providerData.map((entry, index) => (
+                                <div
+                                  key={entry.providerId}
+                                  className={styles.PieLegendItem}
+                                >
+                                  <span
+                                    className={styles.PieLegendDot}
+                                    style={{
+                                      backgroundColor:
+                                        PIE_COLORS[index % PIE_COLORS.length],
+                                    }}
+                                  />
+                                  <span className={styles.PieLegendLabel}>
+                                    {entry.providerId}
+                                  </span>
+                                  <span className={styles.PieLegendValue}>
+                                    {entry.count}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                      </>
-                    )}
-                    {autoJournalData.debug && (
-                      <div className={styles.Diagnostics}>
-                        <div
-                          className={styles.SummaryTitle}
-                          style={{ marginTop: "6px" }}
-                        >
-                          {t("autoJournal.diagnostics")}
+                      )}
+                    </div>
+
+                    {/* STT Model Performance */}
+                    {data.sttModelRanking && data.sttModelRanking.length > 0 && (
+                      <div className={styles.PerformanceCard}>
+                        <div className={styles.CardTitle}>
+                          {t("analytics.sttModelPerformance")}
                         </div>
-                        <div className={styles.DiagnosticsRow}>
-                          <span>{t("dashboard.provider")}</span>
-                          <span>{autoJournalData.debug.provider}</span>
-                        </div>
-                        <div className={styles.DiagnosticsRow}>
-                          <span>{t("settingsDialog.journal.model")}</span>
-                          <span>{autoJournalData.debug.model}</span>
-                        </div>
-                        <div className={styles.DiagnosticsRow}>
-                          <span>{t("autoJournal.itemsUsed")}</span>
-                          <span>{autoJournalData.debug.itemsUsed}</span>
-                        </div>
-                        <div className={styles.DiagnosticsRow}>
-                          <span>{t("autoJournal.window")}</span>
-                          <span>{autoJournalData.debug.windowMinutes} min</span>
-                        </div>
-                        <div className={styles.DiagnosticsRow}>
-                          <span>{t("autoJournal.logLength")}</span>
-                          <span>
-                            {autoJournalData.debug.logChars}{" "}
-                            {t("autoJournal.chars")}
-                            {autoJournalData.debug.truncated
-                              ? ` (${t("autoJournal.truncated")})`
-                              : ""}
-                          </span>
+                        <div className={styles.TableWrapper}>
+                          <table className={styles.Table}>
+                            <thead>
+                              <tr>
+                                <th>#</th>
+                                <th>{t("analytics.model")}</th>
+                                <th>{t("analytics.uses")}</th>
+                                <th>{t("analytics.avg")}</th>
+                                <th>{t("analytics.success")}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {data.sttModelRanking.slice(0, 5).map((model, index) => (
+                                <tr key={model.modelId}>
+                                  <td>{index + 1}</td>
+                                  <td className={styles.ModelName}>
+                                    {model.modelName}
+                                  </td>
+                                  <td>{model.count}</td>
+                                  <td>{formatProcessing(model.averageLatencyMs)}</td>
+                                  <td>
+                                    <span
+                                      className={styles.SuccessRate}
+                                      style={{
+                                        background:
+                                          model.successRate >= 0.95
+                                            ? "rgba(34, 197, 94, 0.2)"
+                                            : model.successRate >= 0.8
+                                            ? "rgba(234, 179, 8, 0.2)"
+                                            : "rgba(239, 68, 68, 0.2)",
+                                        color:
+                                          model.successRate >= 0.95
+                                            ? "#22c55e"
+                                            : model.successRate >= 0.8
+                                            ? "#eab308"
+                                            : "#ef4444",
+                                      }}
+                                    >
+                                      {(model.successRate * 100).toFixed(0)}%
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     )}
                   </div>
                 )}
+              </Tabs.Content>
 
-                {autoJournalQuery.isError && (
-                  <div
-                    style={{ fontSize: "11px", color: "var(--error, #ff6b6b)" }}
-                  >
-                    {t("autoJournal.error")}
-                    {autoJournalError ? ` ${autoJournalError}` : ""}
+              {/* History Tab */}
+              <Tabs.Content value="history" style={{ width: '100%', display: 'flex', justifyContent: 'center', flex: 1, minHeight: 0 }}>
+                <div className={styles.HistoryContainer}>
+                  {/* Minimalist Header */}
+                  <div className={styles.HistoryListHeader}>
+                    <span className={styles.HistoryCount}>
+                      {historyData.length} {t("analytics.recordings")}
+                    </span>
+                    {historyData.length > 0 && (
+                      <button
+                        className={styles.DeleteAllBtn}
+                        onClick={() => {
+                          if (window.confirm(t("analytics.deleteAllConfirm"))) {
+                            deleteRecordingHistoryMutation.mutate()
+                          }
+                        }}
+                      >
+                        {t("analytics.deleteAll")}
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Provider Breakdown */}
-              {providerData.length > 0 && (
-                <div className={`${styles.Card} ${styles.AlignLeft}`}>
-                  <div className={styles.SectionTitle}>
-                    {t("dashboard.providerBreakdown")}
-                  </div>
-                  <div className={styles.PieChartContainer}>
-                    <div
-                      style={{ height: "120px", width: "120px", flexShrink: 0 }}
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={providerData}
-                            dataKey="count"
-                            nameKey="providerId"
-                            innerRadius={30}
-                            outerRadius={55}
-                            paddingAngle={2}
-                          >
-                            {providerData.map((_, index) => (
-                              <Cell
-                                key={index}
-                                fill={PIE_COLORS[index % PIE_COLORS.length]}
-                              />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip
-                            contentStyle={{
-                              background: "var(--bg)",
-                              border: "1px solid var(--border)",
-                              borderRadius: "6px",
-                              fontSize: "11px",
-                            }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className={styles.PieLegend}>
-                      {providerData.map((entry, index) => (
-                        <div
-                          key={entry.providerId}
-                          className={styles.PieLegendItem}
-                        >
-                          <span
-                            className={styles.PieLegendDot}
-                            style={{
-                              backgroundColor:
-                                PIE_COLORS[index % PIE_COLORS.length],
-                            }}
-                          />
-                          <span className={styles.PieLegendLabel}>
-                            {entry.providerId}
-                          </span>
-                          <span className={styles.PieLegendValue}>
-                            {entry.count}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                  <div className={styles.HistoryList}>
+                    {historyData.length === 0 ? (
+                      <div className={styles.EmptyState}>
+                        {t("analytics.noRecordingsYet")}
+                      </div>
+                    ) : (
+                      historyData
+                        .slice()
+                        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                        .map((item, index) => (
+                          <div key={`${item.id}-${index}`} className={styles.HistoryItem}>
+                            <div className={styles.HistoryHeader}>
+                              <div className={styles.HistoryDate}>
+                                {formatDate(item.createdAt)}
+                              </div>
+                              <div className={styles.HistoryActions}>
+                                <span className={styles.HistoryDuration}>
+                                  {formatDuration(item.duration)}
+                                </span>
+                                <button
+                                  className={styles.CopyBtn}
+                                  onClick={() => {
+                                    if (item.transcript) {
+                                      navigator.clipboard.writeText(item.transcript)
+                                    }
+                                  }}
+                                  title={t("common.copy")}
+                                >
+                                  <CopyIcon />
+                                </button>
+                                <button
+                                  className={styles.DeleteIconBtn}
+                                  onClick={() => {
+                                    if (window.confirm(t("history.deleteConfirm"))) {
+                                      deleteRecordingMutation.mutate(item.id)
+                                    }
+                                  }}
+                                >
+                                  {t("common.delete")}
+                                </button>
+                              </div>
+                            </div>
+                            <div className={styles.HistoryTranscript}>
+                              {item.transcript || t("analytics.noTranscription")}
+                            </div>
+                            <div className={styles.HistoryMeta}>
+                              {item.providerId && (
+                                <span className={styles.MetaItem}>
+                                  {item.providerId}
+                                </span>
+                              )}
+                              {item.fileSize && (
+                                <span className={styles.MetaItem}>{formatBytes(item.fileSize)}</span>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          <Dialog.Close asChild>
-            <button className={styles.IconButton} aria-label="Close">
-              <CrossIcon />
-            </button>
-          </Dialog.Close>
+              </Tabs.Content>
+            </Tabs.Root>
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

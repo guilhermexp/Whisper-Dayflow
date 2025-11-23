@@ -49,9 +49,8 @@ class PileEmbeddings {
       await this.initializeAPIKey();
 
       if (!this.apiKey) {
-        console.log(
-          'API key not found. Please set it first to use AI features.'
-        );
+        // Silently skip embeddings initialization when no API key
+        // This is expected behavior - user may not have configured AI yet
         return;
       }
       const embeddingsFilePath = path.join(pilePath, this.fileName);
@@ -71,10 +70,9 @@ class PileEmbeddings {
 
   async initializeAPIKey() {
     const apiKey = await getKey();
-    if (!apiKey) {
-      throw new Error('API key not found. Please set it first.');
-    }
-    this.apiKey = apiKey;
+    // Don't throw error if no API key - it's a normal situation
+    // User may not have configured AI features yet
+    this.apiKey = apiKey || null;
   }
 
   async walkAndGenerateEmbeddings(pilePath, index) {

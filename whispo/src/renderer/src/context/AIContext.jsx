@@ -11,6 +11,7 @@ import { useElectronStore } from 'renderer/hooks/useElectronStore';
 
 const OLLAMA_URL = 'http://localhost:11434/api';
 const OPENAI_URL = 'https://api.openai.com/v1';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_PROMPT =
   'You are an AI within a journaling app. Your job is to help the user reflect on their thoughts in a thoughtful and kind manner. The user can never directly address you or directly respond to you. Try not to repeat what the user said, instead try to seed new ideas, encourage or debate. Keep your responses concise, but meaningful.';
 
@@ -24,7 +25,11 @@ export const AIContextProvider = ({ children }) => {
     'pileAIProvider',
     'openai'
   );
-  const [model, setModel] = useElectronStore('model', 'gpt-4o');
+  const [model, setModel] = useElectronStore('model', 'gpt-5.1');
+  const [openrouterModel, setOpenrouterModel] = useElectronStore(
+    'openrouterModel',
+    'x-ai/grok-4-fast'
+  );
   const [embeddingModel, setEmbeddingModel] = useElectronStore(
     'embeddingModel',
     'mxbai-embed-large'
@@ -33,18 +38,30 @@ export const AIContextProvider = ({ children }) => {
 
   const setupAi = useCallback(async () => {
     const key = await window.electron.ipc.invoke('get-ai-key');
-
-    if (!key && pileAIProvider !== 'ollama') {
-      console.warn('[AIContext] No API key configured and provider is not Ollama. AI features will be disabled.');
-      console.warn('[AIContext] Go to Settings > Journal > OpenAI API to configure your API key.');
-      setAi(null);
-      return;
-    }
+    const openrouterKey = await window.electron.ipc.invoke('get-openrouter-key');
 
     if (pileAIProvider === 'ollama') {
       console.log('[AIContext] Setting up Ollama provider');
       setAi({ type: 'ollama' });
+    } else if (pileAIProvider === 'openrouter') {
+      if (!openrouterKey) {
+        console.warn('[AIContext] No OpenRouter API key configured.');
+        setAi(null);
+        return;
+      }
+      console.log('[AIContext] Setting up OpenRouter provider');
+      const openrouterInstance = new OpenAI({
+        baseURL: OPENROUTER_URL,
+        apiKey: openrouterKey,
+        dangerouslyAllowBrowser: true,
+      });
+      setAi({ type: 'openrouter', instance: openrouterInstance });
     } else {
+      if (!key) {
+        console.warn('[AIContext] No API key configured. AI features will be disabled.');
+        setAi(null);
+        return;
+      }
       console.log('[AIContext] Setting up OpenAI provider with baseUrl:', baseUrl);
       const openaiInstance = new OpenAI({
         baseURL: baseUrl,
@@ -65,23 +82,36 @@ export const AIContextProvider = ({ children }) => {
 
   const generateCompletion = useCallback(
     async (context, callback) => {
+      console.log('[Chat] ========== CHAT REQUEST ==========');
+      console.log('[Chat] AI configured:', !!ai);
+      console.log('[Chat] AI type:', ai?.type);
+      console.log('[Chat] pileAIProvider:', pileAIProvider);
+
       if (!ai) {
-        console.warn('[AIContext] Cannot generate completion: AI is not configured. Please set up an API key in Settings > Journal.');
+        console.error('[Chat] ❌ Cannot generate completion: AI is not configured');
+        console.error('[Chat] Please set up an API key in Settings > Journal');
         return;
       }
 
-      console.log('[AIContext] Generating completion with provider:', ai.type, 'model:', model);
+      const currentModel = ai.type === 'openrouter' ? openrouterModel : model;
+      console.log('[Chat] Provider:', ai.type);
+      console.log('[Chat] Model:', currentModel);
+      console.log('[Chat] Context messages:', context.length);
+      console.log('[Chat] Last message:', context[context.length - 1]?.content?.substring(0, 100));
 
       try {
         if (ai.type === 'ollama') {
+          console.log('[Chat] Using Ollama API at:', OLLAMA_URL);
           const response = await fetch(`${OLLAMA_URL}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ model, messages: context }),
           });
 
-          if (!response.ok)
+          if (!response.ok) {
+            console.error('[Chat] ❌ Ollama HTTP error:', response.status);
             throw new Error(`HTTP error! status: ${response.status}`);
+          }
 
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
@@ -102,24 +132,38 @@ export const AIContextProvider = ({ children }) => {
               }
             }
           }
+          console.log('[Chat] ✅ Ollama response completed');
         } else {
+          console.log('[Chat] Using OpenAI-compatible API');
+          console.log('[Chat] BaseURL:', ai.instance?.baseURL);
+          console.log('[Chat] Creating chat completion...');
+
           const stream = await ai.instance.chat.completions.create({
-            model,
+            model: currentModel,
             stream: true,
             max_tokens: 500,
             messages: context,
           });
 
+          console.log('[Chat] Stream created, receiving chunks...');
+          let chunkCount = 0;
           for await (const part of stream) {
+            chunkCount++;
             callback(part.choices[0].delta.content);
           }
+          console.log('[Chat] ✅ Response completed, chunks received:', chunkCount);
         }
       } catch (error) {
-        console.error('AI request failed:', error);
+        console.error('[Chat] ❌ AI request failed:', error.message);
+        console.error('[Chat] Error details:', error);
+        if (error.response) {
+          console.error('[Chat] Response status:', error.response.status);
+          console.error('[Chat] Response data:', error.response.data);
+        }
         throw error;
       }
     },
-    [ai, model]
+    [ai, model, openrouterModel, pileAIProvider]
   );
 
   const prepareCompletionContext = useCallback(
@@ -155,12 +199,16 @@ export const AIContextProvider = ({ children }) => {
     setPrompt,
     setKey: (secretKey) => window.electron.ipc.invoke('set-ai-key', secretKey),
     getKey: () => window.electron.ipc.invoke('get-ai-key'),
+    setOpenrouterKey: (secretKey) => window.electron.ipc.invoke('set-openrouter-key', secretKey),
+    getOpenrouterKey: () => window.electron.ipc.invoke('get-openrouter-key'),
     validKey: checkApiKeyValidity,
     deleteKey: () => window.electron.ipc.invoke('delete-ai-key'),
     updateSettings: (newPrompt) =>
       updateCurrentPile({ ...currentPile, AIPrompt: newPrompt }),
     model,
     setModel,
+    openrouterModel,
+    setOpenrouterModel,
     embeddingModel,
     setEmbeddingModel,
     generateCompletion,

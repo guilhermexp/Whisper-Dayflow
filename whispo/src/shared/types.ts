@@ -271,6 +271,13 @@ export type Config = {
   selectedPromptId?: string
   customPrompts?: CustomPrompt[]
   enhancementTimeout?: number
+  customVocabulary?: string[] // Custom terms/words to preserve exactly as spelled
+
+  // Enhancement Models per Provider
+  enhancementOpenaiModel?: string
+  enhancementGroqModel?: string
+  enhancementGeminiModel?: string
+  enhancementOpenrouterModel?: string
 
   // Custom Enhancement Provider
   customEnhancementApiKey?: string

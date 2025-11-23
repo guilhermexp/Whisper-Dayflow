@@ -15,8 +15,20 @@ const define = {
 
 export default defineConfig({
   main: {
-    plugins: [tsconfigPaths(), externalizeDepsPlugin({})],
+    plugins: [tsconfigPaths(), externalizeDepsPlugin()],
     define,
+    build: {
+      rollupOptions: {
+        external: [
+          'sherpa-onnx-node',
+          'sherpa-onnx-darwin-arm64',
+          'sherpa-onnx-darwin-x64',
+          'sherpa-onnx-linux-x64',
+          'sherpa-onnx-linux-arm64',
+          'sherpa-onnx-win-x64',
+        ],
+      },
+    },
   },
   preload: {
     plugins: [tsconfigPaths(), externalizeDepsPlugin()],
@@ -27,6 +39,13 @@ export default defineConfig({
     resolve: {
       alias: {
         'renderer': resolve(__dirname, 'src/renderer/src'),
+      },
+    },
+    css: {
+      preprocessorOptions: {
+        scss: {
+          api: 'modern-compiler',
+        },
       },
     },
   },

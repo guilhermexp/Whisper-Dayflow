@@ -10,7 +10,6 @@ import HighlightsDialog from './Highlights';
 import { usePilesContext } from 'renderer/context/PilesContext';
 import Toasts from './Toasts';
 import Search from './Search';
-import Analytics from './Analytics';
 import Dashboard from './Dashboard';
 import { useTimelineContext } from 'renderer/context/TimelineContext';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -84,14 +83,11 @@ export default function PileLayout({ children }) {
               <Chat />
               <Search />
               <Settings />
-              <Link to="/timeline" className={styles.iconHolder}>
-                <ClockIcon className={styles.timelineIcon} />
-              </Link>
+
               <Link to="/auto-journal" className={styles.iconHolder}>
                 <NotebookIcon className={styles.autoJournalIcon} />
               </Link>
               <Dashboard />
-              <Analytics />
               <Link to="/" className={`${styles.iconHolder}`}>
                 <HomeIcon className={styles.homeIcon} />
               </Link>

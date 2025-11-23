@@ -17,6 +17,7 @@ export const PREDEFINED_LOCAL_MODELS: LocalModel[] = [
       "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin",
     filename: "ggml-tiny.en.bin",
     isDownloaded: false,
+    engine: "whisper",
   },
   {
     id: "local-base-en",
@@ -34,6 +35,7 @@ export const PREDEFINED_LOCAL_MODELS: LocalModel[] = [
       "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin",
     filename: "ggml-base.en.bin",
     isDownloaded: false,
+    engine: "whisper",
   },
   {
     id: "local-large-v3-turbo",
@@ -51,6 +53,7 @@ export const PREDEFINED_LOCAL_MODELS: LocalModel[] = [
       "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin",
     filename: "ggml-large-v3-turbo.bin",
     isDownloaded: false,
+    engine: "whisper",
   },
   {
     id: "local-large-v3-turbo-q5",
@@ -69,12 +72,33 @@ export const PREDEFINED_LOCAL_MODELS: LocalModel[] = [
       "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
     filename: "ggml-large-v3-turbo-q5_0.bin",
     isDownloaded: false,
+    engine: "whisper",
   },
-  
+  // Parakeet models (sherpa-onnx engine)
+  {
+    id: "local-parakeet-tdt-v3",
+    name: "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+    displayName: "Parakeet TDT v3 (Multilingual)",
+    description:
+      "NVIDIA's state-of-the-art ASR model. Supports 25 European languages including Portuguese. Excellent accuracy and speed.",
+    language: "multilingual",
+    provider: "local",
+    size: "330 MB",
+    sizeBytes: 330 * 1024 * 1024,
+    speed: 9.5,
+    accuracy: 9.2,
+    ramUsage: 1.0,
+    downloadURL:
+      "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
+    filename: "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+    isDownloaded: false,
+    engine: "sherpa",
+  },
 ]
 
 export const RECOMMENDED_MODEL_IDS = [
   "local-base-en",
   "local-large-v3-turbo-q5",
   "local-large-v3-turbo",
+  "local-parakeet-tdt-v3",
 ]

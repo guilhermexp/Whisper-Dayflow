@@ -14,9 +14,8 @@ electronUpdater.autoUpdater.autoInstallOnAppQuit = true
 if (import.meta.env.PROD) {
   electronUpdater.autoUpdater.setFeedURL({
     provider: "github",
-    host: "electron-releases.umida.co",
-    owner: "egoist",
-    repo: "whispo",
+    owner: "voiceflow-app",
+    repo: "voiceflow",
   })
 }
 

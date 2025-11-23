@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Dialog from '@radix-ui/react-dialog';
 import styles from '../AISettingsTabs/AISettingTabs.module.scss';
-import { GlobeIcon, ServerIcon, ChevronRightIcon, PlusIcon, TrashIcon, CrossIcon } from 'renderer/icons';
+import { GlobeIcon, ServerIcon, ChevronRightIcon, PlusIcon, TrashIcon, CrossIcon, RefreshIcon } from 'renderer/icons';
 import {
   useConfigQuery,
   useSaveConfigMutation,
@@ -37,6 +37,40 @@ export default function TranscriptionSettingsTabs() {
     language: 'english',
     requiresApiKey: true,
   });
+
+  // OpenRouter models state
+  const [openrouterModels, setOpenrouterModels] = useState([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+  // Load cached OpenRouter models on mount
+  useEffect(() => {
+    window.electron.ipc.invoke('get-openrouter-models').then((models) => {
+      if (models && models.length > 0) {
+        setOpenrouterModels(models);
+      }
+    });
+  }, []);
+
+  // Fetch OpenRouter models when provider is expanded
+  useEffect(() => {
+    if (expandedProvider === 'openrouter' && openrouterModels.length === 0) {
+      handleFetchOpenrouterModels();
+    }
+  }, [expandedProvider]);
+
+  const handleFetchOpenrouterModels = async () => {
+    setIsLoadingModels(true);
+    try {
+      const models = await window.electron.ipc.invoke('fetch-openrouter-models');
+      if (models && models.length > 0) {
+        setOpenrouterModels(models);
+      }
+    } catch (error) {
+      console.error('Failed to fetch OpenRouter models:', error);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
 
   const handleImport = async () => {
     const filePath = await tipcClient.showModelImportDialog();
@@ -198,9 +232,11 @@ export default function TranscriptionSettingsTabs() {
                       <label className={styles.label}>{t('settingsDialog.transcription.model')}</label>
                       <select
                         className={styles.input}
-                        value={config.openaiWhisperModel || 'whisper-1'}
+                        value={config.openaiWhisperModel || 'gpt-4o-mini-transcribe'}
                         onChange={handleInputChange('openaiWhisperModel')}
                       >
+                        <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe</option>
+                        <option value="gpt-4o-transcribe">gpt-4o-transcribe</option>
                         <option value="whisper-1">whisper-1</option>
                       </select>
                     </fieldset>
@@ -367,12 +403,51 @@ export default function TranscriptionSettingsTabs() {
                     </fieldset>
                     <fieldset className={styles.fieldset}>
                       <label className={styles.label}>{t('settingsDialog.transcription.model')}</label>
-                      <input
-                        className={styles.input}
-                        value={config.openrouterModel || ''}
-                        onChange={handleInputChange('openrouterModel')}
-                        placeholder="openai/whisper-1"
-                      />
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {openrouterModels.length === 0 ? (
+                          <span style={{ fontSize: '12px', color: 'var(--secondary)', flex: 1 }}>
+                            {isLoadingModels ? 'Carregando modelos...' : 'Nenhum modelo carregado'}
+                          </span>
+                        ) : (
+                          <select
+                            className={styles.input}
+                            style={{ flex: 1 }}
+                            value={config.openrouterModel || ''}
+                            onChange={handleInputChange('openrouterModel')}
+                          >
+                            {openrouterModels.map((model) => (
+                              <option key={model} value={model}>
+                                {model}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <button
+                          style={{
+                            padding: '8px',
+                            background: 'var(--secondary-bg)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: isLoadingModels ? 'default' : 'pointer',
+                            opacity: isLoadingModels ? 0.5 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          onClick={handleFetchOpenrouterModels}
+                          disabled={isLoadingModels}
+                          title="Atualizar lista de modelos"
+                        >
+                          <RefreshIcon
+                            style={{
+                              height: '14px',
+                              width: '14px',
+                              color: 'var(--primary)',
+                              animation: isLoadingModels ? 'spin 1s linear infinite' : 'none',
+                            }}
+                          />
+                        </button>
+                      </div>
                     </fieldset>
                   </div>
                 </div>
@@ -681,8 +756,8 @@ function LocalModelCard({ model, config, saveConfig, downloadModelMutation, dele
     }
   );
 
-  const isDownloading = downloadProgress && downloadProgress.percent < 100;
-  const progressPercent = downloadProgress?.percent || 0;
+  const isDownloading = downloadProgress && downloadProgress.status === 'downloading';
+  const progressPercent = downloadProgress?.progress || 0;
 
   return (
     <div
@@ -694,8 +769,31 @@ function LocalModelCard({ model, config, saveConfig, downloadModelMutation, dele
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: '13px', fontWeight: '500' }}>
+          <div style={{ fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
             {model.displayName}
+            {model.engine === 'sherpa' && (
+              <span style={{
+                fontSize: '9px',
+                padding: '2px 5px',
+                borderRadius: '4px',
+                background: 'linear-gradient(135deg, #76b900 0%, #4a9000 100%)',
+                color: 'white',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}>
+                Parakeet
+              </span>
+            )}
+            {model.size && (
+              <span style={{
+                fontSize: '10px',
+                color: 'var(--secondary)',
+                fontWeight: 'normal',
+              }}>
+                {model.size}
+              </span>
+            )}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--secondary)', marginTop: '2px' }}>
             {model.description || model.id}
@@ -778,9 +876,9 @@ function LocalModelCard({ model, config, saveConfig, downloadModelMutation, dele
               transition: 'width 0.3s ease',
             }} />
           </div>
-          {downloadProgress?.downloadedSize && downloadProgress?.totalSize && (
+          {downloadProgress?.downloadedBytes && downloadProgress?.totalBytes && (
             <div style={{ fontSize: '10px', color: 'var(--secondary)', marginTop: '4px', textAlign: 'right' }}>
-              {formatBytes(downloadProgress.downloadedSize)} / {formatBytes(downloadProgress.totalSize)}
+              {formatBytes(downloadProgress.downloadedBytes)} / {formatBytes(downloadProgress.totalBytes)}
             </div>
           )}
         </div>

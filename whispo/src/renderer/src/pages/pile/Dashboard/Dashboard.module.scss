@@ -1,3 +1,7 @@
+// Dashboard.module.scss - Aligned with Settings/Chat
+
+// --- Shared Styles ---
+
 .iconHolder {
   display: flex;
   align-items: center;
@@ -34,78 +38,91 @@
   }
 }
 
-button,
-fieldset,
-input {
-  all: unset;
-}
-
 .DialogOverlay {
   background-color: var(--bg-tertiary);
   position: fixed;
   inset: 0;
-  animation: overlayShow 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
   opacity: 0.9;
   z-index: 40;
+  backdrop-filter: blur(2px);
 }
 
 .DialogContent {
   z-index: 50;
   background-color: var(--bg);
-  border-radius: 22px;
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 90vw;
-  max-width: 960px;
-  min-width: 420px;
-  max-height: 85vh;
-  padding: 22px;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+  left: 0;
   animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  overflow-y: auto;
-}
-
-.DialogContent:focus {
-  outline: none;
-}
-
-.DialogTitle {
-  margin: 0;
-  padding: 0;
-  line-height: 1;
-  font-family: 'Porpora';
-  font-size: var(--font-title);
-  color: var(--primary);
-  margin-bottom: 16px;
+  z-index: 1000;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  overflow: hidden;
+  border: none;
+
+  &:focus {
+    outline: none;
+  }
 }
 
-.IconButton {
-  font-family: inherit;
-  border-radius: 100%;
-  height: 28px;
-  width: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--violet-11);
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  transition: all ease-in-out 120ms;
-  stroke-width: 2px;
-  color: var(--secondary);
-  cursor: pointer;
-  pointer-events: auto;
-  z-index: 10;
-  background: transparent;
+// --- Header ---
 
-  &:hover {
-    cursor: pointer;
-    color: var(--primary);
-    background-color: var(--bg-secondary);
+.header {
+  padding: 0 24px; // Match Settings
+  flex-shrink: 0;
+  background: linear-gradient(180deg,
+      var(--bg-secondary) 0%,
+      rgba(0, 0, 0, 0) 100%);
+  z-index: 10;
+
+  .wrapper {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 100%;
+
+    .DialogTitle {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--primary);
+      margin: 0;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .close {
+      position: absolute;
+      right: 0;
+      text-wrap: nowrap;
+      background: var(--bg);
+      color: var(--secondary);
+      border-radius: 8px;
+      height: 32px;
+      width: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all ease-in-out 150ms;
+      cursor: pointer;
+
+      &:hover {
+        background: var(--bg-secondary);
+        color: var(--primary);
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
+    }
   }
 }
 
@@ -114,15 +131,16 @@ input {
   border: none;
   cursor: pointer;
   padding: 4px;
-  margin-left: 8px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  color: var(--secondary);
 
   &:hover {
     background: var(--bg-secondary);
+    color: var(--primary);
   }
 
   &:disabled {
@@ -131,191 +149,404 @@ input {
   }
 }
 
+// --- Main Content ---
+
+.mainContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: clamp(16px, 4vw, 48px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 20px;
+
+    &:hover {
+      background-color: var(--secondary);
+    }
+  }
+}
+
+// --- Tabs ---
+
+.tabsRoot {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  align-items: center; // Center the tabs list
+}
+
+.TabsList {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-tertiary);
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.TabTrigger {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  background: transparent;
+  border: none;
+
+  &:hover {
+    color: var(--primary);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &[data-state='active'] {
+    background: var(--bg);
+    color: var(--primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// --- Dashboard Specific Styles ---
+
+.DashboardFrame {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: min(1200px, 92vw); // Match Settings/AutoJournal responsive width while allowing grid breathing room
+}
+
+.StatsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.StatCard {
+  background: var(--bg-tertiary); // Match Auto Journal filled style
+  border: none; // Remove border
+  border-radius: 12px; // Match Auto Journal radius
+  padding: 16px 14px;
+  text-align: center;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  .StatValue {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+
+  .StatLabel {
+    font-size: 12px;
+    color: var(--secondary);
+    margin-top: 6px;
+    font-weight: 500;
+  }
+}
+
+.ChartsSection {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 12px;
+}
+
+.TimelineCard,
+.ProviderCard,
+.PerformanceCard {
+  background: var(--bg-tertiary); // Match Auto Journal filled style
+  border: none; // Remove border
+  border-radius: 12px; // Match Auto Journal radius
+  padding: 16px;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.TimelineChart {
+  height: 180px;
+  width: 100%;
+}
+
+.ProviderContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  justify-content: center;
+}
+
+.PieWrapper {
+  height: 100px;
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.CardTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+
+.TableWrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border); // Keep border for table wrapper or remove? Let's keep it subtle or remove.
+  // Actually, let's remove it to be cleaner inside the card
+  border: none;
+  border-radius: 6px;
+  background: var(--bg); // Inner background for contrast
+}
+
+.Table {
+  width: 100%;
+  font-size: 12px;
+  border-collapse: collapse;
+
+  th {
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    color: var(--secondary);
+    background: var(--bg-secondary); // Slightly darker than card
+
+    &:not(:first-child) {
+      text-align: right;
+    }
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--secondary);
+    background: var(--bg); // Inner background
+
+    &:not(:first-child) {
+      text-align: right;
+    }
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.ModelName {
+  color: var(--primary) !important;
+  font-weight: 500;
+}
+
+.SuccessRate {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+// --- History Styles ---
+
+.HistoryContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: min(960px, 92vw); // Align with responsive content width used elsewhere
+  flex: 1;
+  min-height: 0;
+}
+
+.HistoryListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.HistoryCount {
+  font-size: 13px;
+  color: var(--secondary);
+}
+
+.DeleteAllBtn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.2);
+  }
+}
+
+.HistoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding-right: 4px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 3px;
+  }
+}
+
+.HistoryItem {
+  background: var(--bg-tertiary); // Match Auto Journal filled style
+  border: none; // Remove border
+  border-radius: 12px; // Match Auto Journal radius
+  padding: 16px; // Match Auto Journal padding
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+  cursor: default; // Or pointer if actionable? History items usually just sit there, but let's keep it clean.
+
+  &:hover {
+    background: var(--bg-secondary); // Hover effect like Auto Journal
+    transform: translateY(-1px);
+  }
+}
+
+.HistoryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.HistoryDate {
+  font-size: 14px; // Match Auto Journal date size
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.HistoryActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.HistoryDuration {
+  font-size: 11px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.CopyBtn,
+.DeleteIconBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--secondary);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: var(--bg-secondary); // Adjust for tertiary parent
+    color: var(--primary);
+  }
+}
+
+.DeleteIconBtn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.HistoryTranscript {
+  font-size: 13px;
+  color: var(--secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  opacity: 0.9;
+}
+
+.HistoryMeta {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.MetaItem {
+  font-size: 10px;
+  color: var(--secondary);
+  background: var(--bg); // Darker than card
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0.8;
+}
+
 .EmptyState {
   padding: 40px 20px;
   text-align: center;
   color: var(--secondary);
-  font-size: 12px;
-}
-
-.Container {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.Grid2 {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-.Card {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
-  text-align: center;
-
-  &.AlignLeft {
-    text-align: left;
-  }
-}
-
-.StatValue {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--primary);
-}
-
-.StatLabel {
-  font-size: var(--font-small);
-  color: var(--secondary);
-  margin-top: 4px;
-}
-
-.StatSubLabel {
-  font-size: var(--font-small);
-  color: var(--secondary);
-  margin-top: 2px;
-}
-
-.SectionTitle {
-  font-size: var(--font-body);
-  font-weight: 500;
-  color: var(--primary);
-  margin-bottom: 10px;
-}
-
-.ChartContainer {
-  height: 160px;
-}
-
-.AutoJournalCard {
-  background: transparent;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.AutoJournalHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.AutoJournalTitle {
-  font-size: var(--font-body);
-  font-weight: 500;
-  color: var(--primary);
-}
-
-.AutoJournalDesc {
-  font-size: var(--font-small);
-  color: var(--secondary);
-  margin-top: 2px;
-}
-
-.Select {
-  font-size: var(--font-small);
-  padding: 4px 6px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
+  font-size: 13px;
   background: var(--bg-tertiary);
-  color: var(--primary);
-  outline: none;
+  border-radius: 12px;
+  opacity: 0.8;
 }
 
-.ActionBtn {
-  padding: 6px 10px;
-  font-size: var(--font-small);
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  background: var(--active);
-  color: var(--active-text);
-  transition: opacity 0.2s;
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.7;
-  }
-}
-
-.SummaryBox {
-  margin-top: 6px;
-  padding: 8px;
-  border-radius: 8px;
-  background: var(--bg-tertiary);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 180px;
-  overflow: auto;
-}
-
-.SummaryTitle {
-  font-size: var(--font-small);
-  color: var(--primary);
-  font-weight: 500;
-}
-
-.SummaryText {
-  font-size: var(--font-small);
-  color: var(--secondary);
-  line-height: 1.4;
-}
-
-.ActivityItem {
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  padding: 6px 8px;
-  font-size: var(--font-small);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  background: var(--bg);
-}
-
-.ActivityHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.ActivityTitle {
-  font-weight: 500;
-  color: var(--primary);
-}
-
-.ActivityTime {
-  font-size: var(--font-small);
-  color: var(--secondary);
-}
-
-.PieChartContainer {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
+// --- Pie Chart Legend ---
 
 .PieLegend {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  max-width: 200px;
 }
 
 .PieLegendItem {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: var(--font-small);
+  gap: 10px;
+  font-size: 12px;
 }
 
 .PieLegendDot {
@@ -323,33 +554,24 @@ input {
   height: 8px;
   width: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .PieLegendLabel {
   color: var(--primary);
   font-weight: 500;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .PieLegendValue {
   color: var(--secondary);
-  margin-left: auto;
+  font-variant-numeric: tabular-nums;
 }
 
-.Diagnostics {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px dashed var(--border);
-  font-size: var(--font-small);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.DiagnosticsRow {
-  display: flex;
-  justify-content: space-between;
-  color: var(--secondary);
-}
+// --- Animations ---
 
 @keyframes overlayShow {
   from {
@@ -364,11 +586,63 @@ input {
 @keyframes contentShow {
   from {
     opacity: 0;
-    transform: translate(-50%, -48%) scale(0.96);
+    transform: scale(0.96);
   }
 
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 900px) {
+  .ChartsSection {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .StatsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ChartsSection {
+    grid-template-columns: 1fr;
+  }
+
+  .StatCard .StatValue {
+    font-size: 20px;
+  }
+
+  .TimelineChart {
+    height: 150px;
+  }
+}
+
+@media (max-width: 500px) {
+  .header {
+    padding: 0 20px;
+  }
+
+  .DashboardFrame {
+    padding: 0 12px;
+    gap: 12px;
+  }
+
+  .StatsRow {
+    gap: 8px;
+  }
+
+  .StatCard {
+    padding: 12px 10px;
+
+    .StatValue {
+      font-size: 18px;
+    }
+
+    .StatLabel {
+      font-size: 10px;
+    }
   }
 }

@@ -70,14 +70,14 @@ export async function postProcessTranscript(
         console.log(
           "[enhancement] Model used:",
           config.enhancementProvider === "openrouter"
-            ? config.openrouterModel || "openai/gpt-4o-mini"
+            ? config.enhancementOpenrouterModel || ""
             : config.enhancementProvider === "openai"
-              ? config.openaiModel || "gpt-4o-mini"
+              ? config.enhancementOpenaiModel || "gpt-5-mini"
               : config.enhancementProvider === "groq"
-                ? config.groqModel || "llama-3.1-70b-versatile"
+                ? config.enhancementGroqModel || "llama-3.1-70b-versatile"
                 : config.enhancementProvider === "gemini"
-                  ? config.geminiModel || "gemini-1.5-flash-002"
-                  : config.customEnhancementModel || "gpt-4o-mini",
+                  ? config.enhancementGeminiModel || "gemini-1.5-flash"
+                  : config.customEnhancementModel || "gpt-5-mini",
         )
         console.log("[enhancement] Prompt used:", result.promptId)
       }

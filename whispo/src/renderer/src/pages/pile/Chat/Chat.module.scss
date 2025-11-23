@@ -507,3 +507,21 @@ input {
     opacity: 1;
   }
 }
+
+.floatingNav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 0 20px;
+  z-index: 2000;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.activeIcon {
+  svg {
+    opacity: 1 !important;
+    color: var(--active) !important;
+  }
+}

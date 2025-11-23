@@ -1,8 +1,8 @@
 import styles from "./AutoJournal.module.scss"
-import { CrossIcon, RefreshIcon, ClockIcon } from "renderer/icons"
+import { CrossIcon, RefreshIcon, ClockIcon, SettingsIcon, ChevronRightIcon, HomeIcon, NotebookIcon } from "renderer/icons"
 import { useState, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import * as Tabs from "@radix-ui/react-tabs"
 import * as Switch from "@radix-ui/react-switch"
 import { tipcClient } from "renderer/lib/tipc-client"
@@ -10,16 +10,31 @@ import dayjs from "dayjs"
 import { useTranslation } from "react-i18next"
 import { usePilesContext } from "renderer/context/PilesContext"
 import { useToastsContext } from "renderer/context/ToastsContext"
+import layoutStyles from "../PileLayout.module.scss"
+import Toasts from "../Toasts"
+import InstallUpdate from "../InstallUpdate"
+import Chat from "../Chat"
+import Search from "../Search"
+import Settings from "../Settings"
+import Dashboard from "../Dashboard"
 
 function AutoJournal() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { piles, getCurrentPilePath } = usePilesContext()
+  const { piles, getCurrentPilePath, currentTheme } = usePilesContext()
   const { addToast } = useToastsContext()
   const [mainTab, setMainTab] = useState("runs")
   const [selectedRunId, setSelectedRunId] = useState(null)
   const [savingRunId, setSavingRunId] = useState(null)
+  const themeStyles = useMemo(
+    () => (currentTheme ? `${currentTheme}Theme` : ""),
+    [currentTheme]
+  )
+  const osStyles = useMemo(
+    () => (window.electron.isMac ? layoutStyles.mac : layoutStyles.win),
+    []
+  )
 
   // Queries
   const runsQuery = useQuery({
@@ -182,6 +197,8 @@ Bad examples:
     if (!selectedRunId) return null
     return runs.find((r) => r.id === selectedRunId) || null
   }, [selectedRunId, runs])
+  const hasSelectedRun = Boolean(selectedRun)
+  const canShowRunDetails = Boolean(selectedRun?.summary)
 
   // Handlers
   const handleToggleEnabled = () => {
@@ -245,8 +262,7 @@ Bad examples:
   }
 
   const handleSaveToJournal = (run) => {
-    const pilePath =
-      settings.autoJournalTargetPilePath || getCurrentPilePath()
+    const pilePath = settings.autoJournalTargetPilePath || getCurrentPilePath()
     if (!pilePath) {
       addToast({
         use: "text",
@@ -269,391 +285,398 @@ Bad examples:
   }
 
   return (
-    <div className={styles.pageContainer}>
-      {/* Header */}
-      <div className={styles.pageHeader}>
-        <div className={styles.headerLeft}>
-          <h1 className={styles.pageTitle}>{t("autoJournal.title")}</h1>
-          <button
-            onClick={() => runsQuery.refetch()}
-            disabled={runsQuery.isRefetching}
-            className={styles.RefreshButton}
-          >
-            <RefreshIcon
-              style={{
-                height: "14px",
-                width: "14px",
-                color: "var(--secondary)",
-              }}
-            />
-          </button>
+    <div className={`${layoutStyles.frame} ${themeStyles} ${osStyles}`}>
+      {/* Floating nav to keep top actions visible across pages */}
+      <div className={`${layoutStyles.nav} ${styles.floatingNav}`}>
+        <div className={layoutStyles.left}></div>
+        <div className={layoutStyles.right}>
+          <Toasts />
+          <InstallUpdate />
+          <Chat />
+          <Search />
+          <Settings />
+          <Link to="/auto-journal" className={layoutStyles.iconHolder}>
+            <NotebookIcon className={layoutStyles.autoJournalIcon} />
+          </Link>
+          <Dashboard />
+          <Link to="/" className={layoutStyles.iconHolder}>
+            <HomeIcon className={layoutStyles.homeIcon} />
+          </Link>
         </div>
-        <button
-          onClick={() => navigate(-1)}
-          className={styles.backBtn}
-          title="Voltar"
-        >
-          <CrossIcon />
-        </button>
       </div>
 
-      {/* Tabs */}
-      <Tabs.Root
-        value={mainTab}
-        onValueChange={setMainTab}
-        className={styles.tabsRoot}
-      >
-            <Tabs.List className={styles.TabsList}>
-              <Tabs.Trigger value="runs" className={styles.TabTrigger}>
-                <ClockIcon style={{ height: "16px", width: "16px" }} />
-                {t("autoJournal.runs")}
-              </Tabs.Trigger>
-              <Tabs.Trigger value="settings" className={styles.TabTrigger}>
-                {t("common.settings")}
-              </Tabs.Trigger>
-            </Tabs.List>
+      <div className={styles.DialogContent}>
+      {/* Header - Aligned with Chat */}
+      <div className={styles.header}>
+        <div className={styles.wrapper}>
+          <div className={styles.DialogTitle}>
+            <span>{t("autoJournal.title")}</span>
+            <button
+              className={styles.RefreshButton}
+              onClick={() => runsQuery.refetch()}
+              title={t("common.refresh")}
+            >
+              <RefreshIcon style={{ height: "14px", width: "14px" }} />
+            </button>
+          </div>
 
-            {/* Runs Tab */}
-            <Tabs.Content value="runs">
-              <div className={styles.Container}>
-                {/* Generate Now */}
-                <div className={styles.GenerateCard}>
-                  <div className={styles.GenerateHeader}>
-                    <span>{t("autoJournal.generateDescription")}</span>
-                    <button
-                      onClick={handleRunNow}
-                      disabled={runNowMutation.isPending}
-                      className={styles.ActionBtn}
-                    >
-                      {runNowMutation.isPending
-                        ? t("autoJournal.generating")
-                        : t("autoJournal.generateNow")}
-                    </button>
-                  </div>
-                </div>
+          <div
+            className={styles.close}
+            onClick={() => navigate(-1)}
+            title={t("common.close")}
+          >
+            <CrossIcon style={{ height: 14, width: 14 }} />
+          </div>
+        </div>
+      </div>
 
-                {/* Run List */}
-                <div className={styles.RunList}>
-                  {runs.length === 0 ? (
-                    <div className={styles.EmptyState}>
-                      {runsQuery.isLoading
-                        ? t("common.loading")
-                        : t("autoJournal.noRuns")}
-                    </div>
-                  ) : (
-                    runs.map((run) => (
-                      <div
-                        key={run.id}
-                        className={`${styles.RunItem} ${selectedRunId === run.id ? styles.selected : ""}`}
-                        onClick={() => setSelectedRunId(run.id)}
-                      >
-                        <div className={styles.RunHeader}>
-                          <span className={styles.RunDate}>
-                            {formatDate(run.startedAt)}
-                          </span>
-                          <span
-                            className={`${styles.RunStatus} ${styles[run.status]}`}
-                          >
-                            {run.status === "success"
-                              ? t("autoJournal.statusSuccess")
-                              : t("autoJournal.statusError")}
-                          </span>
-                        </div>
-                        <div className={styles.RunMeta}>
-                          <span>
-                            {t("autoJournal.window")}: {run.windowMinutes} min
-                          </span>
-                          <span>
-                            {t("autoJournal.duration")}:{" "}
-                            {formatDuration(run.startedAt, run.finishedAt)}
-                          </span>
-                        </div>
-                        {run.summary && (
-                          <div className={styles.RunPreview}>
-                            {run.summary.summary.slice(0, 100)}
-                            {run.summary.summary.length > 100 ? "..." : ""}
-                          </div>
-                        )}
-                        {run.error && (
-                          <div className={styles.RunError}>{run.error}</div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
+      {/* Main Content */}
+      <div className={`${styles.mainContent} ${styles.contentOffset}`}>
+        <Tabs.Root
+          value={mainTab}
+          onValueChange={setMainTab}
+          className={styles.tabsRoot}
+        >
+          <Tabs.List className={styles.TabsList}>
+            <Tabs.Trigger value="runs" className={styles.TabTrigger}>
+              <ClockIcon style={{ height: "16px", width: "16px" }} />
+              {t("autoJournal.runs")}
+            </Tabs.Trigger>
+            <Tabs.Trigger value="settings" className={styles.TabTrigger}>
+              <SettingsIcon style={{ height: "16px", width: "16px" }} />
+              {t("common.settings")}
+            </Tabs.Trigger>
+          </Tabs.List>
 
-                {/* Selected Run Details */}
-                {selectedRun && selectedRun.summary && (
-                  <div className={styles.RunDetails}>
-                    <div className={styles.RunDetailsHeader}>
-                      <span className={styles.SectionTitle}>
-                        {t("autoJournal.runDetails")}
-                      </span>
+          {/* Runs Tab */}
+          <Tabs.Content value="runs" className={styles.RunsTabContent}>
+            <div className={styles.ContentShell}>
+              <div className={`${styles.SplitPane} ${selectedRunId ? styles.SplitPaneWithSelection : ''}`}>
+                {/* Left Panel - List */}
+                <div className={styles.LeftPanel}>
+                  {/* Generate Now */}
+                  <div className={styles.GenerateCard}>
+                    <div className={styles.GenerateHeader}>
+                      <span>{t("autoJournal.generateDescription")}</span>
                       <button
-                        onClick={() => handleSaveToJournal(selectedRun)}
-                        disabled={savingRunId === selectedRun.id}
+                        onClick={handleRunNow}
+                        disabled={runNowMutation.isPending}
                         className={styles.ActionBtn}
                       >
-                        {savingRunId === selectedRun.id
-                          ? t("autoJournal.saving")
-                          : t("autoJournal.saveToJournal")}
+                        {runNowMutation.isPending
+                          ? t("autoJournal.generating")
+                          : t("autoJournal.generateNow")}
                       </button>
                     </div>
+                  </div>
 
-                    <div className={styles.SummaryBox}>
-                      {selectedRun.summary.activities?.length > 0 && (
-                        <div className={styles.ActivitiesList}>
-                          {selectedRun.summary.activities.map((act, idx) => (
-                            <div
-                              key={`${act.startTs}-${idx}`}
-                              className={styles.ActivityCard}
+                  {/* Run List */}
+                  <div className={styles.RunList}>
+                    {runs.length === 0 ? (
+                      <div className={styles.EmptyState}>
+                        {runsQuery.isLoading
+                          ? t("common.loading")
+                          : t("autoJournal.noRuns")}
+                      </div>
+                    ) : (
+                      runs.map((run) => (
+                        <div
+                          key={run.id}
+                          className={`${styles.RunItem} ${selectedRunId === run.id ? styles.selected : ''}`}
+                          onClick={() => setSelectedRunId(selectedRunId === run.id ? null : run.id)}
+                        >
+                          <div className={styles.RunHeader}>
+                            <span className={styles.RunDate}>
+                              {formatDate(run.startedAt)}
+                            </span>
+                            <span
+                              className={`${styles.RunStatus} ${styles[run.status]}`}
                             >
-                              {/* Activity Header - Dayflow style */}
-                              <div className={styles.ActivityCardHeader}>
-                                <div className={styles.ActivityCardTitle}>
-                                  {act.title}
-                                </div>
-                                <div className={styles.ActivityCardMeta}>
-                                  <span className={styles.ActivityTimeRange}>
-                                    {dayjs(act.startTs).format("h:mm A")} -{" "}
-                                    {dayjs(act.endTs).format("h:mm A")}
-                                  </span>
-                                  {act.category && (
-                                    <span
-                                      className={`${styles.CategoryBadge} ${styles[`category${act.category}`]}`}
-                                    >
-                                      {act.category}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Summary */}
-                              <div className={styles.ActivityCardSection}>
-                                <div className={styles.ActivityCardLabel}>
-                                  SUMMARY
-                                </div>
-                                <div className={styles.ActivityCardText}>
-                                  {act.summary}
-                                </div>
-                              </div>
-
-                              {/* Detailed Summary - Dayflow style */}
-                              {act.detailedSummary &&
-                                act.detailedSummary.length > 0 && (
-                                  <div className={styles.ActivityCardSection}>
-                                    <div className={styles.ActivityCardLabel}>
-                                      DETAILED SUMMARY
-                                    </div>
-                                    <div className={styles.DetailedList}>
-                                      {act.detailedSummary.map((detail, dIdx) => (
-                                        <div
-                                          key={`${detail.startTs}-${dIdx}`}
-                                          className={styles.DetailedItem}
-                                        >
-                                          <span className={styles.DetailedTime}>
-                                            {dayjs(detail.startTs).format(
-                                              "h:mm A"
-                                            )}{" "}
-                                            -{" "}
-                                            {dayjs(detail.endTs).format("h:mm A")}
-                                          </span>
-                                          <span className={styles.DetailedDesc}>
-                                            {detail.description}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Overall Summary */}
-                      {selectedRun.summary.summary && (
-                        <div className={styles.OverallSummary}>
-                          <div className={styles.ActivityCardLabel}>
-                            OVERALL SUMMARY
-                          </div>
-                          <div className={styles.SummaryText}>
-                            {selectedRun.summary.summary}
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedRun.summary.debug && (
-                        <div className={styles.Diagnostics}>
-                          <div
-                            className={styles.SummaryTitle}
-                            style={{ marginTop: "6px" }}
-                          >
-                            {t("autoJournal.diagnostics")}
-                          </div>
-                          <div className={styles.DiagnosticsRow}>
-                            <span>{t("dashboard.provider")}</span>
-                            <span>{selectedRun.summary.debug.provider}</span>
-                          </div>
-                          <div className={styles.DiagnosticsRow}>
-                            <span>{t("settingsDialog.journal.model")}</span>
-                            <span>{selectedRun.summary.debug.model}</span>
-                          </div>
-                          <div className={styles.DiagnosticsRow}>
-                            <span>{t("autoJournal.itemsUsed")}</span>
-                            <span>{selectedRun.summary.debug.itemsUsed}</span>
-                          </div>
-                          <div className={styles.DiagnosticsRow}>
-                            <span>{t("autoJournal.logLength")}</span>
-                            <span>
-                              {selectedRun.summary.debug.logChars}{" "}
-                              {t("autoJournal.chars")}
-                              {selectedRun.summary.debug.truncated
-                                ? ` (${t("autoJournal.truncated")})`
-                                : ""}
+                              {run.status === "success"
+                                ? t("autoJournal.statusSuccess")
+                                : t("autoJournal.statusError")}
                             </span>
                           </div>
+                          <div className={styles.RunMeta}>
+                            <span>
+                              {t("autoJournal.window")}: {run.windowMinutes} min
+                            </span>
+                            <span>•</span>
+                            <span>
+                              {t("autoJournal.duration")}:{" "}
+                              {formatDuration(run.startedAt, run.finishedAt)}
+                            </span>
+                          </div>
+                          {run.summary && (
+                            <div className={styles.RunPreview}>
+                              {run.summary.summary}
+                            </div>
+                          )}
+                          {run.error && (
+                            <div className={styles.RunError}>{run.error}</div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      ))
+                    )}
                   </div>
-                )}
-              </div>
-            </Tabs.Content>
-
-            {/* Settings Tab */}
-            <Tabs.Content value="settings">
-              <div className={styles.Container}>
-                {/* Enable Toggle */}
-                <div className={styles.SettingRow}>
-                  <div className={styles.SettingInfo}>
-                    <span className={styles.SettingLabel}>
-                      {t("autoJournal.enableScheduler")}
-                    </span>
-                    <span className={styles.SettingDesc}>
-                      {t("autoJournal.enableSchedulerDesc")}
-                    </span>
-                  </div>
-                  <Switch.Root
-                    className={styles.SwitchRoot}
-                    checked={settings.autoJournalEnabled}
-                    onCheckedChange={handleToggleEnabled}
-                  >
-                    <Switch.Thumb className={styles.SwitchThumb} />
-                  </Switch.Root>
                 </div>
 
-                {/* Interval */}
-                <div className={styles.SettingRow}>
-                  <div className={styles.SettingInfo}>
-                    <span className={styles.SettingLabel}>
-                      {t("autoJournal.interval")}
-                    </span>
-                    <span className={styles.SettingDesc}>
-                      {t("autoJournal.intervalDesc")}
-                    </span>
-                  </div>
-                  <select
-                    value={settings.autoJournalWindowMinutes}
-                    onChange={(e) => handleWindowChange(e.target.value)}
-                    className={styles.Select}
-                  >
-                    <option value={30}>{t("autoJournal.last30min")}</option>
-                    <option value={60}>{t("autoJournal.last60min")}</option>
-                    <option value={120}>{t("autoJournal.last2hours")}</option>
-                  </select>
-                </div>
+                {/* Right Panel - Details */}
+                <div className={`${styles.RightPanel} ${selectedRunId ? styles.Visible : ''}`}>
+                  {selectedRun && (
+                    <div className={styles.RunDetails}>
+                      <div className={styles.RunDetailsHeader}>
+                        <span className={styles.SectionTitle}>
+                          {t("autoJournal.runDetails")}
+                        </span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => handleSaveToJournal(selectedRun)}
+                            disabled={savingRunId === selectedRun.id}
+                            className={styles.ActionBtn}
+                          >
+                            {savingRunId === selectedRun.id
+                              ? t("autoJournal.saving")
+                              : t("autoJournal.saveToJournal")}
+                          </button>
+                          <button
+                            className={styles.ActionBtn}
+                            style={{ background: 'var(--bg-tertiary)', color: 'var(--primary)' }}
+                            onClick={() => setSelectedRunId(null)}
+                          >
+                            <CrossIcon style={{ height: 14, width: 14 }} />
+                          </button>
+                        </div>
+                      </div>
 
-                {/* Target Pile */}
-                <div className={styles.SettingRow}>
-                  <div className={styles.SettingInfo}>
-                    <span className={styles.SettingLabel}>
-                      {t("autoJournal.targetPile")}
-                    </span>
-                    <span className={styles.SettingDesc}>
-                      {t("autoJournal.targetPileDesc")}
-                    </span>
-                  </div>
-                  <select
-                    value={settings.autoJournalTargetPilePath}
-                    onChange={(e) => handleTargetPileChange(e.target.value)}
-                    className={styles.Select}
-                  >
-                    <option value="">{t("autoJournal.currentPile")}</option>
-                    {piles.map((pile) => (
-                      <option key={pile.path} value={pile.path}>
-                        {pile.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                      <div className={styles.SummaryBox}>
+                        {selectedRun.summary?.activities?.length > 0 && (
+                          <div className={styles.ActivitiesList}>
+                            {selectedRun.summary.activities.map((act, idx) => (
+                              <div
+                                key={`${act.startTs}-${idx}`}
+                                className={styles.ActivityCard}
+                              >
+                                <div className={styles.ActivityCardHeader}>
+                                  <div className={styles.ActivityCardTitle}>
+                                    {act.title}
+                                  </div>
+                                  <div className={styles.ActivityCardMeta}>
+                                    <span className={styles.ActivityTimeRange}>
+                                      {dayjs(act.startTs).format("h:mm A")} -{" "}
+                                      {dayjs(act.endTs).format("h:mm A")}
+                                    </span>
+                                    {act.category && (
+                                      <span
+                                        className={`${styles.CategoryBadge} ${styles[`category${act.category}`]}`}
+                                      >
+                                        {act.category}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
 
-                {/* Card Titles Customization */}
-                <div className={styles.PromptSection}>
-                  <div className={styles.PromptHeader}>
-                    <div className={styles.PromptHeaderInfo}>
-                      <span className={styles.PromptHeaderTitle}>
-                        {t("autoJournal.cardTitles")}
-                      </span>
-                      <span className={styles.PromptHeaderDesc}>
-                        {t("autoJournal.cardTitlesDesc")}
-                      </span>
-                    </div>
-                    <Switch.Root
-                      className={styles.SwitchRoot}
-                      checked={settings.autoJournalTitlePromptEnabled}
-                      onCheckedChange={handleTitlePromptEnabledChange}
-                    >
-                      <Switch.Thumb className={styles.SwitchThumb} />
-                    </Switch.Root>
-                  </div>
-                  {settings.autoJournalTitlePromptEnabled && (
-                    <div className={styles.PromptContent}>
-                      <span className={styles.PromptLabel}>Prompt text</span>
-                      <textarea
-                        value={settings.autoJournalTitlePrompt || defaultTitlePrompt}
-                        onChange={(e) => handleTitlePromptChange(e.target.value)}
-                        className={styles.PromptTextArea}
-                        rows={12}
-                      />
+                                <div className={styles.ActivityCardSection}>
+                                  <div className={styles.ActivityCardLabel}>
+                                    SUMMARY
+                                  </div>
+                                  <div className={styles.ActivityCardText}>
+                                    {act.summary}
+                                  </div>
+                                </div>
+
+                                {act.detailedSummary &&
+                                  act.detailedSummary.length > 0 && (
+                                    <div className={styles.ActivityCardSection}>
+                                      <div className={styles.ActivityCardLabel}>
+                                        DETAILED SUMMARY
+                                      </div>
+                                      <div className={styles.DetailedList}>
+                                        {act.detailedSummary.map((detail, dIdx) => (
+                                          <div
+                                            key={`${detail.startTs}-${dIdx}`}
+                                            className={styles.DetailedItem}
+                                          >
+                                            <span className={styles.DetailedTime}>
+                                              {dayjs(detail.startTs).format("h:mm")} - {dayjs(detail.endTs).format("h:mm A")}
+                                            </span>
+                                            <span className={styles.DetailedDesc}>
+                                              {detail.description}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {selectedRun.summary?.summary && (
+                          <div className={styles.OverallSummary}>
+                            <div className={styles.ActivityCardLabel}>
+                              OVERALL SUMMARY
+                            </div>
+                            <div className={styles.SummaryText}>
+                              {selectedRun.summary.summary}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedRun.summary?.debug && (
+                          <div className={styles.Diagnostics}>
+                            <div
+                              className={styles.SummaryTitle}
+                              style={{ marginTop: "6px" }}
+                            >
+                              {t("autoJournal.diagnostics")}
+                            </div>
+                            <div className={styles.DiagnosticsRow}>
+                              <span>{t("dashboard.provider")}</span>
+                              <span>{selectedRun.summary.debug.provider}</span>
+                            </div>
+                            <div className={styles.DiagnosticsRow}>
+                              <span>{t("settingsDialog.journal.model")}</span>
+                              <span>{selectedRun.summary.debug.model}</span>
+                            </div>
+                            <div className={styles.DiagnosticsRow}>
+                              <span>{t("autoJournal.itemsUsed")}</span>
+                              <span>{selectedRun.summary.debug.itemsUsed}</span>
+                            </div>
+                            <div className={styles.DiagnosticsRow}>
+                              <span>{t("autoJournal.logLength")}</span>
+                              <span>
+                                {selectedRun.summary.debug.logChars}{" "}
+                                {t("autoJournal.chars")}
+                                {selectedRun.summary.debug.truncated
+                                  ? ` (${t("autoJournal.truncated")})`
+                                  : ""}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {/* Card Summaries Customization */}
-                <div className={styles.PromptSection}>
-                  <div className={styles.PromptHeader}>
-                    <div className={styles.PromptHeaderInfo}>
-                      <span className={styles.PromptHeaderTitle}>
-                        {t("autoJournal.cardSummaries")}
-                      </span>
-                      <span className={styles.PromptHeaderDesc}>
-                        {t("autoJournal.cardSummariesDesc")}
-                      </span>
-                    </div>
-                    <Switch.Root
-                      className={styles.SwitchRoot}
-                      checked={settings.autoJournalSummaryPromptEnabled}
-                      onCheckedChange={handleSummaryPromptEnabledChange}
-                    >
-                      <Switch.Thumb className={styles.SwitchThumb} />
-                    </Switch.Root>
-                  </div>
-                  {settings.autoJournalSummaryPromptEnabled && (
-                    <div className={styles.PromptContent}>
-                      <span className={styles.PromptLabel}>Prompt text</span>
-                      <textarea
-                        value={settings.autoJournalSummaryPrompt || defaultSummaryPrompt}
-                        onChange={(e) => handleSummaryPromptChange(e.target.value)}
-                        className={styles.PromptTextArea}
-                        rows={12}
-                      />
-                    </div>
-                  )}
-                </div>
               </div>
-            </Tabs.Content>
-          </Tabs.Root>
+            </div>
+          </Tabs.Content>
+
+          {/* Settings Tab */}
+          <Tabs.Content
+            value="settings"
+            style={{ width: "100%", display: "flex", justifyContent: "center" }}
+          >
+            <div className={styles.Container}>
+              {/* Enable Toggle - Kept as SwitchRow for prominence */}
+              <div className={styles.SwitchRow}>
+                <div className={styles.SwitchInfo}>
+                  <span className={styles.Label}>{t("autoJournal.enableScheduler")}</span>
+                  <span className={styles.Desc}>{t("autoJournal.enableSchedulerDesc")}</span>
+                </div>
+                <Switch.Root
+                  className={styles.SwitchRoot}
+                  checked={settings.autoJournalEnabled}
+                  onCheckedChange={handleToggleEnabled}
+                >
+                  <Switch.Thumb className={styles.SwitchThumb} />
+                </Switch.Root>
+              </div>
+
+              {/* Interval */}
+              <fieldset className={styles.Fieldset}>
+                <label className={styles.Label}>{t("autoJournal.interval")}</label>
+                <div className={styles.Desc}>{t("autoJournal.intervalDesc")}</div>
+                <select
+                  value={settings.autoJournalWindowMinutes}
+                  onChange={(e) => handleWindowChange(e.target.value)}
+                  className={styles.Select}
+                >
+                  <option value={30}>{t("autoJournal.last30min")}</option>
+                  <option value={60}>{t("autoJournal.last60min")}</option>
+                  <option value={120}>{t("autoJournal.last2hours")}</option>
+                </select>
+              </fieldset>
+
+              {/* Target Pile */}
+              <fieldset className={styles.Fieldset}>
+                <label className={styles.Label}>{t("autoJournal.targetPile")}</label>
+                <div className={styles.Desc}>{t("autoJournal.targetPileDesc")}</div>
+                <select
+                  value={settings.autoJournalTargetPilePath}
+                  onChange={(e) => handleTargetPileChange(e.target.value)}
+                  className={styles.Select}
+                >
+                  <option value="">{t("autoJournal.currentPile")}</option>
+                  {piles.map((pile) => (
+                    <option key={pile.path} value={pile.path}>
+                      {pile.name}
+                    </option>
+                  ))}
+                </select>
+              </fieldset>
+
+              {/* Card Titles Customization */}
+              <div className={styles.SwitchRow} style={{ marginBottom: '10px' }}>
+                <div className={styles.SwitchInfo}>
+                  <span className={styles.Label}>{t("autoJournal.cardTitles")}</span>
+                  <span className={styles.Desc}>{t("autoJournal.cardTitlesDesc")}</span>
+                </div>
+                <Switch.Root
+                  className={styles.SwitchRoot}
+                  checked={settings.autoJournalTitlePromptEnabled}
+                  onCheckedChange={handleTitlePromptEnabledChange}
+                >
+                  <Switch.Thumb className={styles.SwitchThumb} />
+                </Switch.Root>
+              </div>
+
+              {settings.autoJournalTitlePromptEnabled && (
+                <fieldset className={styles.Fieldset}>
+                  <textarea
+                    value={settings.autoJournalTitlePrompt || defaultTitlePrompt}
+                    onChange={(e) => handleTitlePromptChange(e.target.value)}
+                    className={styles.Textarea}
+                    rows={8}
+                    placeholder="Enter custom prompt for titles..."
+                  />
+                </fieldset>
+              )}
+
+              {/* Card Summaries Customization */}
+              <div className={styles.SwitchRow} style={{ marginBottom: '10px', marginTop: '10px' }}>
+                <div className={styles.SwitchInfo}>
+                  <span className={styles.Label}>{t("autoJournal.cardSummaries")}</span>
+                  <span className={styles.Desc}>{t("autoJournal.cardSummariesDesc")}</span>
+                </div>
+                <Switch.Root
+                  className={styles.SwitchRoot}
+                  checked={settings.autoJournalSummaryPromptEnabled}
+                  onCheckedChange={handleSummaryPromptEnabledChange}
+                >
+                  <Switch.Thumb className={styles.SwitchThumb} />
+                </Switch.Root>
+              </div>
+
+              {settings.autoJournalSummaryPromptEnabled && (
+                <fieldset className={styles.Fieldset}>
+                  <textarea
+                    value={settings.autoJournalSummaryPrompt || defaultSummaryPrompt}
+                    onChange={(e) => handleSummaryPromptChange(e.target.value)}
+                    className={styles.Textarea}
+                    rows={8}
+                    placeholder="Enter custom prompt for summaries..."
+                  />
+                </fieldset>
+              )}
+            </div>
+          </Tabs.Content>
+        </Tabs.Root>
+      </div>
+      </div>
+      <div id="dialog"></div>
     </div>
   )
 }
