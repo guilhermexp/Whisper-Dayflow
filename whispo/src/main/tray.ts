@@ -78,7 +78,7 @@ const buildMenu = (tray: Tray) =>
       },
     },
     {
-      label: "Open Pile",
+      label: "Open VoiceFlow",
       click() {
         showMainWindow("/")
       },

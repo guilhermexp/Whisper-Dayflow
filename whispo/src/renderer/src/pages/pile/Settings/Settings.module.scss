@@ -1,9 +1,6 @@
-:global(:root) {
-  --font-title: 1.4em;
-  --font-label: 12px;
-  --font-body: 13px;
-  --font-small: 11px;
-}
+// Settings.module.scss - Aligned with Chat/AutoJournal
+
+// --- Shared Styles ---
 
 .iconHolder {
   display: flex;
@@ -19,8 +16,8 @@
 
   .settingsIcon {
     color: var(--secondary);
-    height: 18px;
-    width: 18px;
+    height: 23px;
+    width: 23px;
     transition: all ease-in-out 220ms;
     transition-delay: 40ms;
     opacity: 0.5;
@@ -31,7 +28,6 @@
     background: var(--bg-secondary);
     color: var(--primary);
 
-    .homeIcon,
     .settingsIcon {
       opacity: 1;
     }
@@ -42,340 +38,401 @@
   }
 }
 
-button,
-fieldset {
-  all: unset;
-}
-
-input:not([type="checkbox"]) {
-  all: unset;
-}
-
-input[type="checkbox"] {
-  appearance: auto;
-  -webkit-appearance: checkbox;
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  accent-color: var(--active);
-}
-
 .DialogOverlay {
   background-color: var(--bg-tertiary);
   position: fixed;
   inset: 0;
-  animation: overlayShow 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
   opacity: 0.9;
   z-index: 40;
+  backdrop-filter: blur(2px);
 }
 
 .DialogContent {
-  z-index: 50;
+  z-index: 1000;
   background-color: var(--bg);
-  border-radius: 22px;
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 90vw;
-  max-width: 960px;
-  min-width: 420px;
-  max-height: 85vh;
-  padding: 22px;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
   animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: none;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+// --- Header ---
+
+.header {
+  padding: 0 24px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg,
+      var(--bg-secondary) 0%,
+      rgba(0, 0, 0, 0) 100%);
+  z-index: 10;
+
+  .wrapper {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center; // Center the title
+    position: relative;
+
+    .DialogTitle {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--primary);
+      margin: 0;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .close {
+      position: absolute;
+      right: 0;
+      text-wrap: nowrap;
+      background: var(--bg);
+      color: var(--secondary);
+      border-radius: 8px;
+      height: 32px;
+      width: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all ease-in-out 150ms;
+      cursor: pointer;
+
+      &:hover {
+        background: var(--bg-secondary);
+        color: var(--primary);
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
+    }
+  }
+}
+
+// --- Main Content ---
+
+.mainContent {
+  flex: 1;
   overflow-y: auto;
+  padding: clamp(16px, 4vw, 48px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 20px;
+
+    &:hover {
+      background-color: var(--secondary);
+    }
+  }
 }
 
-.DialogContent:focus {
-  outline: none;
-}
-
-.DialogTitle {
-  margin: 0;
-  padding: 0;
-  line-height: 1;
-  font-family: 'Porpora';
-  font-size: var(--font-title);
-  color: var(--primary);
-}
-
-.DialogDescription {
-  margin: 6px 0 0;
-  color: var(--secondary);
-  font-size: var(--font-body);
-  line-height: 1.5;
+.footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  background: var(--bg);
+  flex-shrink: 0;
 }
 
 .Button {
+  padding: 8px 16px;
+  background: var(--active);
+  color: var(--active-text);
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
-  background: var(--base);
-  border-radius: 8px;
-  transition: all ease-in-out 120ms;
-  padding: 0 14px;
-  line-height: 28px;
-  color: var(--base-text);
-  font-size: var(--font-body);
-  border-radius: 90px;
-  user-select: none;
-
-  .icon {
-    height: 18px;
-    width: 18px;
-  }
-
-  &.active {
-    background: var(--bg-secondary);
-  }
-
-  &:focus {
-    box-shadow: 0 0 0 2px var(--primary);
-  }
 
   &:hover {
-    cursor: pointer;
-    background: var(--base-hover);
+    opacity: 0.9;
+    transform: translateY(-1px);
   }
 
   &:active {
-    background: var(--base);
+    transform: translateY(0);
   }
 }
 
-.IconButton {
-  font-family: inherit;
-  border-radius: 100%;
-  height: 28px;
-  width: 28px;
-  display: inline-flex;
+.Container {
+  width: 100%;
+  max-width: min(960px, 92vw); // Keep content roomy on wide screens but responsive on smaller ones
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+// --- Tabs ---
+
+.tabsRoot {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.TabsList {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-tertiary);
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.TabTrigger {
+  flex: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--violet-11);
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  transition: all ease-in-out 120ms;
-  stroke-width: 2px;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--secondary);
   cursor: pointer;
-  pointer-events: auto;
-  z-index: 10;
+  transition: all 0.2s;
   background: transparent;
+  border: none;
 
   &:hover {
-    cursor: pointer;
     color: var(--primary);
-    background-color: var(--bg-secondary);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &[data-state='active'] {
+    background: var(--bg);
+    color: var(--primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 }
+
+// --- Form Elements ---
 
 .Fieldset {
   display: flex;
   flex-direction: column;
-  margin-top: 14px;
-}
-
-.group {
-  display: flex;
-  gap: 14px;
-
-  .Fieldset {
-    &:first-child {
-      flex: 2 1 70%;
-    }
-
-    &:last-child {
-      flex: 1 1 auto;
-    }
-  }
-}
-
-.switch {
-  margin-top: 14px;
-  padding: 9px 12px;
-  border-radius: 12px;
-  background-color: var(--bg-tertiary);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-
-  .Label {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    color: var(--secondary);
-    font-size: 13px;
-    margin: 0;
-
-    .icon {
-      height: 17px;
-      width: 17px;
-      margin-top: -1px;
-      color: var(--primary);
-    }
-  }
-
-  .switchRoot {
-    position: relative;
-    display: inline-block;
-    width: 48px;
-    height: 27px;
-
-    input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: var(--bg);
-      -webkit-transition: 0.4s;
-      transition: 0.4s;
-      border-radius: 34px;
-    }
-
-    .slider:before {
-      position: absolute;
-      content: '';
-      height: 20px;
-      width: 20px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      -webkit-transition: 0.4s;
-      transition: 0.4s;
-      border-radius: 50%;
-    }
-
-    input:checked + .slider {
-      background-color: var(--active);
-    }
-
-    input:focus + .slider {
-      box-shadow: 0 0 1px var(--active-hover);
-    }
-
-    input:checked + .slider:before {
-      -webkit-transform: translateX(20px);
-      -ms-transform: translateX(20px);
-      transform: translateX(20px);
-    }
-  }
-}
-
-.disclaimer {
-  font-size: 0.8em;
-  color: var(--secondary);
-  margin-top: 10px;
-  line-height: 1.4;
-  opacity: 0.75;
-
-  a {
-    color: var(--active);
-
-    &:hover {
-      color: var(--active-hover);
-    }
-  }
+  gap: 10px;
+  margin-bottom: 20px;
+  border: none;
+  padding: 0;
 }
 
 .Label {
-  font-size: var(--font-label);
-  color: var(--secondary);
-  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+  margin-left: 4px;
 }
 
-.Input {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 7px;
-  padding: 8px 10px;
-  font-size: 14px;
-  line-height: 1;
-  color: var(--primary);
+.Input,
+.Select,
+.Textarea {
+  width: 100%;
   background: var(--bg-tertiary);
-  border: none;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--primary);
+  font-size: 13px;
   outline: none;
-  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
 
   &:focus {
-    box-shadow: 0 0 0 2px var(--base);
+    background: var(--bg);
+    border-color: var(--active);
+    box-shadow: 0 0 0 2px rgba(var(--active-rgb), 0.1);
+  }
+
+  &::placeholder {
+    color: var(--secondary);
+    opacity: 0.7;
   }
 }
 
 .Textarea {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 7px;
-  padding: 8px 10px;
-  font-size: 14px;
-  line-height: 1.35;
-  min-height: 150px;
-  width: 100%; /* Ensure the width is 100%, no less, no more */
-  resize: none; /* Prevent resizing */
-  color: var(--primary);
-  background: var(--bg-tertiary);
-  border: none;
-  outline: none;
-  font-family: 'Inter', sans-serif;
-
-  &:focus {
-    box-shadow: 0 0 0 2px var(--base);
-  }
+  min-height: 100px;
+  resize: vertical;
+  line-height: 1.5;
 }
+
+// --- Theme Selection ---
 
 .themes {
   display: flex;
-  margin: -5px;
-  margin-bottom: 0px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 
-  .theme {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 32px;
-    width: 30px;
-    background: var(--bg-secondary);
-    margin: 5px;
-    border-radius: 12px;
+.theme {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: transparent;
 
-    .color1 {
-      flex: 1 0 auto;
-      border-radius: 10px;
-      margin: 2px;
-      // margin-bottom: 0;
+  .color1 {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  &.current {
+    border-color: var(--active);
+  }
+}
+
+// --- Expandable Sections ---
+
+.ExpandableSection {
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.ExpandableHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.ExpandableContent {
+  padding: 0 16px 16px;
+  animation: slideDown 0.2s ease-out;
+}
+
+// --- Prompt List ---
+
+.PromptItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--secondary);
+  }
+
+  &.active {
+    background: var(--active);
+    border-color: var(--active);
+
+    .PromptTitle {
+      color: var(--active-text);
     }
 
-    .color2 {
-      flex: 1 0 auto;
-      border-radius: 0 0 10px 10px;
-      margin: 3px;
-      margin-top: 0;
-    }
-
-    &:hover {
-      cursor: pointer;
-      background: var(--bg-tertiary);
-    }
-
-    &.current {
-      background: var(--primary);
+    .PromptDesc {
+      color: rgba(255, 255, 255, 0.8);
     }
   }
 }
+
+.PromptInfo {
+  flex: 1;
+}
+
+.PromptTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.PromptDesc {
+  font-size: 11px;
+  color: var(--secondary);
+  margin-top: 2px;
+}
+
+.PromptActions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+
+  .PromptItem:hover & {
+    opacity: 1;
+  }
+}
+
+.ActionButton {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--secondary);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--bg-tertiary);
+    color: var(--primary);
+  }
+
+  &.delete:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+  }
+}
+
+// --- Animations ---
 
 @keyframes overlayShow {
   from {
@@ -383,18 +440,48 @@ input[type="checkbox"] {
   }
 
   to {
-    opacity: 0.9;
+    opacity: 1;
   }
 }
 
 @keyframes contentShow {
   from {
     opacity: 0;
-    transform: translate(-50%, -48%) scale(0.96);
+    transform: scale(0.96);
   }
 
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.floatingNav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 0 20px;
+  z-index: 2000;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.activeIcon {
+  svg {
+    opacity: 1 !important;
+    color: var(--active) !important;
   }
 }

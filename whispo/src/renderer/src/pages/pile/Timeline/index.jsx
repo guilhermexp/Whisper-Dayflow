@@ -1,17 +1,35 @@
 import styles from "./Timeline.module.scss"
+import layoutStyles from "../PileLayout.module.scss"
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import { tipcClient } from "renderer/lib/tipc-client"
-import { ChevronLeftIcon, ChevronRightIcon, EditIcon, CrossIcon } from "renderer/icons"
+import { ChevronLeftIcon, ChevronRightIcon, EditIcon, CrossIcon, HomeIcon, NotebookIcon } from "renderer/icons"
 import dayjs from "dayjs"
 import { useTranslation } from "react-i18next"
+import { usePilesContext } from "renderer/context/PilesContext"
+import Toasts from "../Toasts"
+import InstallUpdate from "../InstallUpdate"
+import Chat from "../Chat"
+import Search from "../Search"
+import Settings from "../Settings"
+import Dashboard from "../Dashboard"
 
 function Timeline() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { currentTheme } = usePilesContext()
   const [selectedDate, setSelectedDate] = useState(dayjs())
   const [selectedActivityId, setSelectedActivityId] = useState(null)
+
+  const themeStyles = useMemo(
+    () => (currentTheme ? `${currentTheme}Theme` : ""),
+    [currentTheme]
+  )
+  const osStyles = useMemo(
+    () => (window.electron.isMac ? layoutStyles.mac : layoutStyles.win),
+    []
+  )
 
   // Query runs
   const runsQuery = useQuery({
@@ -93,26 +111,30 @@ function Timeline() {
     }
   }
 
-  // Category colors
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case "Work":
-        return "#3b82f6"
-      case "Personal":
-        return "#0ea5e9"
-      case "Distraction":
-        return "#f97316"
-      case "Idle":
-        return "#94a3b8"
-      default:
-        return "#3b82f6"
-    }
-  }
-
   return (
-    <div className={styles.container}>
-      {/* Left Panel - Timeline */}
-      <div className={styles.timelinePanel}>
+    <div className={`${layoutStyles.frame} ${themeStyles} ${osStyles}`}>
+      {/* Floating nav to keep top actions visible across pages */}
+      <div className={`${layoutStyles.nav} ${styles.floatingNav}`}>
+        <div className={layoutStyles.left}></div>
+        <div className={layoutStyles.right}>
+          <Toasts />
+          <InstallUpdate />
+          <Chat />
+          <Search />
+          <Settings />
+          <Link to="/auto-journal" className={layoutStyles.iconHolder}>
+            <NotebookIcon className={layoutStyles.autoJournalIcon} />
+          </Link>
+          <Dashboard />
+          <Link to="/" className={layoutStyles.iconHolder}>
+            <HomeIcon className={layoutStyles.homeIcon} />
+          </Link>
+        </div>
+      </div>
+
+      <div className={styles.container}>
+        {/* Left Panel - Timeline */}
+        <div className={styles.timelinePanel}>
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.dateNav}>
@@ -139,31 +161,19 @@ function Timeline() {
           {/* Legend */}
           <div className={styles.legend}>
             <div className={styles.legendItem}>
-              <span
-                className={styles.legendDot}
-                style={{ background: "#3b82f6" }}
-              />
+              <span className={`${styles.legendDot} ${styles.categoryWork}`} />
               <span>{t("timeline.work")}</span>
             </div>
             <div className={styles.legendItem}>
-              <span
-                className={styles.legendDot}
-                style={{ background: "#0ea5e9" }}
-              />
+              <span className={`${styles.legendDot} ${styles.categoryPersonal}`} />
               <span>{t("timeline.personal")}</span>
             </div>
             <div className={styles.legendItem}>
-              <span
-                className={styles.legendDot}
-                style={{ background: "#f97316" }}
-              />
+              <span className={`${styles.legendDot} ${styles.categoryDistraction}`} />
               <span>{t("timeline.distraction")}</span>
             </div>
             <div className={styles.legendItem}>
-              <span
-                className={styles.legendDot}
-                style={{ background: "#94a3b8" }}
-              />
+              <span className={`${styles.legendDot} ${styles.categoryIdle}`} />
               <span>{t("timeline.idle")}</span>
             </div>
           </div>
@@ -193,11 +203,8 @@ function Timeline() {
             {dayActivities.map((activity) => (
               <div
                 key={activity.id}
-                className={`${styles.activityBar} ${selectedActivity?.id === activity.id ? styles.selected : ""}`}
-                style={{
-                  ...getActivityStyle(activity),
-                  background: getCategoryColor(activity.category),
-                }}
+                className={`${styles.activityBar} ${styles[`category${activity.category}`]} ${selectedActivity?.id === activity.id ? styles.selected : ""}`}
+                style={getActivityStyle(activity)}
                 onClick={() => setSelectedActivityId(activity.id)}
               />
             ))}
@@ -219,11 +226,7 @@ function Timeline() {
                 </span>
                 {selectedActivity.category && (
                   <span
-                    className={styles.categoryBadge}
-                    style={{
-                      background: `${getCategoryColor(selectedActivity.category)}20`,
-                      color: getCategoryColor(selectedActivity.category),
-                    }}
+                    className={`${styles.categoryBadge} ${styles[`category${selectedActivity.category}`]}`}
                   >
                     {selectedActivity.category}
                   </span>
@@ -248,27 +251,30 @@ function Timeline() {
                   <div className={styles.detailedList}>
                     {selectedActivity.detailedSummary.map((detail, idx) => (
                       <div key={idx} className={styles.detailedItem}>
-                        <span className={styles.detailedTime}>
-                          {dayjs(detail.startTs).format("HH:mm")} -{" "}
-                          {dayjs(detail.endTs).format("HH:mm")}
-                        </span>
-                        <span className={styles.detailedDesc}>
-                          {detail.description}
-                        </span>
+                        <div className={styles.timelineLeft}>
+                          <div
+                            className={`${styles.timelineBall} ${styles[`category${selectedActivity.category}`]}`}
+                          />
+                          {idx !== selectedActivity.detailedSummary.length - 1 && (
+                            <div className={styles.timelineLine} />
+                          )}
+                        </div>
+                        <div className={styles.timelineRight}>
+                          <span className={styles.detailedTime}>
+                            {dayjs(detail.startTs).format("HH:mm")} -{" "}
+                            {dayjs(detail.endTs).format("HH:mm")}
+                          </span>
+                          <span className={styles.detailedDesc}>
+                            {detail.description}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-            {/* Rate */}
-            <div className={styles.rateSection}>
-              <span>{t("timeline.rateThis")}</span>
-              <div className={styles.rateButtons}>
-                <button className={styles.rateBtn}>👍</button>
-                <button className={styles.rateBtn}>👎</button>
-              </div>
-            </div>
+
           </div>
         ) : (
           <div className={styles.emptyState}>
@@ -276,6 +282,7 @@ function Timeline() {
             <p>{t("timeline.generateToSee")}</p>
           </div>
         )}
+      </div>
       </div>
     </div>
   )

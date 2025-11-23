@@ -73,7 +73,7 @@ const normalizeProviderError = {
 }
 
 const CLOUD_STT_MODEL_LABELS: Record<string, string> = {
-  openai: "OpenAI Whisper (whisper-1)",
+  openai: "OpenAI (gpt-4o-mini-transcribe)",
   groq: "Groq Whisper (whisper-large-v3)",
 }
 
@@ -423,12 +423,12 @@ export const router = {
             providerId === "groq"
               ? config.groqWhisperModel || "whisper-large-v3"
               : providerId === "openrouter"
-                ? config.openrouterModel || "whisper-1"
+                ? config.openrouterModel || "gpt-4o-mini-transcribe"
                 : providerId === "openai"
-                  ? config.openaiWhisperModel || "whisper-1"
+                  ? config.openaiWhisperModel || "gpt-4o-mini-transcribe"
                   : providerId === "gemini"
                     ? config.geminiModel || "gemini-1.5-flash-002"
-                    : "whisper-1"
+                    : "gpt-4o-mini-transcribe"
 
           form.append("model", model)
           form.append("response_format", "json")

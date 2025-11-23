@@ -22,8 +22,9 @@ export const router: ReturnType<typeof createBrowserRouter> =
         {
           path: "whispo-config",
           Component: () => {
-            const WhispoSettings = require("./pages/pile/WhispoSettings").default;
-            return <WhispoSettings />;
+            const WhispoSettings =
+              require("./pages/pile/WhispoSettings").default
+            return <WhispoSettings />
           },
         },
         {

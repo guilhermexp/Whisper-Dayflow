@@ -6,7 +6,7 @@ import {
   usePilesContext,
   availableThemes,
 } from 'renderer/context/PilesContext';
-import { CardIcon, OllamaIcon, BoxOpenIcon } from 'renderer/icons';
+import { CardIcon, OllamaIcon, BoxOpenIcon, GlobeIcon, RefreshIcon } from 'renderer/icons';
 import { useIndexContext } from 'renderer/context/IndexContext';
 import { useTranslation } from 'react-i18next';
 
@@ -22,6 +22,10 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
     deleteKey,
     model,
     setModel,
+    openrouterModel,
+    setOpenrouterModel,
+    setOpenrouterKey,
+    getOpenrouterKey,
     embeddingModel,
     setEmbeddingModel,
     ollama,
@@ -29,6 +33,56 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
     pileAIProvider,
     setPileAIProvider,
   } = useAIContext();
+
+  const [openrouterAPIKey, setOpenrouterAPIKey] = useState('');
+
+  // OpenRouter models state
+  const [openrouterModels, setOpenrouterModels] = useState([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+  // Load OpenRouter key on mount
+  useEffect(() => {
+    getOpenrouterKey().then((key) => {
+      if (key) setOpenrouterAPIKey(key);
+    });
+  }, [getOpenrouterKey]);
+
+  // Load cached OpenRouter models on mount
+  useEffect(() => {
+    window.electron.ipc.invoke('get-openrouter-models').then((models) => {
+      if (models && models.length > 0) {
+        setOpenrouterModels(models);
+      }
+    });
+  }, []);
+
+  // Fetch OpenRouter models when provider is selected
+  useEffect(() => {
+    if (pileAIProvider === 'openrouter' && openrouterModels.length === 0) {
+      handleFetchOpenrouterModels();
+    }
+  }, [pileAIProvider]);
+
+  const handleFetchOpenrouterModels = async () => {
+    setIsLoadingModels(true);
+    try {
+      const models = await window.electron.ipc.invoke('fetch-openrouter-models');
+      if (models && models.length > 0) {
+        setOpenrouterModels(models);
+      }
+    } catch (error) {
+      console.error('Failed to fetch OpenRouter models:', error);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
+  // Save OpenRouter key when it changes
+  const handleOpenrouterKeyChange = (e) => {
+    const value = e.target.value;
+    setOpenrouterAPIKey(value);
+    setOpenrouterKey(value);
+  };
 
   const { currentTheme, setTheme } = usePilesContext();
 
@@ -84,11 +138,20 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
         <Tabs.Trigger
           className={`${styles.tabsTrigger} ${
             pileAIProvider === 'ollama' ? styles.activeCenter : ''
-          }`}
+          } ${pileAIProvider === 'openrouter' ? styles.activeLeft : ''}`}
           value="openai"
         >
           {t('settingsDialog.journal.openaiApi')}
           <BoxOpenIcon className={styles.icon} />
+        </Tabs.Trigger>
+        <Tabs.Trigger
+          className={`${styles.tabsTrigger} ${
+            pileAIProvider === 'openai' ? styles.activeLeft : ''
+          }`}
+          value="openrouter"
+        >
+          OpenRouter
+          <GlobeIcon className={styles.icon} />
         </Tabs.Trigger>
       </Tabs.List>
 
@@ -178,13 +241,17 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
               <label className={styles.label} htmlFor="openai-model">
                 {t('settingsDialog.journal.model')}
               </label>
-              <input
+              <select
                 id="openai-model"
                 className={styles.input}
                 onChange={handleInputChange(setModel)}
-                value={model}
-                placeholder="gpt-4o"
-              />
+                value={model || 'gpt-5.1'}
+              >
+                <option value="gpt-5.1">gpt-5.1</option>
+                <option value="gpt-5">gpt-5</option>
+                <option value="gpt-5-mini">gpt-5-mini</option>
+                <option value="gpt-4o">gpt-4o</option>
+              </select>
             </fieldset>
           </div>
           <fieldset className={styles.fieldset}>
@@ -201,6 +268,82 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
           </fieldset>
           <div className={styles.disclaimer}>
             {t('settingsDialog.journal.openaiDisclaimer')}
+          </div>
+        </div>
+      </Tabs.Content>
+
+      <Tabs.Content className={styles.tabsContent} value="openrouter">
+        <div className={styles.providers}>
+          <div className={styles.pitch}>
+            Use OpenRouter to access multiple AI providers with a single API key.
+          </div>
+
+          <fieldset className={styles.fieldset}>
+            <label className={styles.label} htmlFor="openrouter-model">
+              {t('settingsDialog.journal.model')}
+            </label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {openrouterModels.length === 0 ? (
+                <span style={{ fontSize: '12px', color: 'var(--secondary)', flex: 1 }}>
+                  {isLoadingModels ? 'Carregando modelos...' : 'Nenhum modelo carregado'}
+                </span>
+              ) : (
+                <select
+                  id="openrouter-model"
+                  className={styles.input}
+                  style={{ flex: 1 }}
+                  onChange={handleInputChange(setOpenrouterModel)}
+                  value={openrouterModel || ''}
+                >
+                  {openrouterModels.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                style={{
+                  padding: '8px',
+                  background: 'var(--secondary-bg)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: isLoadingModels ? 'default' : 'pointer',
+                  opacity: isLoadingModels ? 0.5 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onClick={handleFetchOpenrouterModels}
+                disabled={isLoadingModels}
+                title="Atualizar lista de modelos"
+              >
+                <RefreshIcon
+                  style={{
+                    height: '14px',
+                    width: '14px',
+                    color: 'var(--primary)',
+                    animation: isLoadingModels ? 'spin 1s linear infinite' : 'none',
+                  }}
+                />
+              </button>
+            </div>
+          </fieldset>
+          <fieldset className={styles.fieldset}>
+            <label className={styles.label} htmlFor="openrouter-api-key">
+              OpenRouter API Key
+            </label>
+            <input
+              id="openrouter-api-key"
+              className={styles.input}
+              type="password"
+              onChange={handleOpenrouterKeyChange}
+              value={openrouterAPIKey}
+              placeholder="sk-or-..."
+            />
+          </fieldset>
+          <div className={styles.disclaimer}>
+            Get your API key at openrouter.ai/keys
           </div>
         </div>
       </Tabs.Content>

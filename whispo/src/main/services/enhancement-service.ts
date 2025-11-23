@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { configStore } from "../config"
 import { PREDEFINED_PROMPTS } from "../../shared/data/predefined-prompts"
 import { wrapPromptWithSystemInstructions } from "../../shared/data/system-instructions"
+import { screenCaptureService } from "./screen-capture-service"
 import type {
   ContextCapture,
   CustomPrompt,
@@ -10,6 +11,70 @@ import type {
 
 export class EnhancementService {
   private history: EnhancementResult[] = []
+
+  /**
+   * Retry helper with exponential backoff
+   */
+  private async retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    options: {
+      maxRetries?: number
+      initialDelay?: number
+      maxDelay?: number
+      shouldRetry?: (error: Error) => boolean
+    } = {},
+  ): Promise<T> {
+    const {
+      maxRetries = 3,
+      initialDelay = 1000,
+      maxDelay = 8000,
+      shouldRetry = (error: Error) => {
+        // Retry on network errors or 5xx server errors
+        const message = error.message.toLowerCase()
+        return (
+          message.includes("network") ||
+          message.includes("fetch") ||
+          message.includes("econnrefused") ||
+          message.includes("timeout") ||
+          message.includes("temporarily unavailable") ||
+          message.includes("500") ||
+          message.includes("502") ||
+          message.includes("503") ||
+          message.includes("504")
+        )
+      },
+    } = options
+
+    let lastError: Error
+    let delay = initialDelay
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn()
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+
+        // Don't retry on abort
+        if (lastError.name === "AbortError") {
+          throw lastError
+        }
+
+        // Check if we should retry
+        if (attempt < maxRetries && shouldRetry(lastError)) {
+          console.log(
+            `[enhancement-service] Attempt ${attempt}/${maxRetries} failed, retrying in ${delay}ms...`,
+            lastError.message,
+          )
+          await new Promise((resolve) => setTimeout(resolve, delay))
+          delay = Math.min(delay * 2, maxDelay)
+        } else {
+          throw lastError
+        }
+      }
+    }
+
+    throw lastError!
+  }
 
   /**
    * Main enhancement function that processes transcript with AI
@@ -62,12 +127,15 @@ export class EnhancementService {
 
       ensureNotAborted()
 
-      // Call LLM provider
+      // Call LLM provider with retry
       const provider = config.enhancementProvider ?? "openai"
       const model = this.getModelForProvider(provider)
       console.log("[enhancement-service] Calling LLM provider:", provider)
       console.log("[enhancement-service] Model:", model)
-      const enhancedText = await this.callLLM(prompt, options?.signal)
+      const enhancedText = await this.retryWithBackoff(
+        () => this.callLLM(prompt, options?.signal),
+        { maxRetries: 3, initialDelay: 1000 },
+      )
       console.log("[enhancement-service] LLM response received, length:", enhancedText.length, "chars")
 
       ensureNotAborted()
@@ -167,6 +235,12 @@ export class EnhancementService {
 
     // Build context sections
     let contextSections = ""
+
+    // Add custom vocabulary if configured
+    if (config.customVocabulary && config.customVocabulary.length > 0) {
+      const vocabularyList = config.customVocabulary.join(", ")
+      contextSections += `\n\nCUSTOM VOCABULARY (preserve these terms exactly as spelled):\n${vocabularyList}`
+    }
 
     if (context?.clipboard && config.useClipboardContext) {
       contextSections += `\n\nCLIPBOARD CONTENT:\n${context.clipboard}`
@@ -327,14 +401,14 @@ export class EnhancementService {
     const config = configStore.get()
 
     const models = {
-      openai: config.openaiModel ?? "gpt-4o-mini",
-      groq: config.groqModel ?? "llama-3.1-70b-versatile",
-      gemini: config.geminiModel ?? "gemini-1.5-flash-002",
-      openrouter: config.openrouterModel ?? "openai/gpt-4o-mini",
-      custom: config.customEnhancementModel ?? "gpt-4o-mini",
+      openai: config.enhancementOpenaiModel ?? "gpt-5-mini",
+      groq: config.enhancementGroqModel ?? "llama-3.1-70b-versatile",
+      gemini: config.enhancementGeminiModel ?? "gemini-1.5-flash",
+      openrouter: config.enhancementOpenrouterModel ?? "",
+      custom: config.customEnhancementModel ?? "gpt-5-mini",
     }
 
-    return models[provider] ?? "gpt-4o-mini"
+    return models[provider] ?? "gpt-5-mini"
   }
 
   /**
@@ -403,76 +477,31 @@ export class EnhancementService {
   }
 
   /**
-   * Capture visible screen content and extract text via OCR.
+   * Capture active window content and extract text via local OCR (Tesseract.js).
    *
    * Implementation notes:
-   * - Uses Electron's desktopCapturer to grab a thumbnail of the primary screen.
-   * - Uses Gemini Vision (same GoogleGenerativeAI client) to perform OCR.
-   * - Fully optional: requires both `useScreenCaptureContext` and `geminiApiKey`.
+   * - Uses Electron's desktopCapturer to capture the active window (not full screen).
+   * - Uses Tesseract.js for local OCR (no API key required).
+   * - Returns formatted context with window title, app name, and extracted text.
+   * - Fully optional: requires `useScreenCaptureContext` to be enabled.
    * - On any error, returns undefined so it never breaks the core flow.
    */
   private async captureScreenText(): Promise<string | undefined> {
     const config = configStore.get()
 
-    // Require explicit opt-in and Gemini API key
+    // Require explicit opt-in
     if (!config.useScreenCaptureContext) return undefined
-    if (!config.geminiApiKey) {
-      console.warn(
-        "[enhancement-service] Screen capture context enabled but geminiApiKey is missing; skipping OCR.",
-      )
-      return undefined
-    }
 
     try {
-      const { desktopCapturer } = await import("electron")
+      const result = await screenCaptureService.captureAndExtractText()
 
-      const sources = await desktopCapturer.getSources({
-        types: ["screen"],
-        // Reasonable thumbnail size; Electron will maintain aspect ratio.
-        thumbnailSize: { width: 1280, height: 720 },
-      })
-
-      if (!sources.length) {
-        console.warn("[enhancement-service] No screen sources available for capture.")
+      if (!result) {
+        console.warn("[enhancement-service] Screen capture returned no result")
         return undefined
       }
 
-      // For now, just use the first screen (primary display).
-      const primary = sources[0]
-      const image = primary.thumbnail
-      if (image.isEmpty()) {
-        console.warn("[enhancement-service] Captured screen thumbnail is empty.")
-        return undefined
-      }
-
-      const pngBuffer = image.toPNG()
-      const base64Image = pngBuffer.toString("base64")
-
-      const gai = new GoogleGenerativeAI(config.geminiApiKey)
-      const modelId = this.getModelForProvider("gemini")
-      const gModel = gai.getGenerativeModel({ model: modelId })
-
-      const result = await gModel.generateContent(
-        [
-          {
-            inlineData: {
-              data: base64Image,
-              mimeType: "image/png",
-            },
-          },
-          {
-            text: "Extract all readable text from this screenshot. Return only plain text, no explanations.",
-          },
-        ],
-        {
-          baseUrl: config.geminiBaseUrl,
-        },
-      )
-
-      const text = result.response.text()
-      if (!text) return undefined
-
-      return text.trim()
+      // Format the result with metadata
+      return screenCaptureService.formatForContext(result)
     } catch (error) {
       console.error("[enhancement-service] Error during screen capture OCR:", error)
       return undefined
@@ -480,10 +509,28 @@ export class EnhancementService {
   }
 
   /**
-   * Filter common AI wrapper phrases from output
+   * Filter common AI wrapper phrases and thinking tags from output
    */
   private filterOutput(text: string): string {
     let filtered = text
+
+    // Remove thinking/reasoning tags (used by some models for chain-of-thought)
+    const thinkingPatterns = [
+      /<thinking>[\s\S]*?<\/thinking>/gi,
+      /<think>[\s\S]*?<\/think>/gi,
+      /<reasoning>[\s\S]*?<\/reasoning>/gi,
+      /<reflection>[\s\S]*?<\/reflection>/gi,
+      /<analysis>[\s\S]*?<\/analysis>/gi,
+      /<internal>[\s\S]*?<\/internal>/gi,
+      /<scratchpad>[\s\S]*?<\/scratchpad>/gi,
+    ]
+
+    for (const pattern of thinkingPatterns) {
+      filtered = filtered.replace(pattern, "")
+    }
+
+    // Remove common AI wrapper phrases
+    filtered = filtered
       .replace(/^Here is the enhanced .*?:\s*/i, "")
       .replace(/^Here's the .*?:\s*/i, "")
       .replace(/^Enhanced version:\s*/i, "")

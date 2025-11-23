@@ -5,6 +5,8 @@ import { spawn } from "child_process"
 import type { AnyModel, ImportedLocalModel, LocalModel } from "@shared/index"
 import { modelManager } from "./model-manager"
 import { WHISPO_RS_BINARY_PATH } from "./native-binary"
+import { transcribeWithSherpa } from "./sherpa-transcriber"
+import { audioProcessingService } from "./services/audio-processing-service"
 
 type LocalTranscriptionOptions = {
   audioBuffer: Buffer
@@ -179,20 +181,56 @@ export const transcribeWithLocalModel = async ({
 
   const modelPath = ensureLocalModelPath(targetModel)
   console.log(`[local-transcriber] Model path: ${modelPath}`)
-  console.log(`[local-transcriber] Model file exists: ${fs.existsSync(modelPath)}`)
+  console.log(`[local-transcriber] Model path exists: ${fs.existsSync(modelPath)}`)
+
+  // Check if this is a sherpa model (Parakeet)
+  const engine = (targetModel as LocalModel).engine
+  if (engine === "sherpa") {
+    console.log(`[local-transcriber] Using sherpa-onnx engine for ${targetModel.displayName}`)
+
+    // Process audio with VAD and normalization for sherpa
+    const processedAudio = await audioProcessingService.processAudio(audioBuffer, {
+      enableVad: true,
+      vadThreshold: 0.01,
+      vadMinDurationForProcessing: 5, // Only apply VAD for audio > 5s
+      enableNormalization: true,
+      targetRms: 0.1,
+    })
+
+    return transcribeWithSherpa({
+      audioBuffer: processedAudio.wasProcessed ? processedAudio.buffer : audioBuffer,
+      modelPath,
+      language,
+      threads,
+      signal,
+    })
+  }
+
+  // Default to whisper engine
+  console.log(`[local-transcriber] Using whisper engine for ${targetModel.displayName}`)
 
   assertSupportedModelFormat(modelPath)
   console.log(`[local-transcriber] Model format validated`)
 
   const tempDir = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), "whispo-local-"),
+    path.join(os.tmpdir(), "voiceflow-local-"),
   )
   const wavPath = path.join(tempDir, "input.wav")
   console.log(`[local-transcriber] Created temp directory: ${tempDir}`)
 
   try {
-    await fs.promises.writeFile(wavPath, audioBuffer)
-    console.log(`[local-transcriber] Wrote ${audioBuffer.length} bytes to ${wavPath}`)
+    // Process audio with VAD and normalization
+    const processedAudio = await audioProcessingService.processAudio(audioBuffer, {
+      enableVad: true,
+      vadThreshold: 0.01,
+      vadMinDurationForProcessing: 5, // Only apply VAD for audio > 5s
+      enableNormalization: true,
+      targetRms: 0.1,
+    })
+
+    const bufferToWrite = processedAudio.wasProcessed ? processedAudio.buffer : audioBuffer
+    await fs.promises.writeFile(wavPath, bufferToWrite)
+    console.log(`[local-transcriber] Wrote ${bufferToWrite.length} bytes to ${wavPath}`)
 
     // Debug audio copy is only enabled with explicit DEBUG_AUDIO=1 environment variable
     if (process.env.DEBUG_AUDIO === "1") {

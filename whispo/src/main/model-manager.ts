@@ -1,5 +1,6 @@
 import fs from "fs"
 import path from "path"
+import { spawn } from "child_process"
 import {
   AnyModel,
   CustomModel,
@@ -30,6 +31,37 @@ const DEFAULT_REGISTRY: ModelRegistry = {
 }
 
 const DOWNLOAD_STATUS_COMPLETE: DownloadProgress["status"] = "complete"
+
+const extractTarBz2 = async (archivePath: string, destinationDir: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    console.log(`[model-manager] Extracting ${archivePath} to ${destinationDir}`)
+
+    // Use tar command which works on macOS, Linux, and Windows (with Git Bash/WSL)
+    const child = spawn("tar", ["-xjf", archivePath, "-C", destinationDir], {
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+
+    let stderr = ""
+    child.stderr.on("data", (data) => {
+      stderr += data.toString()
+    })
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        console.log(`[model-manager] Extraction completed successfully`)
+        resolve()
+      } else {
+        console.error(`[model-manager] Extraction failed with code ${code}: ${stderr}`)
+        reject(new Error(`Failed to extract archive: ${stderr || `exit code ${code}`}`))
+      }
+    })
+
+    child.on("error", (error) => {
+      console.error(`[model-manager] Extraction error:`, error)
+      reject(error)
+    })
+  })
+}
 
 export class ModelManager {
   private modelsDirectory: string
@@ -82,13 +114,26 @@ export class ModelManager {
   private getCatalogModels(): LocalModel[] {
     const models = PREDEFINED_LOCAL_MODELS.map((model) => {
       const modelPath = path.join(this.modelsDirectory, model.filename)
-      const isDownloaded = fs.existsSync(modelPath)
+
+      // For sherpa models, check if the directory exists and contains the required files
+      let isDownloaded = false
+      if (model.engine === "sherpa") {
+        const tokensPath = path.join(modelPath, "tokens.txt")
+        isDownloaded = fs.existsSync(modelPath) && fs.existsSync(tokensPath)
+      } else {
+        isDownloaded = fs.existsSync(modelPath)
+      }
 
       if (isDownloaded && !this.loggedCatalogModels.has(model.id)) {
-        const stats = fs.statSync(modelPath)
-        console.log(`[model-manager] Found catalog model: ${model.displayName} (${model.id})`)
-        console.log(`[model-manager]   Path: ${modelPath}`)
-        console.log(`[model-manager]   Size: ${(stats.size / (1024 * 1024)).toFixed(2)} MB`)
+        if (model.engine === "sherpa") {
+          console.log(`[model-manager] Found catalog model: ${model.displayName} (${model.id}) [sherpa]`)
+          console.log(`[model-manager]   Path: ${modelPath}`)
+        } else {
+          const stats = fs.statSync(modelPath)
+          console.log(`[model-manager] Found catalog model: ${model.displayName} (${model.id})`)
+          console.log(`[model-manager]   Path: ${modelPath}`)
+          console.log(`[model-manager]   Size: ${(stats.size / (1024 * 1024)).toFixed(2)} MB`)
+        }
         this.loggedCatalogModels.add(model.id)
       }
 
@@ -106,6 +151,8 @@ export class ModelManager {
     return models
   }
 
+  private loggedImportedSummary = false
+
   private getImportedModels(): ImportedLocalModel[] {
     this.pruneMissingImportedModels()
 
@@ -114,14 +161,18 @@ export class ModelManager {
       const lower = model.localPath.toLowerCase()
       const isCompatible = lower.endsWith(".bin") || lower.endsWith(".ggml") || lower.endsWith(".gguf")
 
-      if (!isCompatible) {
+      if (!isCompatible && !this.loggedImportedSummary) {
         console.warn(`[model-manager] Skipping incompatible imported model: ${model.displayName} (${model.localPath})`)
       }
 
       return isCompatible
     })
 
-    console.log(`[model-manager] Imported models: ${compatible.length} compatible, ${this.registry.importedModels.length - compatible.length} incompatible`)
+    // Only log once to avoid spam
+    if (!this.loggedImportedSummary && (compatible.length > 0 || this.registry.importedModels.length > compatible.length)) {
+      console.log(`[model-manager] Imported models: ${compatible.length} compatible, ${this.registry.importedModels.length - compatible.length} incompatible`)
+      this.loggedImportedSummary = true
+    }
     return compatible
   }
 
@@ -166,11 +217,22 @@ export class ModelManager {
     }
 
     const destinationPath = path.join(this.modelsDirectory, model.filename)
-    if (fs.existsSync(destinationPath)) {
+    const isArchive = model.downloadURL.endsWith(".tar.bz2")
+
+    // For sherpa models (directories), check if already extracted
+    if (model.engine === "sherpa") {
+      const tokensPath = path.join(destinationPath, "tokens.txt")
+      if (fs.existsSync(destinationPath) && fs.existsSync(tokensPath)) {
+        return
+      }
+    } else if (fs.existsSync(destinationPath)) {
       return
     }
 
-    const tmpPath = `${destinationPath}.download`
+    const tmpPath = isArchive
+      ? path.join(this.modelsDirectory, `${model.filename}.tar.bz2.download`)
+      : `${destinationPath}.download`
+
     const progress: DownloadProgress = {
       modelId,
       progress: 0,
@@ -218,12 +280,44 @@ export class ModelManager {
         this.downloadProgressMap.set(modelId, { ...progress })
       }
 
-      await new Promise((resolve, reject) => {
-        fileStream.end(() => resolve(undefined))
+      await new Promise<void>((resolve, reject) => {
         fileStream.on("error", reject)
+        fileStream.end(() => {
+          // Ensure file is fully written before resolving
+          fileStream.close(() => resolve())
+        })
       })
 
-      fs.renameSync(tmpPath, destinationPath)
+      if (isArchive) {
+        // Extract the tar.bz2 archive
+        progress.status = "verifying"
+        this.downloadProgressMap.set(modelId, { ...progress })
+
+        // Remove .download suffix to get archive path
+        const archivePath = tmpPath.slice(0, -9) // Remove ".download"
+
+        // Verify the download file exists before renaming
+        if (!fs.existsSync(tmpPath)) {
+          throw new Error(`Download file not found: ${tmpPath}`)
+        }
+
+        fs.renameSync(tmpPath, archivePath)
+
+        try {
+          await extractTarBz2(archivePath, this.modelsDirectory)
+          // Remove the archive after extraction
+          fs.unlinkSync(archivePath)
+        } catch (extractError) {
+          // Cleanup on extraction failure
+          if (fs.existsSync(archivePath)) {
+            fs.unlinkSync(archivePath)
+          }
+          throw extractError
+        }
+      } else {
+        fs.renameSync(tmpPath, destinationPath)
+      }
+
       progress.status = DOWNLOAD_STATUS_COMPLETE
       progress.progress = 100
       this.downloadProgressMap.set(modelId, { ...progress })
@@ -247,7 +341,13 @@ export class ModelManager {
     if (catalogModel) {
       const modelPath = path.join(this.modelsDirectory, catalogModel.filename)
       if (fs.existsSync(modelPath)) {
-        fs.unlinkSync(modelPath)
+        // For sherpa models (directories), use recursive delete
+        const stat = fs.statSync(modelPath)
+        if (stat.isDirectory()) {
+          fs.rmSync(modelPath, { recursive: true, force: true })
+        } else {
+          fs.unlinkSync(modelPath)
+        }
       }
       return
     }

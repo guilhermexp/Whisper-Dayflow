@@ -1,4 +1,5 @@
 import styles from './Search.module.scss';
+import layoutStyles from '../PileLayout.module.scss';
 import {
   SettingsIcon,
   CrossIcon,
@@ -8,9 +9,13 @@ import {
   DownloadIcon,
   FlameIcon,
   SearchIcon,
+  HomeIcon,
+  NotebookIcon,
+  ChatIcon,
 } from 'renderer/icons';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
+import { Link } from 'react-router-dom';
 import { useAIContext } from 'renderer/context/AIContext';
 import { useTranslation } from 'react-i18next';
 import {
@@ -26,6 +31,9 @@ import InputBar from './InputBar';
 import { AnimatePresence, motion } from 'framer-motion';
 import OptionsBar from './OptionsBar';
 import VirtualList from '../Posts/VirtualList';
+import Chat from '../Chat';
+import Settings from '../Settings';
+import Dashboard from '../Dashboard';
 
 const filterResults = (results, options) => {
   const filtered = results.filter((result) => {
@@ -166,6 +174,34 @@ export default function Search() {
         </Dialog.Trigger>
         <Dialog.Portal container={container}>
           <Dialog.Overlay className={styles.DialogOverlay} />
+          {/* Navigation bar - outside DialogContent to stay fixed at top */}
+          <div className={`${layoutStyles.nav} ${styles.floatingNav}`}>
+            <div className={layoutStyles.left}></div>
+            <div className={layoutStyles.right}>
+              <Dialog.Close asChild>
+                <div><Chat /></div>
+              </Dialog.Close>
+              <div className={`${layoutStyles.iconHolder} ${styles.activeIcon}`}>
+                <SearchIcon />
+              </div>
+              <Dialog.Close asChild>
+                <div><Settings /></div>
+              </Dialog.Close>
+              <Dialog.Close asChild>
+                <Link to="/auto-journal" className={layoutStyles.iconHolder}>
+                  <NotebookIcon />
+                </Link>
+              </Dialog.Close>
+              <Dialog.Close asChild>
+                <div><Dashboard /></div>
+              </Dialog.Close>
+              <Dialog.Close asChild>
+                <Link to="/" className={layoutStyles.iconHolder}>
+                  <HomeIcon />
+                </Link>
+              </Dialog.Close>
+            </div>
+          </div>
           <Dialog.Content className={styles.DialogContent} aria-describedby={undefined}>
             <div className={styles.wrapper}>
               <Dialog.Title className={styles.DialogTitle}>

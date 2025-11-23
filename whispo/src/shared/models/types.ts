@@ -8,6 +8,8 @@ export type ModelProvider =
   | "deepgram"
   | "custom"
 
+export type LocalModelEngine = "whisper" | "sherpa"
+
 export interface BaseModel {
   id: string
   name: string
@@ -29,6 +31,14 @@ export interface LocalModel extends BaseModel {
   isDownloaded: boolean
   localPath?: string
   checksum?: string
+  engine?: LocalModelEngine
+  // For sherpa models that require multiple files
+  modelFiles?: {
+    encoder?: string
+    decoder?: string
+    joiner?: string
+    tokens?: string
+  }
 }
 
 export interface CloudModel extends BaseModel {

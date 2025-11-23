@@ -1,11 +1,11 @@
 {
-  "name": "whispo",
+  "name": "voiceflow",
   "version": "0.1.7",
   "type": "module",
-  "description": "AI powered dictation",
+  "description": "AI powered dictation and journaling",
   "main": "./out/main/index.js",
-  "author": "whispo.app",
-  "homepage": "https://whispo.app",
+  "author": "VoiceFlow",
+  "homepage": "https://voiceflow.app",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint . --ext .cjs --fix",
@@ -47,7 +47,9 @@
     "react-i18next": "^16.3.5",
     "react-markdown": "^10.1.0",
     "react-textarea-autosize": "^8.5.9",
-    "react-virtuoso": "^4.14.1"
+    "react-virtuoso": "^4.14.1",
+    "sherpa-onnx-node": "^1.12.17",
+    "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
     "@egoist/tailwindcss-icons": "^1.9.0",

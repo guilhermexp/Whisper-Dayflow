@@ -1,4 +1,5 @@
 import styles from './Chat.module.scss';
+import layoutStyles from '../PileLayout.module.scss';
 import {
   CrossIcon,
   RefreshIcon,
@@ -8,9 +9,12 @@ import {
   ColorsIcon,
   ChevronRightIcon,
   ChevronLeftIcon,
+  HomeIcon,
+  NotebookIcon,
 } from 'renderer/icons';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
+import { Link } from 'react-router-dom';
 import { useAIContext } from 'renderer/context/AIContext';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,11 +28,21 @@ import VirtualList from './VirtualList';
 import Blobs from './Blobs';
 import useChat from 'renderer/hooks/useChat';
 import { AnimatePresence, motion } from 'framer-motion';
+import Search from '../Search';
+import Settings from '../Settings';
+import Dashboard from '../Dashboard';
 
 export default function Chat() {
   const { t } = useTranslation();
-  const { validKey } = useAIContext();
+  const { validKey, model, openrouterModel, pileAIProvider } = useAIContext();
   const { currentTheme, setTheme } = usePilesContext();
+
+  // Get current model display name
+  const currentModelDisplay = useMemo(() => {
+    if (pileAIProvider === 'openrouter') return openrouterModel || 'openrouter';
+    if (pileAIProvider === 'ollama') return model || 'ollama';
+    return model || 'gpt-5.1';
+  }, [pileAIProvider, model, openrouterModel]);
   const { getAIResponse, addMessage, resetMessages, relevantEntries } = useChat();
   const [container, setContainer] = useState(null);
   const [ready, setReady] = useState(false);
@@ -127,21 +141,47 @@ export default function Chat() {
     purple: '#8b5cf6',
     yellow: '#eab308',
     green: '#22c55e',
+    liquid: '#1f2937', // novo tema dark glass
   };
 
   return (
     <>
       <Dialog.Root>
         <Dialog.Trigger asChild>
-          <div
-            className={`${styles.iconHolder} ${!aiApiKeyValid ? styles.disabled : ''}`}
-            onClick={!aiApiKeyValid ? (e) => e.preventDefault() : undefined}
-          >
+          <div className={styles.iconHolder}>
             <ChatIcon className={styles.chatIcon} />
           </div>
         </Dialog.Trigger>
         <Dialog.Portal container={container}>
           <Dialog.Overlay className={styles.DialogOverlay} />
+          {/* Navigation bar - outside DialogContent to stay fixed at top */}
+          <div className={`${layoutStyles.nav} ${styles.floatingNav}`}>
+            <div className={layoutStyles.left}></div>
+            <div className={layoutStyles.right}>
+              <div className={`${layoutStyles.iconHolder} ${styles.activeIcon}`}>
+                <ChatIcon />
+              </div>
+              <Dialog.Close asChild>
+                <div><Search /></div>
+              </Dialog.Close>
+              <Dialog.Close asChild>
+                <div><Settings /></div>
+              </Dialog.Close>
+              <Dialog.Close asChild>
+                <Link to="/auto-journal" className={layoutStyles.iconHolder}>
+                  <NotebookIcon />
+                </Link>
+              </Dialog.Close>
+              <Dialog.Close asChild>
+                <div><Dashboard /></div>
+              </Dialog.Close>
+              <Dialog.Close asChild>
+                <Link to="/" className={layoutStyles.iconHolder}>
+                  <HomeIcon />
+                </Link>
+              </Dialog.Close>
+            </div>
+          </div>
           <Dialog.Content className={styles.DialogContent} aria-describedby={undefined}>
             <div className={styles.scroller}>
               <div className={styles.header}>
@@ -297,7 +337,7 @@ export default function Chat() {
                     </button>
                   </div>
                   <div className={styles.disclaimer}>
-                    {t('chat.disclaimer')}
+                    {t('chat.disclaimer')} · <span style={{ opacity: 0.6 }}>{currentModelDisplay}</span>
                   </div>
                 </div>
               </div>

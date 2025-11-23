@@ -307,6 +307,35 @@
   }
 }
 
+.liquidTheme {
+  --brand: #666666;
+  --translucent: rgba(15, 15, 15, 0.45);
+  --sidebar-width: 250px;
+  --nav-height: 52px;
+
+  --primary: #e5e5e5;
+  --secondary: #999999;
+
+  --base: #444444;
+  --base-text: #e5e5e5;
+  --base-hover: #555555;
+  --base-yellow: #fbbf24;
+  --base-green: #34d399;
+  --base-red: #ef4444;
+  --base-red-light: #2a1b1b;
+
+  --active: #666666;
+  --active-hover: #555555;
+  --active-text: #ffffff;
+
+  --border: #333333;
+
+  --bg: #0a0a0a;
+  --bg-secondary: rgba(30, 30, 30, 0.85);
+  --bg-tertiary: rgba(40, 40, 40, 0.9);
+  --bg-color-secondary-hover: rgba(100, 100, 100, 0.12);
+}
+
 @font-face {
   font-family: 'Porpora';
   font-weight: 400;
