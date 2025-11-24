@@ -366,20 +366,10 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  animation: slideIn 0.2s ease-out;
+  animation: none;
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
+// slide animation removed
 
 .cardHeader {
   padding-bottom: 20px;
@@ -912,13 +902,4 @@
   }
 }
 
-.floatingNav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  padding: 0 20px;
-  z-index: 2000;
-  background: transparent;
-  pointer-events: auto;
-}
+// .floatingNav unused (nav handled by layout)

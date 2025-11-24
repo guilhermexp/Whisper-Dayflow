@@ -130,59 +130,201 @@ export default function TranscriptionSettingsTabs() {
     (model) => model.provider === 'custom'
   );
 
+  // Get current model display name based on provider
+  const getCurrentModelName = () => {
+    const providerId = config.sttProviderId || 'openai';
+    if (providerId === 'openai') return config.openaiWhisperModel || 'gpt-4o-mini-transcribe';
+    if (providerId === 'groq') return config.groqWhisperModel || 'whisper-large-v3';
+    if (providerId === 'gemini') return config.geminiModel || 'gemini-1.5-flash';
+    if (providerId === 'openrouter') return config.openrouterModel || 'openrouter';
+    if (providerId.startsWith('local:')) {
+      const modelId = providerId.replace('local:', '');
+      const model = localModels.find(m => m.id === modelId);
+      return model?.displayName || modelId;
+    }
+    if (providerId.startsWith('custom:')) {
+      const modelId = providerId.replace('custom:', '');
+      const model = customModels.find(m => m.id === modelId);
+      return model?.displayName || modelId;
+    }
+    return providerId;
+  };
+
   return (
-    <Tabs.Root
-      className={styles.tabsRoot}
-      defaultValue="cloud"
-      value={activeTab}
-      onValueChange={handleTabChange}
-    >
-      <Tabs.List className={styles.tabsList} aria-label="Transcription settings">
-        <Tabs.Trigger
-          className={`${styles.tabsTrigger} ${
-            activeTab === 'local' ? styles.activeCenter : ''
-          }`}
-          value="cloud"
+    <div>
+      {/* Default STT Provider - Above tabs for prominence */}
+      <div className={styles.fieldset} style={{ marginBottom: '16px' }}>
+        <label className={styles.label}>{t('settingsDialog.transcription.defaultProvider')}</label>
+        <select
+          className={styles.input}
+          value={config.sttProviderId || 'openai'}
+          onChange={handleInputChange('sttProviderId')}
         >
-          {t('settingsDialog.transcription.cloud')}
-          <GlobeIcon className={styles.icon} />
-        </Tabs.Trigger>
-        <Tabs.Trigger
-          className={`${styles.tabsTrigger} ${
-            activeTab === 'cloud' ? styles.activeLeft : ''
-          }`}
-          value="local"
-        >
-          {t('settingsDialog.transcription.local')}
-          <ServerIcon className={styles.icon} />
-        </Tabs.Trigger>
-      </Tabs.List>
+          <option value="openai">{t('providers.openai')}</option>
+          <option value="groq">{t('providers.groq')}</option>
+          <option value="gemini">{t('providers.gemini')}</option>
+          <option value="openrouter">{t('providers.openrouter')}</option>
+          {localModels.filter(m => m.isDownloaded || m.provider === 'local-imported').map(model => (
+            <option key={model.id} value={`local:${model.id}`}>
+              Local: {model.displayName}
+            </option>
+          ))}
+        </select>
+        <div style={{
+          marginTop: '6px',
+          fontSize: '11px',
+          color: 'var(--secondary)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <span>{t('settingsDialog.transcription.currentModel')}:</span>
+          <span style={{ color: 'var(--primary)', fontWeight: '500' }}>{getCurrentModelName()}</span>
+        </div>
+        {/* Inline model selector based on current provider */}
+        <div style={{ marginTop: '8px' }}>
+          <label className={styles.label}>{t('settingsDialog.transcription.model')}</label>
+          {(() => {
+            const providerId = config.sttProviderId || 'openai';
+            if (providerId === 'openai') {
+              return (
+                <select
+                  className={styles.input}
+                  value={config.openaiWhisperModel || 'gpt-4o-mini-transcribe'}
+                  onChange={handleInputChange('openaiWhisperModel')}
+                >
+                  <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe</option>
+                  <option value="gpt-4o-transcribe">gpt-4o-transcribe</option>
+                  <option value="whisper-1">whisper-1</option>
+                </select>
+              );
+            }
+            if (providerId === 'groq') {
+              return (
+                <select
+                  className={styles.input}
+                  value={config.groqWhisperModel || 'whisper-large-v3'}
+                  onChange={handleInputChange('groqWhisperModel')}
+                >
+                  <option value="whisper-large-v3">whisper-large-v3</option>
+                  <option value="whisper-large-v3-turbo">whisper-large-v3-turbo</option>
+                  <option value="distil-whisper-large-v3-en">distil-whisper-large-v3-en</option>
+                </select>
+              );
+            }
+            if (providerId === 'gemini') {
+              return (
+                <select
+                  className={styles.input}
+                  value={config.geminiModel || 'gemini-1.5-flash'}
+                  onChange={handleInputChange('geminiModel')}
+                >
+                  <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                  <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                </select>
+              );
+            }
+            if (providerId === 'openrouter') {
+              return (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {openrouterModels.length === 0 ? (
+                    <span style={{ fontSize: '12px', color: 'var(--secondary)', flex: 1 }}>
+                      {isLoadingModels ? 'Carregando modelos...' : 'Nenhum modelo carregado'}
+                    </span>
+                  ) : (
+                    <select
+                      className={styles.input}
+                      style={{ flex: 1 }}
+                      value={config.openrouterModel || ''}
+                      onChange={handleInputChange('openrouterModel')}
+                    >
+                      {openrouterModels.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    style={{
+                      padding: '8px',
+                      background: 'var(--secondary-bg)',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: isLoadingModels ? 'default' : 'pointer',
+                      opacity: isLoadingModels ? 0.5 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onClick={handleFetchOpenrouterModels}
+                    disabled={isLoadingModels}
+                    title="Atualizar lista de modelos"
+                  >
+                    <RefreshIcon
+                      style={{
+                        height: '14px',
+                        width: '14px',
+                        color: 'var(--primary)',
+                        animation: isLoadingModels ? 'spin 1s linear infinite' : 'none',
+                      }}
+                    />
+                  </button>
+                </div>
+              );
+            }
+            if (providerId.startsWith('local:')) {
+              const downloadable = localModels.filter(m => m.isDownloaded || m.provider === 'local-imported');
+              const currentLocalId = (config.defaultLocalModel || providerId.replace('local:', ''));
+              return (
+                <select
+                  className={styles.input}
+                  value={currentLocalId}
+                  onChange={(e) => saveConfig({ sttProviderId: `local:${e.target.value}`, defaultLocalModel: e.target.value })}
+                >
+                  {downloadable.map(m => (
+                    <option key={m.id} value={m.id}>{m.displayName}</option>
+                  ))}
+                </select>
+              );
+            }
+            return null;
+          })()}
+        </div>
+      </div>
+
+      <Tabs.Root
+        className={styles.tabsRoot}
+        defaultValue="cloud"
+        value={activeTab}
+        onValueChange={handleTabChange}
+      >
+        <Tabs.List className={styles.tabsList} aria-label="Transcription settings">
+          <Tabs.Trigger
+            className={`${styles.tabsTrigger} ${
+              activeTab === 'local' ? styles.activeCenter : ''
+            }`}
+            value="cloud"
+          >
+            {t('settingsDialog.transcription.cloud')}
+            <GlobeIcon className={styles.icon} />
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            className={`${styles.tabsTrigger} ${
+              activeTab === 'cloud' ? styles.activeLeft : ''
+            }`}
+            value="local"
+          >
+            {t('settingsDialog.transcription.local')}
+            <ServerIcon className={styles.icon} />
+          </Tabs.Trigger>
+        </Tabs.List>
 
       {/* Cloud Providers Tab */}
       <Tabs.Content className={styles.tabsContent} value="cloud">
         <div className={styles.providers}>
           <div className={styles.pitch}>
             {t('settingsDialog.transcription.cloudDesc')}
-          </div>
-
-          {/* Default STT Provider */}
-          <div className={styles.fieldset} style={{ marginBottom: '12px' }}>
-            <label className={styles.label}>{t('settingsDialog.transcription.defaultProvider')}</label>
-            <select
-              className={styles.input}
-              value={config.sttProviderId || 'openai'}
-              onChange={handleInputChange('sttProviderId')}
-            >
-              <option value="openai">{t('providers.openai')}</option>
-              <option value="groq">{t('providers.groq')}</option>
-              <option value="gemini">{t('providers.gemini')}</option>
-              <option value="openrouter">{t('providers.openrouter')}</option>
-              {localModels.filter(m => m.isDownloaded || m.provider === 'local-imported').map(model => (
-                <option key={model.id} value={`local:${model.id}`}>
-                  Local: {model.displayName}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Collapsible Providers */}
@@ -709,20 +851,6 @@ export default function TranscriptionSettingsTabs() {
 
             <div className={styles.switch}>
               <label className={styles.Label}>
-                Enable model warmup
-              </label>
-              <label className={styles.switchRoot}>
-                <input
-                  type="checkbox"
-                  checked={config.enableModelWarmup ?? false}
-                  onChange={handleSwitchChange('enableModelWarmup')}
-                />
-                <span className={styles.slider}></span>
-              </label>
-            </div>
-
-            <div className={styles.switch}>
-              <label className={styles.Label}>
                 Prefer local models when available
               </label>
               <label className={styles.switchRoot}>
@@ -741,7 +869,8 @@ export default function TranscriptionSettingsTabs() {
           </div>
         </div>
       </Tabs.Content>
-    </Tabs.Root>
+      </Tabs.Root>
+    </div>
   );
 }
 

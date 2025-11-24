@@ -106,13 +106,14 @@
         width: 18px;
         transition: all ease-in-out 150ms;
         opacity: 0.6;
+        filter: none;
       }
 
       &.active {
         svg {
           color: var(--primary);
           opacity: 0.95;
-          filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.12));
+          filter: none;
         }
       }
 
@@ -120,15 +121,15 @@
         cursor: pointer;
         svg {
           color: var(--primary);
-          opacity: 1;
-          filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.14));
+          opacity: 0.85;
+          filter: none;
         }
       }
 
       &:active {
         transform: translateY(0);
         svg {
-          opacity: 0.85;
+          opacity: 0.75;
           filter: none;
         }
       }

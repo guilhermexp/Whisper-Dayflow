@@ -19,6 +19,7 @@ import { globalShortcutManager } from "./global-shortcut"
 import { mediaController } from "./services/media-controller"
 import { configStore } from "./config"
 import { startAutoJournalScheduler } from "./services/auto-journal-service"
+import { warmupParakeetModel } from "./local-transcriber"
 
 // Configure library paths for sherpa-onnx native bindings
 const configureSherpaLibraryPaths = () => {
@@ -129,6 +130,12 @@ app.whenReady().then(() => {
   const config = configStore.get()
   mediaController.setEnabled(config.isPauseMediaEnabled ?? false)
   console.log('[MediaController] Initialized, enabled:', mediaController.isEnabled())
+
+  // Pre-warm Parakeet to avoid cold-start lag if it's the default local model
+  const defaultLocalModel = config.defaultLocalModel
+  if (defaultLocalModel?.startsWith("local-parakeet")) {
+    void warmupParakeetModel(defaultLocalModel, config.localInferenceThreads)
+  }
 
   // Auto-journal scheduler (manual runs still available via IPC)
   startAutoJournalScheduler()

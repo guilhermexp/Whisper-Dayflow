@@ -115,6 +115,7 @@ export const PilesContextProvider = ({ children }) => {
 
   // Update current pile
   const updateCurrentPile = (newPile) => {
+    if (!currentPile || !piles) return;
     const newPiles = piles.map((pile) => {
       if (pile.path === currentPile.path) {
         return newPile;

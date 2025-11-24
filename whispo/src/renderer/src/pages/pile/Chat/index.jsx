@@ -154,34 +154,6 @@ export default function Chat() {
         </Dialog.Trigger>
         <Dialog.Portal container={container}>
           <Dialog.Overlay className={styles.DialogOverlay} />
-          {/* Navigation bar - outside DialogContent to stay fixed at top */}
-          <div className={`${layoutStyles.nav} ${styles.floatingNav}`}>
-            <div className={layoutStyles.left}></div>
-            <div className={layoutStyles.right}>
-              <div className={`${layoutStyles.iconHolder} ${styles.activeIcon}`}>
-                <ChatIcon />
-              </div>
-              <Dialog.Close asChild>
-                <div><Search /></div>
-              </Dialog.Close>
-              <Dialog.Close asChild>
-                <div><Settings /></div>
-              </Dialog.Close>
-              <Dialog.Close asChild>
-                <Link to="/auto-journal" className={layoutStyles.iconHolder}>
-                  <NotebookIcon />
-                </Link>
-              </Dialog.Close>
-              <Dialog.Close asChild>
-                <div><Dashboard /></div>
-              </Dialog.Close>
-              <Dialog.Close asChild>
-                <Link to="/" className={layoutStyles.iconHolder}>
-                  <HomeIcon />
-                </Link>
-              </Dialog.Close>
-            </div>
-          </div>
           <Dialog.Content className={styles.DialogContent} aria-describedby={undefined}>
             <div className={styles.scroller}>
               <div className={styles.header}>

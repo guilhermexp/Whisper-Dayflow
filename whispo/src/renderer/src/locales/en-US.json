@@ -395,6 +395,7 @@
       "local": "Local",
       "cloudDesc": "Configure cloud STT providers. Click to expand and set API keys.",
       "defaultProvider": "Default STT Provider",
+      "currentModel": "Current model",
       "apiKey": "API Key",
       "model": "Model",
       "customModels": "Custom Models",
@@ -423,6 +424,8 @@
       "localDisclaimer": "Local models run entirely on your machine without internet connection."
     },
     "saveChanges": "Save changes",
+    "saved": "Saved",
+    "saveError": "Error saving",
     "close": "Close",
     "cancel": "Cancel",
     "save": "Save"

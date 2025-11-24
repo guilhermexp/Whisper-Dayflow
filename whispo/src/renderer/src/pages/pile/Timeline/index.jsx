@@ -113,25 +113,6 @@ function Timeline() {
 
   return (
     <div className={`${layoutStyles.frame} ${themeStyles} ${osStyles}`}>
-      {/* Floating nav to keep top actions visible across pages */}
-      <div className={`${layoutStyles.nav} ${styles.floatingNav}`}>
-        <div className={layoutStyles.left}></div>
-        <div className={layoutStyles.right}>
-          <Toasts />
-          <InstallUpdate />
-          <Chat />
-          <Search />
-          <Settings />
-          <Link to="/auto-journal" className={layoutStyles.iconHolder}>
-            <NotebookIcon className={layoutStyles.autoJournalIcon} />
-          </Link>
-          <Dashboard />
-          <Link to="/" className={layoutStyles.iconHolder}>
-            <HomeIcon className={layoutStyles.homeIcon} />
-          </Link>
-        </div>
-      </div>
-
       <div className={styles.container}>
         {/* Left Panel - Timeline */}
         <div className={styles.timelinePanel}>

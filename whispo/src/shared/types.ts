@@ -258,7 +258,6 @@ export type Config = {
   defaultLocalModel?: string
   localModelsDirectory?: string
   autoDownloadRecommended?: boolean
-  enableModelWarmup?: boolean
   maxConcurrentDownloads?: number
   downloadBandwidthLimit?: number
   localInferenceThreads?: number

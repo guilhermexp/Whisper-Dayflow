@@ -1,11 +1,12 @@
-import {
+import React, {
   useCallback,
   useEffect,
   useRef,
   memo,
 } from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import Scrollbar from './Scrollbar';
+import OverlayScrollbar from '../../../components/ui/overlay-scrollbar';
+import styles from './Scrollbar/Scrollbar.module.scss';
 import Intro from './Intro';
 import Message from './Message';
 
@@ -54,7 +55,9 @@ const VirtualList = memo(({ data }) => {
             }}
           ></div>
         ),
-        Scroller: Scrollbar,
+        Scroller: React.forwardRef((props, ref) => (
+          <OverlayScrollbar ref={ref} {...props} className={styles.scrollbar} />
+        )),
       }}
     />
   );

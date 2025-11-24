@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tabs from '@radix-ui/react-tabs';
 import { Link } from 'react-router-dom';
+import { Switch } from '../../../components/ui/switch';
 import { tipcClient } from 'renderer/lib/tipc-client';
 import { useAIContext } from 'renderer/context/AIContext';
 import { useTranslation } from 'react-i18next';
@@ -178,16 +179,26 @@ export default function Settings() {
     setPrompt(p);
   };
 
-  const handleSaveChanges = () => {
-    if (!APIkey || APIkey == '') {
-      deleteKey();
-    } else {
-      console.log('save key', APIkey);
-      setKey(APIkey);
-    }
+  const [saveStatus, setSaveStatus] = useState(null);
 
-    updateSettings(prompt);
-    // regenerateEmbeddings();
+  const handleSaveChanges = async () => {
+    try {
+      if (!APIkey || APIkey == '') {
+        deleteKey();
+      } else {
+        setKey(APIkey);
+      }
+
+      updateSettings(prompt);
+      // regenerateEmbeddings();
+
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus(null), 2000);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus(null), 3000);
+    }
   };
 
   const renderThemes = () => {
@@ -217,37 +228,9 @@ export default function Settings() {
           <SettingsIcon className={styles.settingsIcon} />
         </div>
       </Dialog.Trigger>
-      <Dialog.Portal container={document.getElementById('dialog')}>
-        <Dialog.Overlay className={styles.DialogOverlay} />
-        {/* Navigation bar - outside DialogContent to stay fixed at top */}
-        <div className={`${layoutStyles.nav} ${styles.floatingNav}`}>
-          <div className={layoutStyles.left}></div>
-          <div className={layoutStyles.right}>
-            <Dialog.Close asChild>
-              <div><Chat /></div>
-            </Dialog.Close>
-            <Dialog.Close asChild>
-              <div><Search /></div>
-            </Dialog.Close>
-            <div className={`${layoutStyles.iconHolder} ${styles.activeIcon}`}>
-              <SettingsIcon />
-            </div>
-            <Dialog.Close asChild>
-              <Link to="/auto-journal" className={layoutStyles.iconHolder}>
-                <NotebookIcon />
-              </Link>
-            </Dialog.Close>
-            <Dialog.Close asChild>
-              <div><Dashboard /></div>
-            </Dialog.Close>
-            <Dialog.Close asChild>
-              <Link to="/" className={layoutStyles.iconHolder}>
-                <HomeIcon />
-              </Link>
-            </Dialog.Close>
-          </div>
-        </div>
-        <Dialog.Content className={styles.DialogContent} aria-describedby={undefined}>
+        <Dialog.Portal container={document.getElementById('dialog')}>
+          <Dialog.Overlay className={styles.DialogOverlay} />
+          <Dialog.Content className={styles.DialogContent} aria-describedby={undefined}>
           {/* Header */}
           <div className={styles.header}>
             <div className={styles.wrapper}>
@@ -344,11 +327,9 @@ export default function Settings() {
                               </select>
                             </fieldset>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-                              <input
-                                type="checkbox"
-                                style={{ width: 14, height: 14, cursor: 'pointer' }}
+                              <Switch
                                 checked={whispoConfigQuery.data.enableAudioCues ?? true}
-                                onChange={(e) => saveWhispoConfig({ enableAudioCues: e.target.checked })}
+                                onCheckedChange={(checked) => saveWhispoConfig({ enableAudioCues: checked })}
                               />
                               <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>
                                 {t('settingsDialog.whisper.audioCues')}
@@ -356,11 +337,9 @@ export default function Settings() {
                             </div>
                             {window.electron?.isMac && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
-                                <input
-                                  type="checkbox"
-                                  style={{ width: 14, height: 14, cursor: 'pointer' }}
+                                <Switch
                                   checked={whispoConfigQuery.data.isPauseMediaEnabled ?? false}
-                                  onChange={(e) => saveWhispoConfig({ isPauseMediaEnabled: e.target.checked })}
+                                  onCheckedChange={(checked) => saveWhispoConfig({ isPauseMediaEnabled: checked })}
                                 />
                                 <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>
                                   {t('settingsDialog.whisper.muteSystemAudio')}
@@ -401,22 +380,18 @@ export default function Settings() {
                               </select>
                             </fieldset>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-                              <input
-                                type="checkbox"
-                                style={{ width: 14, height: 14, cursor: 'pointer' }}
+                              <Switch
                                 checked={whispoConfigQuery.data.launchOnStartup ?? false}
-                                onChange={(e) => saveWhispoConfig({ launchOnStartup: e.target.checked })}
+                                onCheckedChange={(checked) => saveWhispoConfig({ launchOnStartup: checked })}
                               />
                               <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>
                                 {t('settingsDialog.whisper.launchOnStartup')}
                               </span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
-                              <input
-                                type="checkbox"
-                                style={{ width: 14, height: 14, cursor: 'pointer' }}
+                              <Switch
                                 checked={whispoConfigQuery.data.preserveClipboard ?? true}
-                                onChange={(e) => saveWhispoConfig({ preserveClipboard: e.target.checked })}
+                                onCheckedChange={(checked) => saveWhispoConfig({ preserveClipboard: checked })}
                               />
                               <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>
                                 {t('settingsDialog.whisper.preserveClipboard')}
@@ -424,11 +399,9 @@ export default function Settings() {
                             </div>
                             {window.electron?.isMac && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
-                                <input
-                                  type="checkbox"
-                                  style={{ width: 14, height: 14, cursor: 'pointer' }}
+                                <Switch
                                   checked={whispoConfigQuery.data.hideDockIcon ?? false}
-                                  onChange={(e) => saveWhispoConfig({ hideDockIcon: e.target.checked })}
+                                  onCheckedChange={(checked) => saveWhispoConfig({ hideDockIcon: checked })}
                                 />
                                 <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>
                                   {t('settingsDialog.whisper.hideDockIcon')}
@@ -827,11 +800,19 @@ export default function Settings() {
           </div>
 
           <div className={styles.footer}>
-            <Dialog.Close asChild>
-              <button className={styles.Button} onClick={handleSaveChanges}>
-                {t('settingsDialog.saveChanges')}
-              </button>
-            </Dialog.Close>
+            <button
+              className={styles.Button}
+              onClick={handleSaveChanges}
+              style={{
+                background: saveStatus === 'success' ? 'var(--success, #22c55e)' :
+                           saveStatus === 'error' ? 'var(--error, #ef4444)' : undefined,
+                transition: 'background 0.3s ease'
+              }}
+            >
+              {saveStatus === 'success' ? '✓ ' + t('settingsDialog.saved') :
+               saveStatus === 'error' ? '✗ ' + t('settingsDialog.saveError') :
+               t('settingsDialog.saveChanges')}
+            </button>
           </div>
 
 

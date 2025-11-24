@@ -1,10 +1,11 @@
-import { useCallback, useState, memo } from 'react';
+import React, { useCallback, useState, memo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { motion } from 'framer-motion';
 import { useTimelineContext } from 'renderer/context/TimelineContext';
 import NewPost from '../NewPost';
 import Post from './Post';
-import Scrollbar from './Scrollbar';
+import OverlayScrollbar from '../../../components/ui/overlay-scrollbar';
+import styles from './Scrollbar/Scrollbar.module.scss';
 
 const PostItem = memo(({ postPath, post }) => {
   return (
@@ -60,7 +61,9 @@ const VirtualTimeline = memo(({ data }) => {
       itemContent={renderItem}
       computeItemKey={getKey}
       components={{
-        Scroller: Scrollbar,
+        Scroller: React.forwardRef((props, ref) => (
+          <OverlayScrollbar ref={ref} {...props} className={styles.scrollbar} />
+        )),
         Footer: () => <div style={{ height: 20 }} />,
         EmptyPlaceholder: () => <div></div>,
       }}

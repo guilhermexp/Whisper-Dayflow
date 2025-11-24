@@ -38,21 +38,22 @@ const pileAPI = {
     return ipcRenderer.sendSync('get-config-file-path');
   },
   openFolder: (folderPath: string) => {
-    if (folderPath.startsWith('/')) {
-      shell.openPath(folderPath);
-    }
+    try {
+      if (fs.existsSync(folderPath)) {
+        shell.openPath(folderPath);
+      }
+    } catch (_err) {}
   },
   existsSync: (path: string) => fs.existsSync(path),
   readDir: (path: string, callback: any) => fs.readdir(path, callback),
-  isDirEmpty: (path: string) =>
-    fs.readdir(path, (err, files) => {
-      if (err) throw err;
-      if (files.length === 0) {
-        return true;
-      } else {
-        return false;
-      }
-    }),
+  isDirEmpty: (dirPath: string) => {
+    try {
+      const files = fs.readdirSync(dirPath);
+      return files.length === 0;
+    } catch (_err) {
+      return true;
+    }
+  },
   readFile: (path: string, callback: any) =>
     fs.readFile(path, 'utf-8', callback),
   deleteFile: (path: string, callback: any) => fs.unlink(path, callback),
