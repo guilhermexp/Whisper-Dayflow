@@ -2,6 +2,7 @@
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
+  afterPack: "./scripts/after-pack.cjs",
   appId: "app.voiceflow",
   productName: "VoiceFlow",
   directories: {
@@ -18,9 +19,14 @@ module.exports = {
     "!*.{js,cjs,mjs,ts}",
     "!components.json",
     "!.prettierrc",
-    '!whispo-rs/*'
+    "!whispo-rs/*",
   ],
-  asarUnpack: ["resources/**", "node_modules/**"],
+  asarUnpack: [
+    "resources/**",
+    "node_modules/@egoist/electron-panel-window/**",
+    "node_modules/bindings/**",
+    "node_modules/file-uri-to-path/**",
+  ],
   win: {
     executableName: "voiceflow",
   },
@@ -31,7 +37,9 @@ module.exports = {
     createDesktopShortcut: "always",
   },
   mac: {
-    binaries: [`resources/bin/whispo-rs${process.platform === 'darwin' ? '' : '.exe'}`],
+    binaries: [
+      `resources/bin/whispo-rs${process.platform === "darwin" ? "" : ".exe"}`,
+    ],
     artifactName: "${productName}-${version}-${arch}.${ext}",
     entitlementsInherit: "build/entitlements.mac.plist",
     extendInfo: [
@@ -69,7 +77,7 @@ module.exports = {
   appImage: {
     artifactName: "${name}-${version}.${ext}",
   },
-  npmRebuild: false,
+  npmRebuild: true,
   publish: {
     provider: "github",
     owner: "voiceflow-app",

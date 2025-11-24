@@ -1,6 +1,7 @@
 import { resolve } from "path"
 import { defineConfig, externalizeDepsPlugin } from "electron-vite"
 import react from "@vitejs/plugin-react"
+import tailwindcss from "@tailwindcss/vite"
 import tsconfigPaths from "vite-tsconfig-paths"
 import pkg from "./package.json"
 
@@ -20,12 +21,12 @@ export default defineConfig({
     build: {
       rollupOptions: {
         external: [
-          'sherpa-onnx-node',
-          'sherpa-onnx-darwin-arm64',
-          'sherpa-onnx-darwin-x64',
-          'sherpa-onnx-linux-x64',
-          'sherpa-onnx-linux-arm64',
-          'sherpa-onnx-win-x64',
+          "sherpa-onnx-node",
+          "sherpa-onnx-darwin-arm64",
+          "sherpa-onnx-darwin-x64",
+          "sherpa-onnx-linux-x64",
+          "sherpa-onnx-linux-arm64",
+          "sherpa-onnx-win-x64",
         ],
       },
     },
@@ -35,16 +36,16 @@ export default defineConfig({
   },
   renderer: {
     define,
-    plugins: [tsconfigPaths(), react()],
+    plugins: [tsconfigPaths(), react(), tailwindcss()],
     resolve: {
       alias: {
-        'renderer': resolve(__dirname, 'src/renderer/src'),
+        renderer: resolve(__dirname, "src/renderer/src"),
       },
     },
     css: {
       preprocessorOptions: {
         scss: {
-          api: 'modern-compiler',
+          // api: 'modern-compiler', // Removed - not supported in Vite 7
         },
       },
     },

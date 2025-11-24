@@ -20,7 +20,6 @@ import type {
   RecordingHistoryItem,
   RecordingHistorySearchFilters,
 } from "../shared/types"
-import matter from "gray-matter"
 import { RendererHandlers } from "./renderer-handlers"
 import {
   postProcessTranscript,
@@ -40,7 +39,10 @@ import {
   runAutoJournalOnce,
   startAutoJournalScheduler,
   stopAutoJournalScheduler,
+  restartAutoJournalScheduler,
+  getSchedulerStatus,
 } from "./services/auto-journal-service"
+import { saveAutoJournalEntry } from "./services/auto-journal-entry"
 
 const t = tipc.create()
 
@@ -78,28 +80,6 @@ const CLOUD_STT_MODEL_LABELS: Record<string, string> = {
 }
 
 const LOCAL_PROVIDER_PREFIX = "local:"
-
-const monthShort = (date: Date) =>
-  date.toLocaleString("default", { month: "short" })
-
-const buildNewPostPath = (pilePath: string, timestamp = new Date()) => {
-  const yearFolder = String(timestamp.getFullYear())
-  const fileName = [
-    String(timestamp.getFullYear()).slice(-2),
-    String(timestamp.getMonth() + 1).padStart(2, "0"),
-    String(timestamp.getDate()).padStart(2, "0"),
-    "-",
-    String(timestamp.getHours()).padStart(2, "0"),
-    String(timestamp.getMinutes()).padStart(2, "0"),
-    String(timestamp.getSeconds()).padStart(2, "0"),
-  ].join("")
-
-  const relDir = path.join(yearFolder, monthShort(timestamp))
-  const absDir = path.join(pilePath, relDir)
-  const absPath = path.join(absDir, `${fileName}.md`)
-  const relPath = path.join(relDir, `${fileName}.md`)
-  return { absDir, absPath, relPath }
-}
 
 const deriveSttProviderId = (config: Config) => {
   const preferLocal = config.preferLocalModels === true
@@ -740,10 +720,12 @@ export const router = {
       autoJournalEnabled: cfg.autoJournalEnabled ?? false,
       autoJournalWindowMinutes: cfg.autoJournalWindowMinutes ?? 60,
       autoJournalTargetPilePath: cfg.autoJournalTargetPilePath ?? "",
+      autoJournalAutoSaveEnabled: cfg.autoJournalAutoSaveEnabled ?? false,
       autoJournalPrompt: cfg.autoJournalPrompt ?? "",
       autoJournalTitlePromptEnabled: cfg.autoJournalTitlePromptEnabled ?? false,
       autoJournalTitlePrompt: cfg.autoJournalTitlePrompt ?? "",
-      autoJournalSummaryPromptEnabled: cfg.autoJournalSummaryPromptEnabled ?? false,
+      autoJournalSummaryPromptEnabled:
+        cfg.autoJournalSummaryPromptEnabled ?? false,
       autoJournalSummaryPrompt: cfg.autoJournalSummaryPrompt ?? "",
     }
   }),
@@ -754,6 +736,7 @@ export const router = {
       autoJournalWindowMinutes?: number
       autoJournalTargetPilePath?: string
       autoJournalPrompt?: string
+      autoJournalAutoSaveEnabled?: boolean
       autoJournalTitlePromptEnabled?: boolean
       autoJournalTitlePrompt?: string
       autoJournalSummaryPromptEnabled?: boolean
@@ -761,40 +744,63 @@ export const router = {
     }>()
     .action(async ({ input }) => {
       const cfg = configStore.get()
+      const wasEnabled = cfg.autoJournalEnabled ?? false
+      const willBeEnabled = input.autoJournalEnabled ?? cfg.autoJournalEnabled ?? false
+
       configStore.save({
         ...cfg,
-        autoJournalEnabled:
-          input.autoJournalEnabled ?? cfg.autoJournalEnabled ?? false,
+        autoJournalEnabled: willBeEnabled,
         autoJournalWindowMinutes:
           input.autoJournalWindowMinutes ?? cfg.autoJournalWindowMinutes ?? 60,
         autoJournalTargetPilePath:
-          input.autoJournalTargetPilePath ?? cfg.autoJournalTargetPilePath ?? "",
-        autoJournalPrompt: input.autoJournalPrompt ?? cfg.autoJournalPrompt ?? "",
+          input.autoJournalTargetPilePath ??
+          cfg.autoJournalTargetPilePath ??
+          "",
+        autoJournalAutoSaveEnabled:
+          input.autoJournalAutoSaveEnabled ??
+          cfg.autoJournalAutoSaveEnabled ??
+          false,
+        autoJournalPrompt:
+          input.autoJournalPrompt ?? cfg.autoJournalPrompt ?? "",
         autoJournalTitlePromptEnabled:
-          input.autoJournalTitlePromptEnabled ?? cfg.autoJournalTitlePromptEnabled ?? false,
+          input.autoJournalTitlePromptEnabled ??
+          cfg.autoJournalTitlePromptEnabled ??
+          false,
         autoJournalTitlePrompt:
           input.autoJournalTitlePrompt ?? cfg.autoJournalTitlePrompt ?? "",
         autoJournalSummaryPromptEnabled:
-          input.autoJournalSummaryPromptEnabled ?? cfg.autoJournalSummaryPromptEnabled ?? false,
+          input.autoJournalSummaryPromptEnabled ??
+          cfg.autoJournalSummaryPromptEnabled ??
+          false,
         autoJournalSummaryPrompt:
           input.autoJournalSummaryPrompt ?? cfg.autoJournalSummaryPrompt ?? "",
       })
 
-      stopAutoJournalScheduler()
-      startAutoJournalScheduler()
+      // Restart scheduler with immediate run if user just enabled it
+      const justEnabled = !wasEnabled && willBeEnabled
+      restartAutoJournalScheduler(justEnabled)
 
       const updatedCfg = configStore.get()
       return {
         autoJournalEnabled: updatedCfg.autoJournalEnabled,
         autoJournalWindowMinutes: updatedCfg.autoJournalWindowMinutes,
         autoJournalTargetPilePath: updatedCfg.autoJournalTargetPilePath,
+        autoJournalAutoSaveEnabled: updatedCfg.autoJournalAutoSaveEnabled,
         autoJournalPrompt: updatedCfg.autoJournalPrompt,
         autoJournalTitlePromptEnabled: updatedCfg.autoJournalTitlePromptEnabled,
         autoJournalTitlePrompt: updatedCfg.autoJournalTitlePrompt,
-        autoJournalSummaryPromptEnabled: updatedCfg.autoJournalSummaryPromptEnabled,
+        autoJournalSummaryPromptEnabled:
+          updatedCfg.autoJournalSummaryPromptEnabled,
         autoJournalSummaryPrompt: updatedCfg.autoJournalSummaryPrompt,
       }
     }),
+
+  /**
+   * Get the current status of the auto-journal scheduler.
+   */
+  getAutoJournalSchedulerStatus: t.procedure.action(async () => {
+    return getSchedulerStatus()
+  }),
 
   /**
    * Persist an auto-journal summary as a new post in the current pile.
@@ -806,82 +812,14 @@ export const router = {
       activities: AutoJournalActivity[]
       windowStartTs?: number
       windowEndTs?: number
+      highlight?: "Highlight" | "Do later" | "New idea" | null
     }>()
     .action(async ({ input }) => {
-      const { pilePath, summary, activities, windowStartTs, windowEndTs } =
-        input
-
-      if (!pilePath || !fs.existsSync(pilePath)) {
-        throw new Error("Invalid pile path")
-      }
-
-      const timestamp = new Date()
-      const { absDir, absPath, relPath } = buildNewPostPath(pilePath, timestamp)
-      await fs.promises.mkdir(absDir, { recursive: true })
-
-      // Format time helper
-      const formatTime = (ts: number) => {
-        const d = new Date(ts)
-        return d.toLocaleTimeString(undefined, {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })
-      }
-
-      // Build clean, Dayflow-style content
-      const contentLines: string[] = []
-
-      // Main summary
-      contentLines.push(summary)
-      contentLines.push("")
-
-      // Activities - clean format
-      activities.forEach((act) => {
-        const timeRange =
-          act.startTs && act.endTs
-            ? `${formatTime(act.startTs)} - ${formatTime(act.endTs)}`
-            : ""
-
-        contentLines.push(`### ${act.title}`)
-        if (timeRange) {
-          contentLines.push(`*${timeRange}*`)
-        }
-        contentLines.push("")
-        contentLines.push(act.summary)
-        contentLines.push("")
-      })
-
-      const content = contentLines.join("\n").trim()
-      const nowIso = timestamp.toISOString()
-
-      // Use first activity title or generic title
-      const mainTitle =
-        activities.length === 1 && activities[0].title
-          ? activities[0].title
-          : activities.length > 0
-            ? `${activities[0].title}${activities.length > 1 ? ` (+${activities.length - 1} more)` : ""}`
-            : `Auto Journal ${nowIso.slice(0, 10)}`
-
-      const data = {
-        title: mainTitle,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-        isAI: true,
-        isReply: false,
-        tags: ["auto-journal"],
-        replies: [],
-        attachments: [],
-        windowStartTs: windowStartTs ?? null,
-        windowEndTs: windowEndTs ?? null,
-      }
-
-      const markdown = matter.stringify(content, data)
-      await fs.promises.writeFile(absPath, markdown, "utf-8")
-
-      return {
-        path: absPath,
-        relativePath: relPath,
+      try {
+        return await saveAutoJournalEntry(input)
+      } catch (error) {
+        console.error("[auto-journal] Failed to save entry", error)
+        throw error
       }
     }),
 

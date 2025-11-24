@@ -26,13 +26,18 @@ const configureSherpaLibraryPaths = () => {
   try {
     const platform = process.platform
     const arch = process.arch
-    const platformArch = platform === "win32" ? `win-${arch}` : `${platform}-${arch}`
+    const platformArch =
+      platform === "win32" ? `win-${arch}` : `${platform}-${arch}`
 
     let sherpaLibPath = ""
 
     if (app.isPackaged) {
       // Production: use unpacked node_modules
-      const nodeModulesPath = path.join(process.resourcesPath, "app.asar.unpacked", "node_modules")
+      const nodeModulesPath = path.join(
+        process.resourcesPath,
+        "app.asar.unpacked",
+        "node_modules",
+      )
       sherpaLibPath = path.join(nodeModulesPath, `sherpa-onnx-${platformArch}`)
     } else {
       // Development: use pnpm structure - need to find the actual path
@@ -40,7 +45,10 @@ const configureSherpaLibraryPaths = () => {
       const baseNodeModules = path.join(__dirname, "..", "..", "node_modules")
 
       // First try direct path (for non-pnpm or hoisted)
-      const directPath = path.join(baseNodeModules, `sherpa-onnx-${platformArch}`)
+      const directPath = path.join(
+        baseNodeModules,
+        `sherpa-onnx-${platformArch}`,
+      )
 
       if (fs.existsSync(directPath)) {
         // Check if it's a symlink and resolve it
@@ -53,7 +61,7 @@ const configureSherpaLibraryPaths = () => {
           ".pnpm",
           `sherpa-onnx-${platformArch}@1.12.17`,
           "node_modules",
-          `sherpa-onnx-${platformArch}`
+          `sherpa-onnx-${platformArch}`,
         )
         if (fs.existsSync(pnpmPath)) {
           sherpaLibPath = pnpmPath
@@ -64,11 +72,15 @@ const configureSherpaLibraryPaths = () => {
     if (sherpaLibPath) {
       if (platform === "darwin") {
         const current = process.env.DYLD_LIBRARY_PATH || ""
-        process.env.DYLD_LIBRARY_PATH = current ? `${sherpaLibPath}:${current}` : sherpaLibPath
+        process.env.DYLD_LIBRARY_PATH = current
+          ? `${sherpaLibPath}:${current}`
+          : sherpaLibPath
         console.log(`[sherpa] Set DYLD_LIBRARY_PATH: ${sherpaLibPath}`)
       } else if (platform === "linux") {
         const current = process.env.LD_LIBRARY_PATH || ""
-        process.env.LD_LIBRARY_PATH = current ? `${sherpaLibPath}:${current}` : sherpaLibPath
+        process.env.LD_LIBRARY_PATH = current
+          ? `${sherpaLibPath}:${current}`
+          : sherpaLibPath
         console.log(`[sherpa] Set LD_LIBRARY_PATH: ${sherpaLibPath}`)
       } else if (platform === "win32") {
         const current = process.env.PATH || ""
@@ -76,7 +88,9 @@ const configureSherpaLibraryPaths = () => {
         console.log(`[sherpa] Added to PATH: ${sherpaLibPath}`)
       }
     } else {
-      console.warn(`[sherpa] Could not find sherpa-onnx-${platformArch} library path`)
+      console.warn(
+        `[sherpa] Could not find sherpa-onnx-${platformArch} library path`,
+      )
     }
   } catch (error) {
     console.warn("[sherpa] Failed to configure library paths:", error)
@@ -114,22 +128,27 @@ app.whenReady().then(() => {
 
   createPanelWindow()
 
+  console.log("[App] About to start keyboard listener...")
   listenToKeyboardEvents()
+  console.log("[App] Keyboard listener started")
 
   initTray()
 
   // Initialize global shortcuts
   const shortcutSuccess = globalShortcutManager.registerPasteLastTranscription()
   if (shortcutSuccess) {
-    console.log('Global shortcuts initialized successfully')
+    console.log("Global shortcuts initialized successfully")
   } else {
-    console.error('Failed to initialize global shortcuts')
+    console.error("Failed to initialize global shortcuts")
   }
 
   // Initialize media controller
   const config = configStore.get()
   mediaController.setEnabled(config.isPauseMediaEnabled ?? false)
-  console.log('[MediaController] Initialized, enabled:', mediaController.isEnabled())
+  console.log(
+    "[MediaController] Initialized, enabled:",
+    mediaController.isEnabled(),
+  )
 
   // Pre-warm Parakeet to avoid cold-start lag if it's the default local model
   const defaultLocalModel = config.defaultLocalModel

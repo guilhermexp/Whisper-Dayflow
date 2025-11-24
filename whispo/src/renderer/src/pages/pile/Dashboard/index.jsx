@@ -1,5 +1,13 @@
 import styles from "./Dashboard.module.scss"
-import { CardIcon, CrossIcon, RefreshIcon, ClockIcon, GaugeIcon, CopyIcon } from "renderer/icons"
+import layoutStyles from "../PileLayout.module.scss"
+import {
+  CardIcon,
+  CrossIcon,
+  RefreshIcon,
+  ClockIcon,
+  GaugeIcon,
+  CopyIcon,
+} from "renderer/icons"
 import { useMemo, useState } from "react"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import * as Dialog from "@radix-ui/react-dialog"
@@ -58,8 +66,14 @@ export default function Dashboard() {
 
   // History data
   const historyData = historyQuery.data || []
-  const totalSize = historyData.reduce((acc, item) => acc + (item.fileSize || 0), 0)
-  const totalDuration = historyData.reduce((acc, item) => acc + (item.duration || 0), 0)
+  const totalSize = historyData.reduce(
+    (acc, item) => acc + (item.fileSize || 0),
+    0,
+  )
+  const totalDuration = historyData.reduce(
+    (acc, item) => acc + (item.duration || 0),
+    0,
+  )
 
   const data = analyticsQuery.data
   const timelineData = useMemo(() => {
@@ -135,8 +149,8 @@ export default function Dashboard() {
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
-        <div className={styles.iconHolder}>
-          <CardIcon className={styles.dashboardIcon} />
+        <div className={layoutStyles.iconHolder}>
+          <CardIcon />
         </div>
       </Dialog.Trigger>
       <Dialog.Portal container={document.getElementById("dialog")}>
@@ -189,7 +203,14 @@ export default function Dashboard() {
               </Tabs.List>
 
               {/* Dashboard Tab */}
-              <Tabs.Content value="dashboard" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <Tabs.Content
+                value="dashboard"
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
                 {!data ? (
                   <div className={styles.EmptyState}>
                     {analyticsQuery.isLoading
@@ -248,7 +269,12 @@ export default function Dashboard() {
                             <ResponsiveContainer width="100%" height="100%">
                               <LineChart
                                 data={timelineData}
-                                margin={{ top: 8, right: 8, bottom: 0, left: -20 }}
+                                margin={{
+                                  top: 8,
+                                  right: 8,
+                                  bottom: 0,
+                                  left: -20,
+                                }}
                               >
                                 <CartesianGrid
                                   strokeDasharray="3 3"
@@ -257,11 +283,17 @@ export default function Dashboard() {
                                 <XAxis
                                   dataKey="label"
                                   tickLine={false}
-                                  tick={{ fontSize: 10, fill: "var(--secondary)" }}
+                                  tick={{
+                                    fontSize: 10,
+                                    fill: "var(--secondary)",
+                                  }}
                                 />
                                 <YAxis
                                   tickLine={false}
-                                  tick={{ fontSize: 10, fill: "var(--secondary)" }}
+                                  tick={{
+                                    fontSize: 10,
+                                    fill: "var(--secondary)",
+                                  }}
                                 />
                                 <RechartsTooltip
                                   contentStyle={{
@@ -314,7 +346,9 @@ export default function Dashboard() {
                                     {providerData.map((_, index) => (
                                       <Cell
                                         key={index}
-                                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                                        fill={
+                                          PIE_COLORS[index % PIE_COLORS.length]
+                                        }
                                       />
                                     ))}
                                   </Pie>
@@ -349,65 +383,82 @@ export default function Dashboard() {
                     </div>
 
                     {/* STT Model Performance */}
-                    {data.sttModelRanking && data.sttModelRanking.length > 0 && (
-                      <div className={styles.PerformanceCard}>
-                        <div className={styles.CardTitle}>
-                          {t("analytics.sttModelPerformance")}
-                        </div>
-                        <div className={styles.TableWrapper}>
-                          <table className={styles.Table}>
-                            <thead>
-                              <tr>
-                                <th>#</th>
-                                <th>{t("analytics.model")}</th>
-                                <th>{t("analytics.uses")}</th>
-                                <th>{t("analytics.avg")}</th>
-                                <th>{t("analytics.success")}</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {data.sttModelRanking.slice(0, 5).map((model, index) => (
-                                <tr key={model.modelId}>
-                                  <td>{index + 1}</td>
-                                  <td className={styles.ModelName}>
-                                    {model.modelName}
-                                  </td>
-                                  <td>{model.count}</td>
-                                  <td>{formatProcessing(model.averageLatencyMs)}</td>
-                                  <td>
-                                    <span
-                                      className={styles.SuccessRate}
-                                      style={{
-                                        background:
-                                          model.successRate >= 0.95
-                                            ? "rgba(34, 197, 94, 0.2)"
-                                            : model.successRate >= 0.8
-                                            ? "rgba(234, 179, 8, 0.2)"
-                                            : "rgba(239, 68, 68, 0.2)",
-                                        color:
-                                          model.successRate >= 0.95
-                                            ? "#22c55e"
-                                            : model.successRate >= 0.8
-                                            ? "#eab308"
-                                            : "#ef4444",
-                                      }}
-                                    >
-                                      {(model.successRate * 100).toFixed(0)}%
-                                    </span>
-                                  </td>
+                    {data.sttModelRanking &&
+                      data.sttModelRanking.length > 0 && (
+                        <div className={styles.PerformanceCard}>
+                          <div className={styles.CardTitle}>
+                            {t("analytics.sttModelPerformance")}
+                          </div>
+                          <div className={styles.TableWrapper}>
+                            <table className={styles.Table}>
+                              <thead>
+                                <tr>
+                                  <th>#</th>
+                                  <th>{t("analytics.model")}</th>
+                                  <th>{t("analytics.uses")}</th>
+                                  <th>{t("analytics.avg")}</th>
+                                  <th>{t("analytics.success")}</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {data.sttModelRanking
+                                  .slice(0, 5)
+                                  .map((model, index) => (
+                                    <tr key={model.modelId}>
+                                      <td>{index + 1}</td>
+                                      <td className={styles.ModelName}>
+                                        {model.modelName}
+                                      </td>
+                                      <td>{model.count}</td>
+                                      <td>
+                                        {formatProcessing(
+                                          model.averageLatencyMs,
+                                        )}
+                                      </td>
+                                      <td>
+                                        <span
+                                          className={styles.SuccessRate}
+                                          style={{
+                                            background:
+                                              model.successRate >= 0.95
+                                                ? "rgba(34, 197, 94, 0.2)"
+                                                : model.successRate >= 0.8
+                                                  ? "rgba(234, 179, 8, 0.2)"
+                                                  : "rgba(239, 68, 68, 0.2)",
+                                            color:
+                                              model.successRate >= 0.95
+                                                ? "#22c55e"
+                                                : model.successRate >= 0.8
+                                                  ? "#eab308"
+                                                  : "#ef4444",
+                                          }}
+                                        >
+                                          {(model.successRate * 100).toFixed(0)}
+                                          %
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 )}
               </Tabs.Content>
 
               {/* History Tab */}
-              <Tabs.Content value="history" style={{ width: '100%', display: 'flex', justifyContent: 'center', flex: 1, minHeight: 0 }}>
+              <Tabs.Content
+                value="history"
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "center",
+                  flex: 1,
+                  minHeight: 0,
+                }}
+              >
                 <div className={styles.HistoryContainer}>
                   {/* Minimalist Header */}
                   <div className={styles.HistoryListHeader}>
@@ -436,9 +487,15 @@ export default function Dashboard() {
                     ) : (
                       historyData
                         .slice()
-                        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                        .sort(
+                          (a, b) =>
+                            new Date(b.createdAt) - new Date(a.createdAt),
+                        )
                         .map((item, index) => (
-                          <div key={`${item.id}-${index}`} className={styles.HistoryItem}>
+                          <div
+                            key={`${item.id}-${index}`}
+                            className={styles.HistoryItem}
+                          >
                             <div className={styles.HistoryHeader}>
                               <div className={styles.HistoryDate}>
                                 {formatDate(item.createdAt)}
@@ -451,7 +508,9 @@ export default function Dashboard() {
                                   className={styles.CopyBtn}
                                   onClick={() => {
                                     if (item.transcript) {
-                                      navigator.clipboard.writeText(item.transcript)
+                                      navigator.clipboard.writeText(
+                                        item.transcript,
+                                      )
                                     }
                                   }}
                                   title={t("common.copy")}
@@ -461,7 +520,9 @@ export default function Dashboard() {
                                 <button
                                   className={styles.DeleteIconBtn}
                                   onClick={() => {
-                                    if (window.confirm(t("history.deleteConfirm"))) {
+                                    if (
+                                      window.confirm(t("history.deleteConfirm"))
+                                    ) {
                                       deleteRecordingMutation.mutate(item.id)
                                     }
                                   }}
@@ -471,7 +532,8 @@ export default function Dashboard() {
                               </div>
                             </div>
                             <div className={styles.HistoryTranscript}>
-                              {item.transcript || t("analytics.noTranscription")}
+                              {item.transcript ||
+                                t("analytics.noTranscription")}
                             </div>
                             <div className={styles.HistoryMeta}>
                               {item.providerId && (
@@ -480,7 +542,9 @@ export default function Dashboard() {
                                 </span>
                               )}
                               {item.fileSize && (
-                                <span className={styles.MetaItem}>{formatBytes(item.fileSize)}</span>
+                                <span className={styles.MetaItem}>
+                                  {formatBytes(item.fileSize)}
+                                </span>
                               )}
                             </div>
                           </div>

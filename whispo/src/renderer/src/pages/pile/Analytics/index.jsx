@@ -1,15 +1,35 @@
 import styles from './Analytics.module.scss';
 import { GaugeIcon, CrossIcon, ClockIcon } from 'renderer/icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tabs from '@radix-ui/react-tabs';
 import { tipcClient } from 'renderer/lib/tipc-client';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 export default function Analytics() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [open, setOpen] = useState(false);
   const [mainTab, setMainTab] = useState('analytics');
+
+  // Handle URL params for opening dialog
+  useEffect(() => {
+    const dialog = searchParams.get('dialog');
+    const tab = searchParams.get('tab');
+
+    if (dialog === 'analytics') {
+      setOpen(true);
+      if (tab === 'history' || tab === 'analytics') {
+        setMainTab(tab);
+      }
+      // Clear the URL params after opening
+      searchParams.delete('dialog');
+      searchParams.delete('tab');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Analytics queries
   const historyQuery = useQuery({
@@ -99,7 +119,7 @@ export default function Analytics() {
   };
 
   return (
-    <Dialog.Root>
+    <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
         <div className={styles.iconHolder}>
           <GaugeIcon className={styles.analyticsIcon} />

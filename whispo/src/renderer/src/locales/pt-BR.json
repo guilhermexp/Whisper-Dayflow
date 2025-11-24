@@ -502,7 +502,9 @@
     "generateDescription": "Gere um resumo das gravações recentes usando IA.",
     "runCompleted": "Execução do auto diário concluída com sucesso.",
     "savedToJournal": "Resumo salvo no diário com sucesso.",
+    "published": "Publicado",
     "saveError": "Falha ao salvar no diário.",
+    "timeout": "Tempo esgotado",
     "noPileSelected": "Nenhum pile selecionado. Por favor, selecione um pile alvo nas configurações.",
     "settingsSaved": "Configurações do auto diário salvas.",
     "enableScheduler": "Ativar Execuções Automáticas",
@@ -518,7 +520,13 @@
     "cardTitles": "Títulos dos Cards",
     "cardTitlesDesc": "Controle tom e estilo para os títulos. Ajuste exemplos e regras.",
     "cardSummaries": "Resumos dos Cards",
-    "cardSummariesDesc": "Controle tom e estilo para os resumos."
+    "cardSummariesDesc": "Controle tom e estilo para os resumos.",
+    "autoSave": "Salvar automaticamente no diário",
+    "autoSaveDesc": "Após cada execução automática, salvar o resumo no pile de destino.",
+    "schedulerActive": "Scheduler Ativo",
+    "schedulerInactive": "Scheduler Inativo",
+    "nextRun": "Próxima execução",
+    "lastRun": "Última execução"
   },
   "highlights": {
     "title": "Destaques",

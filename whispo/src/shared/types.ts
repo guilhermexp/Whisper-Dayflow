@@ -185,6 +185,8 @@ export type AutoJournalSummary = {
   windowEndTs: number
   /** High-level summary of the whole window in a short paragraph */
   summary: string
+  /** Detected highlight type for the entry */
+  highlight?: "Highlight" | "Do later" | "New idea" | null
   /** Activity blocks covering this window */
   activities: AutoJournalActivity[]
   /** Optional diagnostics for UI/debug */
@@ -199,6 +201,7 @@ export type AutoJournalRun = {
   windowMinutes: number
   summary?: AutoJournalSummary
   error?: string
+  autoSaved?: boolean
 }
 
 export type SavedRecordingSearch = {
@@ -296,6 +299,7 @@ export type Config = {
   autoJournalWindowMinutes?: number
   autoJournalTargetPilePath?: string
   autoJournalPrompt?: string // Legacy - kept for backwards compatibility
+  autoJournalAutoSaveEnabled?: boolean
 
   // Auto-journal prompt customization (Dayflow-style)
   autoJournalTitlePromptEnabled?: boolean

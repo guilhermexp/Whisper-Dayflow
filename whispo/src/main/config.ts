@@ -72,6 +72,7 @@ const withDefaults = (config?: Config): Config => {
     autoJournalEnabled: config?.autoJournalEnabled ?? false,
     autoJournalWindowMinutes: config?.autoJournalWindowMinutes ?? 60,
     autoJournalTargetPilePath: config?.autoJournalTargetPilePath ?? "",
+    autoJournalAutoSaveEnabled: config?.autoJournalAutoSaveEnabled ?? false,
     autoJournalPrompt: config?.autoJournalPrompt ?? "",
 
     // Context capture defaults
