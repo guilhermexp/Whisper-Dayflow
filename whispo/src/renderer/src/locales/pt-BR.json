@@ -395,6 +395,7 @@
       "local": "Local",
       "cloudDesc": "Configure provedores de STT em nuvem. Clique para expandir e definir chaves de API.",
       "defaultProvider": "Provedor STT Padrão",
+      "currentModel": "Modelo atual",
       "apiKey": "Chave de API",
       "model": "Modelo",
       "customModels": "Modelos Personalizados",
@@ -423,6 +424,8 @@
       "localDisclaimer": "Modelos locais rodam inteiramente na sua máquina sem conexão com a internet."
     },
     "saveChanges": "Salvar alterações",
+    "saved": "Salvo",
+    "saveError": "Erro ao salvar",
     "close": "Fechar",
     "cancel": "Cancelar",
     "save": "Salvar"

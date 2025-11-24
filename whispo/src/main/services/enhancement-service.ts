@@ -105,12 +105,18 @@ export class EnhancementService {
     const promptId = options?.promptId ?? config.selectedPromptId ?? "default"
 
     console.log("[enhancement-service] Starting enhancement process")
-    console.log("[enhancement-service] Input text length:", rawText.length, "chars")
+    console.log(
+      "[enhancement-service] Input text length:",
+      rawText.length,
+      "chars",
+    )
     console.log("[enhancement-service] Prompt ID:", promptId)
 
     // If enhancement is disabled, return passthrough
     if (!config.enhancementEnabled) {
-      console.log("[enhancement-service] Enhancement is disabled, returning original")
+      console.log(
+        "[enhancement-service] Enhancement is disabled, returning original",
+      )
       return this.createPassthroughResult(rawText, startTime)
     }
 
@@ -123,7 +129,10 @@ export class EnhancementService {
         options?.skipContext,
       )
       console.log("[enhancement-service] Prompt built successfully")
-      console.log("[enhancement-service] Context captured:", context ? "Yes" : "No")
+      console.log(
+        "[enhancement-service] Context captured:",
+        context ? "Yes" : "No",
+      )
 
       ensureNotAborted()
 
@@ -136,14 +145,22 @@ export class EnhancementService {
         () => this.callLLM(prompt, options?.signal),
         { maxRetries: 3, initialDelay: 1000 },
       )
-      console.log("[enhancement-service] LLM response received, length:", enhancedText.length, "chars")
+      console.log(
+        "[enhancement-service] LLM response received, length:",
+        enhancedText.length,
+        "chars",
+      )
 
       ensureNotAborted()
 
       // Filter output (remove common AI wrapper phrases)
       console.log("[enhancement-service] Filtering output...")
       const filteredText = this.filterOutput(enhancedText)
-      console.log("[enhancement-service] Output filtered, final length:", filteredText.length, "chars")
+      console.log(
+        "[enhancement-service] Output filtered, final length:",
+        filteredText.length,
+        "chars",
+      )
 
       // Create result
       const result: EnhancementResult = {
@@ -161,7 +178,11 @@ export class EnhancementService {
       this.history.push(result)
       this.trimHistory()
 
-      console.log("[enhancement-service] ✅ Enhancement completed successfully in", result.processingTime, "ms")
+      console.log(
+        "[enhancement-service] ✅ Enhancement completed successfully in",
+        result.processingTime,
+        "ms",
+      )
       return result
     } catch (error) {
       // On error, return original text with error info
@@ -170,7 +191,10 @@ export class EnhancementService {
       if (error instanceof Error) {
         if (error.name === "AbortError") {
           errorMessage = "Request timeout - API took too long to respond (>30s)"
-          console.error("[enhancement-service] ❌ Enhancement timeout:", errorMessage)
+          console.error(
+            "[enhancement-service] ❌ Enhancement timeout:",
+            errorMessage,
+          )
         } else if (error.message.includes("API key")) {
           errorMessage = error.message
           console.error("[enhancement-service] ❌ API key error:", errorMessage)
@@ -271,10 +295,7 @@ export class EnhancementService {
   /**
    * Call the LLM provider to enhance the text
    */
-  private async callLLM(
-    prompt: string,
-    signal?: AbortSignal,
-  ): Promise<string> {
+  private async callLLM(prompt: string, signal?: AbortSignal): Promise<string> {
     const config = configStore.get()
     const provider = config.enhancementProvider ?? "openai"
 
@@ -314,7 +335,9 @@ export class EnhancementService {
             : config.openaiBaseUrl || "https://api.openai.com/v1"
 
     if (!apiKey) {
-      throw new Error(`${provider === "custom" ? "Custom provider" : provider} API key is required`)
+      throw new Error(
+        `${provider === "custom" ? "Custom provider" : provider} API key is required`,
+      )
     }
 
     const timeout = config.enhancementTimeout ?? 30000
@@ -328,6 +351,18 @@ export class EnhancementService {
     }
 
     try {
+      const useNewTokenParam =
+        model.startsWith("gpt-4o") ||
+        model.startsWith("gpt-4-turbo") ||
+        model.startsWith("gpt-5") ||
+        model.startsWith("o1")
+
+      // Reasoning models (o1, o3, gpt-5) don't support temperature parameter
+      const isReasoningModel =
+        model.startsWith("o1") ||
+        model.startsWith("o3") ||
+        model.startsWith("gpt-5")
+
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
@@ -342,8 +377,11 @@ export class EnhancementService {
               content: prompt,
             },
           ],
-          temperature: 0.3,
-          max_tokens: 4000,
+          // Reasoning models don't support temperature - omit for them
+          ...(isReasoningModel ? {} : { temperature: 0.3 }),
+          ...(useNewTokenParam
+            ? { max_completion_tokens: 800 }
+            : { max_tokens: 800 }),
         }),
         signal: controller.signal,
       })
@@ -352,7 +390,10 @@ export class EnhancementService {
         let errorDetails = ""
         try {
           const errorData = await response.json()
-          errorDetails = errorData.error?.message || errorData.message || JSON.stringify(errorData)
+          errorDetails =
+            errorData.error?.message ||
+            errorData.message ||
+            JSON.stringify(errorData)
         } catch {
           errorDetails = await response.text()
         }
@@ -365,7 +406,9 @@ export class EnhancementService {
         } else if (response.status === 403) {
           throw new Error("Access forbidden - check API key permissions")
         } else if (response.status >= 500) {
-          throw new Error(`${provider} API is temporarily unavailable (${response.status})`)
+          throw new Error(
+            `${provider} API is temporarily unavailable (${response.status})`,
+          )
         } else {
           throw new Error(
             `Enhancement failed (${response.status}): ${errorDetails.slice(0, 300)}`,
@@ -376,12 +419,21 @@ export class EnhancementService {
       const data = await response.json()
 
       // Validate API response structure
-      if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+      if (
+        !data.choices ||
+        !Array.isArray(data.choices) ||
+        data.choices.length === 0
+      ) {
         throw new Error("Invalid API response: missing or empty choices array")
       }
 
-      if (!data.choices[0].message || typeof data.choices[0].message.content !== "string") {
-        throw new Error("Invalid API response: missing or invalid message content")
+      if (
+        !data.choices[0].message ||
+        typeof data.choices[0].message.content !== "string"
+      ) {
+        throw new Error(
+          "Invalid API response: missing or invalid message content",
+        )
       }
 
       return data.choices[0].message.content
@@ -467,7 +519,10 @@ export class EnhancementService {
           hasContext = true
         }
       } catch (error) {
-        console.error("[enhancement-service] Failed to capture screen text:", error)
+        console.error(
+          "[enhancement-service] Failed to capture screen text:",
+          error,
+        )
       }
     }
 
@@ -503,7 +558,10 @@ export class EnhancementService {
       // Format the result with metadata
       return screenCaptureService.formatForContext(result)
     } catch (error) {
-      console.error("[enhancement-service] Error during screen capture OCR:", error)
+      console.error(
+        "[enhancement-service] Error during screen capture OCR:",
+        error,
+      )
       return undefined
     }
   }

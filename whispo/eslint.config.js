@@ -1,16 +1,17 @@
 export default [
   {
-    files: ["**/*.{js,cjs,mjs}"],
+    // Global ignores (flat config replacement for .eslintignore)
     ignores: [
       "node_modules/**",
       "out/**",
       "dist/**",
       "resources/**",
       "whispo-rs/**",
-      "**/*.ts",
-      "**/*.tsx",
-      "**/*.d.ts",
     ],
+  },
+  {
+    files: ["**/*.{js,cjs,mjs}"],
+    ignores: ["**/*.ts", "**/*.tsx", "**/*.d.ts"],
     languageOptions: {
       sourceType: "module",
       ecmaVersion: 2022,

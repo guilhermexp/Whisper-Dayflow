@@ -20,6 +20,30 @@ type ChildProcessResult = {
   stdout: string
 }
 
+const createSilentWav = (durationSeconds: number, sampleRate = 16000): Buffer => {
+  const numSamples = Math.max(1, Math.floor(durationSeconds * sampleRate))
+  const dataSize = numSamples * 2 // 16-bit PCM mono
+  const buffer = Buffer.alloc(44 + dataSize)
+
+  // RIFF header
+  buffer.write("RIFF", 0)
+  buffer.writeUInt32LE(36 + dataSize, 4)
+  buffer.write("WAVE", 8)
+  buffer.write("fmt ", 12)
+  buffer.writeUInt32LE(16, 16) // Subchunk1Size
+  buffer.writeUInt16LE(1, 20) // PCM
+  buffer.writeUInt16LE(1, 22) // Mono
+  buffer.writeUInt32LE(sampleRate, 24)
+  buffer.writeUInt32LE(sampleRate * 2, 28) // Byte rate
+  buffer.writeUInt16LE(2, 32) // Block align
+  buffer.writeUInt16LE(16, 34) // Bits per sample
+  buffer.write("data", 36)
+  buffer.writeUInt32LE(dataSize, 40)
+
+  // Samples are already zeroed (silence)
+  return buffer
+}
+
 const ensureLocalModelPath = (model: AnyModel | undefined): string => {
   if (!model) {
     throw new Error("Local model not found. Please download it again.")
@@ -188,13 +212,14 @@ export const transcribeWithLocalModel = async ({
   if (engine === "sherpa") {
     console.log(`[local-transcriber] Using sherpa-onnx engine for ${targetModel.displayName}`)
 
-    // Process audio with VAD and normalization for sherpa
+    // Align behavior to the VoiceInk implementation:
+    // - No normalization for Parakeet (let the model handle levels)
+    // - Only run VAD on longer clips (>=20s) with a stricter threshold
     const processedAudio = await audioProcessingService.processAudio(audioBuffer, {
       enableVad: true,
-      vadThreshold: 0.01,
-      vadMinDurationForProcessing: 5, // Only apply VAD for audio > 5s
-      enableNormalization: true,
-      targetRms: 0.1,
+      vadThreshold: 0.7,
+      vadMinDurationForProcessing: 20, // Match VoiceInk: only VAD on long audio
+      enableNormalization: false,
     })
 
     return transcribeWithSherpa({
@@ -265,5 +290,40 @@ export const transcribeWithLocalModel = async ({
   } finally {
     console.log(`[local-transcriber] Cleaning up temp directory: ${tempDir}`)
     fs.promises.rm(tempDir, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
+export const warmupParakeetModel = async (modelId: string, threads?: number | null) => {
+  try {
+    const models = await modelManager.listAllModels()
+    const targetModel = models.find(
+      (model) =>
+        (model.provider === "local" || model.provider === "local-imported") &&
+        model.id === modelId,
+    ) as LocalModel | undefined
+
+    if (!targetModel || targetModel.engine !== "sherpa") {
+      return
+    }
+
+    const modelPath = ensureLocalModelPath(targetModel)
+    if (!fs.existsSync(modelPath)) {
+      console.warn(`[local-transcriber] Warmup skipped, model not on disk: ${modelPath}`)
+      return
+    }
+
+    console.log(`[local-transcriber] Warmup: preloading Parakeet recognizer for ${targetModel.displayName}`)
+    const silentWav = createSilentWav(0.3) // ~300ms of silence to trigger recognizer creation
+
+    await transcribeWithSherpa({
+      audioBuffer: silentWav,
+      modelPath,
+      threads,
+      signal: undefined,
+    })
+
+    console.log("[local-transcriber] Warmup complete")
+  } catch (error) {
+    console.warn("[local-transcriber] Warmup failed (non-fatal):", error)
   }
 }

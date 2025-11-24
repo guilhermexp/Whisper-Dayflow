@@ -286,7 +286,7 @@ Bad examples:
 
   return (
     <div className={`${layoutStyles.frame} ${themeStyles} ${osStyles}`}>
-      {/* Floating nav to keep top actions visible across pages */}
+      {/* Top nav consistent with main layout */}
       <div className={`${layoutStyles.nav} ${styles.floatingNav}`}>
         <div className={layoutStyles.left}></div>
         <div className={layoutStyles.right}>
@@ -296,11 +296,11 @@ Bad examples:
           <Search />
           <Settings />
           <Link to="/auto-journal" className={layoutStyles.iconHolder}>
-            <NotebookIcon className={layoutStyles.autoJournalIcon} />
+            <NotebookIcon />
           </Link>
           <Dashboard />
           <Link to="/" className={layoutStyles.iconHolder}>
-            <HomeIcon className={layoutStyles.homeIcon} />
+            <HomeIcon />
           </Link>
         </div>
       </div>

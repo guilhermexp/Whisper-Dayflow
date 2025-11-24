@@ -138,20 +138,33 @@ export const AIContextProvider = ({ children }) => {
           console.log('[Chat] BaseURL:', ai.instance?.baseURL);
           console.log('[Chat] Creating chat completion...');
 
+          // Newer models (gpt-4o, gpt-4-turbo, gpt-5, o1) use max_completion_tokens
+          const useNewTokenParam = currentModel.startsWith('gpt-4o') ||
+                                   currentModel.startsWith('gpt-4-turbo') ||
+                                   currentModel.startsWith('gpt-5') ||
+                                   currentModel.startsWith('o1');
+
           const stream = await ai.instance.chat.completions.create({
             model: currentModel,
             stream: true,
-            max_tokens: 500,
+            ...(useNewTokenParam ? { max_completion_tokens: 500 } : { max_tokens: 500 }),
             messages: context,
           });
 
           console.log('[Chat] Stream created, receiving chunks...');
           let chunkCount = 0;
+          let totalContent = '';
           for await (const part of stream) {
             chunkCount++;
-            callback(part.choices[0].delta.content);
+            const content = part.choices[0]?.delta?.content;
+            if (content) {
+              totalContent += content;
+              callback(content);
+            }
           }
           console.log('[Chat] ✅ Response completed, chunks received:', chunkCount);
+          console.log('[Chat] Total content length:', totalContent.length);
+          console.log('[Chat] Content preview:', totalContent.substring(0, 100));
         }
       } catch (error) {
         console.error('[Chat] ❌ AI request failed:', error.message);

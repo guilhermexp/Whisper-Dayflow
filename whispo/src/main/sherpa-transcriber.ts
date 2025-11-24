@@ -24,8 +24,19 @@ type SherpaTranscriptionOptions = {
 let sherpaOnnx: typeof import("sherpa-onnx-node") | null = null
 
 // Cache for recognizers to avoid expensive re-initialization
-// Key is modelPath, value is the recognizer instance
+// Key is modelPath|provider|threads, value is the recognizer instance
 const recognizerCache = new Map<string, { recognizer: any; config: any }>()
+
+const selectSherpaProvider = (): "coreml" | "cpu" => {
+  // Prefer CoreML on Apple Silicon; fallback handled when constructing recognizer
+  if (process.platform === "darwin" && process.arch === "arm64") {
+    return "coreml"
+  }
+  return "cpu"
+}
+
+const buildCacheKey = (modelPath: string, provider: string, threads: number) =>
+  `${modelPath}|${provider}|${threads}`
 
 // Fix rpath in the native module on macOS (needed because sherpa-onnx uses hardcoded CI paths)
 const fixMacOSRpath = (nativeModulePath: string): void => {
@@ -353,10 +364,14 @@ export const transcribeWithSherpa = async ({
 
     // Calculate optimal thread count (like VoiceInk: cpuCount - 2, max 8, min 1)
     const cpuCount = os.cpus().length
-    const optimalThreads = threads ?? Math.max(1, Math.min(8, cpuCount - 2))
+    const optimalThreads = threads ?? Math.max(1, cpuCount - 1)
+
+    const preferredProvider = selectSherpaProvider()
+    let provider = preferredProvider
+    let cacheKey = buildCacheKey(modelPath, provider, optimalThreads)
 
     // Configure the recognizer
-    const config = {
+    const baseConfig = {
       featConfig: {
         sampleRate: 16000,
         featureDim: 80,
@@ -369,8 +384,7 @@ export const transcribeWithSherpa = async ({
         },
         tokens: modelFiles.tokens,
         numThreads: optimalThreads,
-        // CPU provider - CoreML requires converted models which we don't have
-        provider: "cpu",
+        provider,
         modelType: "nemo_transducer",
       },
     }
@@ -379,27 +393,66 @@ export const transcribeWithSherpa = async ({
 
     // Check if we have a cached recognizer for this model
     let recognizer
-    const cached = recognizerCache.get(modelPath)
+    let cached = recognizerCache.get(cacheKey)
     if (cached) {
-      console.log("[sherpa-transcriber] Using cached recognizer")
+      console.log(`[sherpa-transcriber] Using cached recognizer (provider=${provider}, threads=${optimalThreads})`)
       recognizer = cached.recognizer
     } else {
-      console.log("[sherpa-transcriber] Creating new OfflineRecognizer with config:", {
-        ...config,
+      const makeConfigForProvider = (prov: string) => ({
+        ...baseConfig,
         modelConfig: {
-          ...config.modelConfig,
+          ...baseConfig.modelConfig,
+          provider: prov,
           transducer: {
-            encoder: path.basename(config.modelConfig.transducer.encoder),
-            decoder: path.basename(config.modelConfig.transducer.decoder),
-            joiner: path.basename(config.modelConfig.transducer.joiner),
+            encoder: baseConfig.modelConfig.transducer.encoder,
+            decoder: baseConfig.modelConfig.transducer.decoder,
+            joiner: baseConfig.modelConfig.transducer.joiner,
           },
-          tokens: path.basename(config.modelConfig.tokens),
         },
       })
 
-      recognizer = new sherpa.OfflineRecognizer(config)
+      const safeLogConfig = (cfg: any) => ({
+        ...cfg,
+        modelConfig: {
+          ...cfg.modelConfig,
+          transducer: {
+            encoder: path.basename(cfg.modelConfig.transducer.encoder),
+            decoder: path.basename(cfg.modelConfig.transducer.decoder),
+            joiner: path.basename(cfg.modelConfig.transducer.joiner),
+          },
+          tokens: path.basename(cfg.modelConfig.tokens),
+        },
+      })
+
+      let config = makeConfigForProvider(provider)
+
+      const createRecognizer = (cfg: any) => {
+        console.log("[sherpa-transcriber] Creating new OfflineRecognizer with config:", safeLogConfig(cfg))
+        return new sherpa.OfflineRecognizer(cfg)
+      }
+
+      try {
+        recognizer = createRecognizer(config)
+      } catch (error) {
+        if (provider !== "cpu") {
+          console.warn(`[sherpa-transcriber] Provider ${provider} failed, falling back to CPU:`, error instanceof Error ? error.message : error)
+          provider = "cpu"
+          cacheKey = buildCacheKey(modelPath, provider, optimalThreads)
+          cached = recognizerCache.get(cacheKey)
+          if (cached) {
+            console.log(`[sherpa-transcriber] Using cached CPU recognizer (threads=${optimalThreads})`)
+            recognizer = cached.recognizer
+          } else {
+            config = makeConfigForProvider(provider)
+            recognizer = createRecognizer(config)
+          }
+        } else {
+          throw error
+        }
+      }
+
       // Cache the recognizer for future use
-      recognizerCache.set(modelPath, { recognizer, config })
+      recognizerCache.set(cacheKey, { recognizer, config })
       console.log("[sherpa-transcriber] Recognizer cached for future use")
     }
 

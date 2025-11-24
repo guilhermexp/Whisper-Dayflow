@@ -85,7 +85,7 @@ export default function PileLayout({ children }) {
               <Settings />
 
               <Link to="/auto-journal" className={styles.iconHolder}>
-                <NotebookIcon className={styles.autoJournalIcon} />
+                <NotebookIcon />
               </Link>
               <Dashboard />
               <Link to="/" className={`${styles.iconHolder}`}>
