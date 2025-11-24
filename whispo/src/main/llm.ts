@@ -340,13 +340,17 @@ Bad examples:
 - "Começou refatorando o sistema de autenticação antes de passar a debugar alguns problemas que surgiram. Acabou gastando tempo pesquisando soluções online." (Prolixo, falta especificidade)`
 
   // Use custom prompts if enabled, otherwise use defaults
-  const titleGuidelines = config.autoJournalTitlePromptEnabled && config.autoJournalTitlePrompt?.trim()
-    ? `## TITLE GUIDELINES\n${config.autoJournalTitlePrompt.trim()}`
-    : defaultTitleGuidelines
+  const titleGuidelines =
+    config.autoJournalTitlePromptEnabled &&
+    config.autoJournalTitlePrompt?.trim()
+      ? `## TITLE GUIDELINES\n${config.autoJournalTitlePrompt.trim()}`
+      : defaultTitleGuidelines
 
-  const summaryGuidelines = config.autoJournalSummaryPromptEnabled && config.autoJournalSummaryPrompt?.trim()
-    ? `## SUMMARY GUIDELINES\n${config.autoJournalSummaryPrompt.trim()}`
-    : defaultSummaryGuidelines
+  const summaryGuidelines =
+    config.autoJournalSummaryPromptEnabled &&
+    config.autoJournalSummaryPrompt?.trim()
+      ? `## SUMMARY GUIDELINES\n${config.autoJournalSummaryPrompt.trim()}`
+      : defaultSummaryGuidelines
 
   const userPrompt =
     options.promptOverride?.trim() || config.autoJournalPrompt?.trim() || ""
@@ -364,6 +368,7 @@ Group by PURPOSE, not by tool. "Pesquisando projeto em múltiplas fontes" = ONE 
 Return ONLY a JSON object with this exact shape:
 {
   "summary": "2-3 sentence overview of the entire period",
+  "highlight": "Highlight" | "Do later" | "New idea" | null,
   "activities": [
     {
       "startTs": 1732042800000,
@@ -381,6 +386,13 @@ Return ONLY a JSON object with this exact shape:
     }
   ]
 }
+
+## HIGHLIGHT DETECTION
+Analyze the content and assign ONE highlight type (or null if none apply):
+- "Highlight" (orange): Important moments, achievements, breakthroughs, key decisions, memorable events
+- "Do later" (green): Tasks mentioned but not completed, follow-ups needed, reminders, things to revisit
+- "New idea" (blue): Creative ideas, new concepts, brainstorming, innovative thoughts, suggestions to explore
+- null: Regular activities that don't need special attention
 
 ${titleGuidelines}
 
@@ -570,6 +582,8 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
     throw error
   }
 
+  const validHighlights = ["Highlight", "Do later", "New idea"]
+
   const summary =
     typeof parsed.summary === "string" && parsed.summary.trim().length
       ? parsed.summary.trim()
@@ -588,7 +602,8 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
           summary:
             typeof a.summary === "string" ? a.summary : "No summary provided.",
           category:
-            typeof a.category === "string" && validCategories.includes(a.category)
+            typeof a.category === "string" &&
+            validCategories.includes(a.category)
               ? a.category
               : undefined,
           detailedSummary: Array.isArray(a.detailedSummary)
@@ -597,7 +612,7 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
                   (d: any) =>
                     typeof d.startTs === "number" &&
                     typeof d.endTs === "number" &&
-                    typeof d.description === "string"
+                    typeof d.description === "string",
                 )
                 .map((d: any) => ({
                   startTs: d.startTs,
@@ -614,11 +629,18 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
         )
     : []
 
+  const highlight =
+    typeof parsed.highlight === "string" &&
+    validHighlights.includes(parsed.highlight)
+      ? (parsed.highlight as AutoJournalSummary["highlight"])
+      : null
+
   return {
     windowStartTs,
     windowEndTs,
     summary,
     activities,
+    highlight,
     debug: {
       provider: debugProvider,
       model: debugModel,

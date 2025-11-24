@@ -8,6 +8,8 @@ import {
 } from "./window"
 import { state } from "./state"
 import { configStore } from "./config"
+import { STT_PROVIDERS, type LocalSTTProviderId } from "../shared"
+import { PREDEFINED_LOCAL_MODELS } from "../shared/models/catalog"
 
 const defaultIcon = path.join(__dirname, `../../resources/${process.env.IS_MAC ? 'trayIconTemplate.png' : 'trayIcon.ico'}`)
 const stopIcon = path.join(
@@ -22,6 +24,58 @@ const enhancementProviders: Array<{ id: "openai" | "groq" | "gemini" | "openrout
   { id: "openrouter", label: "OpenRouter" },
   { id: "custom", label: "Custom" },
 ]
+
+const buildTranscriptionSubmenu = (): MenuItemConstructorOptions[] => {
+  const config = configStore.get()
+  const currentProviderId = config.sttProviderId ?? "openai"
+
+  const submenu: MenuItemConstructorOptions[] = [
+    {
+      label: "Cloud Providers",
+      enabled: false,
+    },
+  ]
+
+  // Add cloud providers
+  STT_PROVIDERS.forEach((provider) => {
+    submenu.push({
+      label: provider.label,
+      type: "radio",
+      checked: currentProviderId === provider.value,
+      click() {
+        configStore.save({
+          ...config,
+          sttProviderId: provider.value,
+        })
+      },
+    })
+  })
+
+  submenu.push({ type: "separator" })
+  submenu.push({
+    label: "Local Models",
+    enabled: false,
+  })
+
+  // Add local models
+  PREDEFINED_LOCAL_MODELS.forEach((model) => {
+    const localId = `local:${model.id}` as LocalSTTProviderId
+    submenu.push({
+      label: model.displayName,
+      type: "radio",
+      checked: currentProviderId === localId,
+      click() {
+        configStore.save({
+          ...config,
+          sttProviderId: localId,
+          defaultLocalModel: model.id,
+        })
+      },
+    })
+  })
+
+  return submenu
+}
 
 const buildEnhancementSubmenu = (): MenuItemConstructorOptions[] => {
   const config = configStore.get()
@@ -87,8 +141,21 @@ const buildMenu = (tray: Tray) =>
       type: "separator",
     },
     {
+      label: "Transcription",
+      submenu: buildTranscriptionSubmenu(),
+    },
+    {
       label: "Enhancement",
       submenu: buildEnhancementSubmenu(),
+    },
+    {
+      type: "separator",
+    },
+    {
+      label: "History",
+      click() {
+        showMainWindow("/?dialog=analytics&tab=history")
+      },
     },
     {
       label: "Settings",

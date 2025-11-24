@@ -14,7 +14,9 @@ import { WHISPO_RS_BINARY_PATH } from "./native-binary"
 export const openAccessibilitySettings = async () => {
   if (process.env.IS_MAC) {
     // Open System Preferences to Accessibility pane
-    await shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+    await shell.openExternal(
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+    )
   }
 }
 
@@ -52,7 +54,14 @@ export const writeText = (text: string) => {
       console.error(`stderr: ${data}`)
     })
 
+    child.on("error", (err) => {
+      console.error("[WriteText] Spawn error:", err)
+      reject(new Error(`Erro ao executar binário: ${err.message}`))
+    })
+
     child.on("close", (code) => {
+      console.log("[WriteText] Process closed with code:", code)
+
       // WORKAROUND: The whispo-rs writeText operation triggers spurious KeyPress
       // events (particularly 'A' key) after text simulation completes. This appears
       // to be a side effect of the text simulation process in the Rust binary.
@@ -112,8 +121,14 @@ export function listenToKeyboardEvents() {
   let isEscPrimed = false
   const ESC_DOUBLE_PRESS_THRESHOLD = 1500
 
+  console.log("[Keyboard] Starting keyboard listener...")
+  console.log("[Keyboard] Binary path:", WHISPO_RS_BINARY_PATH)
+
   if (process.env.IS_MAC) {
-    if (!systemPreferences.isTrustedAccessibilityClient(false)) {
+    const hasAccess = systemPreferences.isTrustedAccessibilityClient(false)
+    console.log("[Keyboard] Accessibility permission:", hasAccess)
+    if (!hasAccess) {
+      console.log("[Keyboard] No accessibility permission, aborting listener")
       return
     }
   }
@@ -248,7 +263,20 @@ export function listenToKeyboardEvents() {
     }
   }
 
+  console.log("[Keyboard] Spawning binary with 'listen' command...")
   const child = spawn(WHISPO_RS_BINARY_PATH, ["listen"], {})
+
+  child.on("error", (err) => {
+    console.error("[Keyboard] Failed to spawn binary:", err)
+  })
+
+  child.on("close", (code) => {
+    console.log("[Keyboard] Binary process closed with code:", code)
+  })
+
+  child.stderr.on("data", (data) => {
+    console.error("[Keyboard] Binary stderr:", String(data))
+  })
 
   child.stdout.on("data", (data) => {
     const event = parseEvent(data)

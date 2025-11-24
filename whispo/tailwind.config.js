@@ -5,7 +5,7 @@ import { iconsPlugin, getIconCollections } from "@egoist/tailwindcss-icons"
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
-  content: ["./src/renderer/**/*.tsx"],
+  content: ["./src/renderer/**/*.{ts,tsx,js,jsx}"],
   theme: {
     extend: {
       fontSize: {

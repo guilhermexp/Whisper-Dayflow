@@ -28,10 +28,7 @@ let sherpaOnnx: typeof import("sherpa-onnx-node") | null = null
 const recognizerCache = new Map<string, { recognizer: any; config: any }>()
 
 const selectSherpaProvider = (): "coreml" | "cpu" => {
-  // Prefer CoreML on Apple Silicon; fallback handled when constructing recognizer
-  if (process.platform === "darwin" && process.arch === "arm64") {
-    return "coreml"
-  }
+  // Force CPU to avoid CoreML-triggered crashes on macOS (EXC_BREAKPOINT in CoreML batch queue)
   return "cpu"
 }
 
@@ -362,9 +359,8 @@ export const transcribeWithSherpa = async ({
     await fs.promises.writeFile(wavPath, audioBuffer)
     console.log(`[sherpa-transcriber] Wrote ${audioBuffer.length} bytes to ${wavPath}`)
 
-    // Calculate optimal thread count (like VoiceInk: cpuCount - 2, max 8, min 1)
-    const cpuCount = os.cpus().length
-    const optimalThreads = threads ?? Math.max(1, cpuCount - 1)
+    // Use a conservative thread count to reduce contention/instability
+    const optimalThreads = threads ?? 4
 
     const preferredProvider = selectSherpaProvider()
     let provider = preferredProvider

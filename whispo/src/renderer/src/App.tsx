@@ -5,7 +5,7 @@ import { LanguageSync } from "./components/language-sync"
 
 const Updater = lazy(() => import("./components/updater"))
 
-function App(): JSX.Element {
+function App(): React.ReactNode {
   return (
     <>
       <LanguageSync />

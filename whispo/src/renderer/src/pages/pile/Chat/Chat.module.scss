@@ -46,30 +46,28 @@ input {
 }
 
 .DialogOverlay {
-  background-color: var(--bg-secondary);
+  background-color: rgba(0, 0, 0, 0.45);
   position: fixed;
   inset: 0;
   animation: none;
   opacity: 0.9;
-  z-index: 4;
+  z-index: 1500;
   overflow-y: overlay;
 }
 
 .DialogContent {
-  z-index: 6;
+  z-index: 1501;
   position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translate(-50%, 0);
+  inset: 0;
   width: 100vw;
   height: 100vh;
   animation: none;
-  overflow-y: overlay;
-  backdrop-filter: blur(10px);
+  // Removed blur to prevent GPU overdraw flicker during streaming
+  backdrop-filter: none;
+  background: rgba(12, 12, 12, 0.92);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
 }
 
 .DialogContent:focus {
@@ -77,27 +75,11 @@ input {
 }
 
 .scroller {
-  width: calc(100vw - 10px);
-  height: 100vh;
-  overflow-y: hidden;
-
-  &::-webkit-scrollbar {
-    width: 10px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--base);
-    border-radius: 20px;
-
-    &:hover {
-      cursor: pointer;
-      background-color: var(--base-hover);
-    }
-  }
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
@@ -221,7 +203,8 @@ input {
 .mainContent {
   position: relative;
   display: flex;
-  height: calc(100vh - 44px - 100px);
+  flex: 1;
+  overflow: hidden;
 }
 
 .contextToggle {
@@ -353,16 +336,12 @@ input {
 }
 
 .inputBar {
-  position: fixed;
-  bottom: 0px;
-  left: 0;
   width: 100%;
-  height: 100px;
-  z-index: 20;
+  flex-shrink: 0;
   display: flex;
-  justify-content: flex-end;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
+  padding-bottom: 10px;
 
   .holder {
     display: flex;
@@ -463,12 +442,11 @@ input {
 }
 
 .answer {
-  position: fixed;
-  top: 4px;
-  left: 0;
-  width: calc(100vw - 4px);
-  height: calc(100vh - 4px);
+  flex: 1;
+  width: 100%;
+  height: 100%;
   color: var(--secondary);
+  overflow: hidden;
 }
 
 .text_context {

@@ -48,24 +48,15 @@
   backdrop-filter: none;
 }
 
-.DialogContent {
-  z-index: 50;
+.pageContainer {
+  position: relative;
   background-color: var(--bg);
-  position: fixed;
-  width: 100vw;
-  height: 100vh;
-  top: 0;
-  left: 0;
-  animation: none;
-  z-index: 1000;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  border: none;
-
-  &:focus {
-    outline: none;
-  }
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 200px; // Extra space to scroll past the bottom nav
 }
 
 // --- Header ---
@@ -152,7 +143,8 @@
 
 .mainContent {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; // enable scrolling inside the page content
+  min-height: 0; // allow vertical scrolling within the viewport
   padding: clamp(16px, 4vw, 48px);
   display: flex;
   flex-direction: column;
@@ -184,19 +176,8 @@
   gap: 20px;
 }
 
-.floatingNav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  padding: 0 20px;
-  z-index: 2000;
-  background: transparent;
-  pointer-events: auto;
-}
-
 .contentOffset {
-  padding-top: calc(var(--nav-height, 50px) + 12px);
+  padding-top: 0;
 }
 
 // --- Tabs ---

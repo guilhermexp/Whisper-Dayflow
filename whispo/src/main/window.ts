@@ -81,17 +81,17 @@ export function createMainWindow({ url }: { url?: string } = {}) {
     },
   })
 
-  if (process.env.IS_MAC) {
+  if (process.env.IS_MAC && app.dock) {
     win.on("close", () => {
       if (configStore.get().hideDockIcon) {
         app.setActivationPolicy("accessory")
-        app.dock.hide()
+        app.dock?.hide()
       }
     })
 
     win.on("show", () => {
-      if (configStore.get().hideDockIcon && !app.dock.isVisible()) {
-        app.dock.show()
+      if (configStore.get().hideDockIcon && !app.dock?.isVisible()) {
+        app.dock?.show()
       }
     })
   }
@@ -180,7 +180,9 @@ export function createPanelWindow() {
 
   win.on("hide", () => {
     if (!win.isDestroyed()) {
-      getRendererHandlers<RendererHandlers>(win.webContents).stopRecording.send()
+      getRendererHandlers<RendererHandlers>(
+        win.webContents,
+      ).stopRecording.send()
     }
   })
 
