@@ -1,0 +1,99 @@
+import { contextBridge, ipcRenderer, IpcRendererEvent, shell } from "electron"
+import { electronAPI } from "@electron-toolkit/preload"
+import fs from "fs"
+import path from "path"
+
+export type Channels = 'ipc-example';
+
+// Pile-specific APIs for file system, path operations, and settings
+const pileAPI = {
+  ipc: {
+    sendMessage(channel: Channels, ...args: unknown[]) {
+      ipcRenderer.send(channel, ...args);
+    },
+    on(channel: Channels, func: (...args: unknown[]) => void) {
+      const subscription = (_event: IpcRendererEvent, ...args: unknown[]) =>
+        func(...args);
+      ipcRenderer.on(channel, subscription);
+
+      return () => {
+        ipcRenderer.removeListener(channel, subscription);
+      };
+    },
+    once(channel: Channels, func: (...args: unknown[]) => void) {
+      ipcRenderer.once(channel, (_event, ...args) => func(...args));
+    },
+    invoke: ipcRenderer.invoke,
+    removeAllListeners(channel: Channels) {
+      ipcRenderer.removeAllListeners(channel);
+    },
+    removeListener(channel: Channels, func: any) {
+      ipcRenderer.removeListener(channel, func);
+    },
+  },
+  setupPilesFolder: (path: string) => {
+    fs.existsSync(path);
+  },
+  getConfigPath: () => {
+    return ipcRenderer.sendSync('get-config-file-path');
+  },
+  openFolder: (folderPath: string) => {
+    try {
+      if (fs.existsSync(folderPath)) {
+        shell.openPath(folderPath);
+      }
+    } catch (_err) {}
+  },
+  existsSync: (path: string) => fs.existsSync(path),
+  readDir: (path: string, callback: any) => fs.readdir(path, callback),
+  isDirEmpty: (dirPath: string) => {
+    try {
+      const files = fs.readdirSync(dirPath);
+      return files.length === 0;
+    } catch (_err) {
+      return true;
+    }
+  },
+  readFile: (path: string, callback: any) =>
+    fs.readFile(path, 'utf-8', callback),
+  deleteFile: (path: string, callback: any) => fs.unlink(path, callback),
+  writeFile: (path: string, data: any, callback: any) =>
+    fs.writeFile(path, data, 'utf-8', callback),
+  mkdir: (path: string) =>
+    fs.promises.mkdir(path, {
+      recursive: true,
+    }),
+  joinPath: (...args: any) => path.join(...args),
+  isMac: process.platform === 'darwin',
+  isWindows: process.platform === 'win32',
+  pathSeparator: path.sep,
+  settingsGet: (key: string) => ipcRenderer.invoke('electron-store-get', key),
+  settingsSet: (key: string, value: string) =>
+    ipcRenderer.invoke('electron-store-set', key, value),
+};
+
+// Custom APIs for renderer
+const api = {}
+
+// Use `contextBridge` APIs to expose Electron APIs to
+// renderer only if context isolation is enabled, otherwise
+// just add to the DOM global.
+if (process.contextIsolated) {
+  try {
+    // Liv's electronAPI
+    contextBridge.exposeInMainWorld("electron", {
+      ...electronAPI,
+      ...pileAPI
+    })
+    contextBridge.exposeInMainWorld("api", api)
+  } catch (error) {
+    console.error(error)
+  }
+} else {
+  // @ts-ignore (define in dts)
+  window.electron = { ...electronAPI, ...pileAPI }
+  // @ts-ignore (define in dts)
+  window.api = api
+}
+
+export type ElectronHandler = typeof electronAPI & typeof pileAPI;
