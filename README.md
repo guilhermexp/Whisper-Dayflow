@@ -17,6 +17,8 @@ Whispo is a desktop application that turns voice into text with a single key pre
 - 🎤 **Hold-to-Record** - Press and hold Ctrl key (or Ctrl+/) to start recording
 - 🤖 **AI Transcription** - Powered by OpenAI Whisper or Groq (with custom API support)
 - ✨ **Smart Post-Processing** - Optional grammar correction and rephrasing with LLMs
+- 🖼️ **Context Capture (optional)** - Clipboard and active-window OCR to enrich prompts and auto-journal
+- 🗂️ **Auto Journal** - Summarize recent recordings; can include screen OCR context
 - 🚀 **Instant Insertion** - Automatically types transcript into your active application
 - 📚 **Full History** - Every transcription saved with timestamps
 - 🔒 **Local First** - All data stored on your machine, no cloud dependency
@@ -50,7 +52,7 @@ Get the latest version from [GitHub Releases](https://github.com/egoist/whispo/r
 
 ### For Developers
 
-See **[CLAUDE.md](CLAUDE.md)** for comprehensive development guide, or jump straight to [Quick Setup](ai_docs/quickstart.md).
+See **[CLAUDE.md](CLAUDE.md)** for comprehensive development guide, or jump straight to [Quickstart](quickstart.md).
 
 ```bash
 # Clone and setup
@@ -105,6 +107,11 @@ Two modes to choose from:
    - Press again → stop and transcribe
    - Press `Esc` → cancel
 
+### Context Capture & Auto Journal
+
+- **Context Capture (optional)**: enable clipboard and/or active-window OCR to enrich prompts. Screen OCR runs locally via Tesseract; only extracted text is used.
+- **Auto Journal**: summarizes recent recordings (15/30/60/120 min) and can include the screen OCR text when the flag is enabled, giving YA better context without slowing Whisper (capture runs after transcription completes).
+
 ---
 
 ## 🏗️ Architecture
@@ -153,7 +160,7 @@ Electron Desktop App
 |----------|---------|-----------|
 | **[CLAUDE.md](CLAUDE.md)** | Development guide, architecture, best practices | 15 min |
 | **[AGENTS.md](AGENTS.md)** | AI agent communication protocol | 10 min |
-| **[ai_docs/quickstart.md](ai_docs/quickstart.md)** | Rapid onboarding with code references | 10 min |
+| **[quickstart.md](quickstart.md)** | Rapid onboarding with code references | 10 min |
 | **[ai_docs/whispo-analysis.md](ai_docs/whispo-analysis.md)** | Technical deep dive, complete analysis | 30 min |
 | **[ai_issues/README.md](ai_issues/README.md)** | Known bugs and issues | 5 min |
 | **[ai_specs/README.md](ai_specs/README.md)** | Feature specifications and requirements | Varies |
@@ -176,7 +183,10 @@ All settings stored in `~/.config/whispo` (Linux/macOS) or `%APPDATA%\whispo` (W
   "groqBaseUrl": "https://api.groq.com/openai/v1",
   "transcriptionProvider": "openai",
   "transcriptPostProcessingEnabled": false,
-  "transcriptPostProcessingProviderId": "openai"
+  "transcriptPostProcessingProviderId": "openai",
+  "useClipboardContext": false,
+  "useScreenCaptureContext": false,
+  "autoJournalIncludeScreenCapture": false
 }
 ```
 

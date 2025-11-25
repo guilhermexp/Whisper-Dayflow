@@ -1,14 +1,14 @@
 # CLAUDE.md - AI Agent Development Guide
 
-**Last Updated:** November 20, 2024
-**Project:** Whisper-Dayflow (Whispo) - AI-powered dictation tool with integrated journaling
-**Version:** 0.2.0
+**Last Updated:** November 24, 2024
+**Project:** Liv - AI-powered dictation tool with integrated journaling
+**Version:** 0.1.7
 
 ---
 
 ## 🎯 Project Overview
 
-**Whispo** is a desktop application built with Electron that combines AI-powered dictation with journaling:
+**Liv** is a desktop application built with Electron that combines AI-powered dictation with journaling:
 
 1. **Captures voice** via global keyboard shortcut (Ctrl key hold or Ctrl+/)
 2. **Transcribes audio** using OpenAI Whisper or Groq API
@@ -47,7 +47,7 @@
 └─────────────────────────────────────────┘
          ↓↑ Native Bindings
 ┌─────────────────────────────────────────┐
-│      Rust Binary (whispo-rs)            │
+│      Rust Binary (liv-rs)               │
 │  (Keyboard capture, text simulation)    │
 └─────────────────────────────────────────┘
          ↓↑ Network
@@ -78,7 +78,7 @@
 ## 📁 File Structure Quick Reference
 
 ```
-whispo/
+liv/
 ├── src/
 │   ├── main/             # Electron Main Process
 │   │   ├── index.ts      # Bootstrap & window creation
@@ -115,7 +115,7 @@ whispo/
 │       ├── types.ts      # Core TypeScript types
 │       └── data-model.ts # Consolidated API reference
 ├── resources/            # Native binaries & assets
-│   └── whispo-rs/        # Rust binary
+│   └── liv-rs/           # Rust binary
 ├── package.json          # Dependencies
 ├── electron.vite.config.ts
 └── ...
@@ -138,7 +138,7 @@ The application uses a simplified routing structure:
 - `/` - Pile main application (journal + dictation)
   - `/pile/:pileName` - Specific pile view
   - `/create-pile` - Create new pile
-  - `/whispo-config` - Whisper configuration
+  - `/liv-config` - Liv configuration
 - `/setup` - Initial setup wizard
 - `/panel` - Recording overlay window
 
@@ -382,7 +382,7 @@ Before submitting changes, verify:
 
 ### Development Build
 ```bash
-cd whispo
+cd liv
 pnpm dev
 ```
 
@@ -447,7 +447,7 @@ All configured via Settings UI with custom base URLs supported.
 ├── ai_docs/               # Technical documentation
 │   ├── README.md          # Index
 │   ├── quickstart.md      # Onboarding guide
-│   └── whispo-analysis.md # Deep technical analysis
+│   └── liv-analysis.md    # Deep technical analysis
 ├── ai_specs/              # Feature specifications
 ├── ai_issues/             # Bug tracking
 ├── ai_research/           # Research & experiments
@@ -508,8 +508,8 @@ All configured via Settings UI with custom base URLs supported.
 ## 📞 Quick Links
 
 - **Quick Start:** `ai_docs/quickstart.md`
-- **Technical Analysis:** `ai_docs/whispo-analysis.md`
+- **Technical Analysis:** `ai_docs/liv-analysis.md`
 - **Known Issues:** `ai_issues/README.md`
 - **Specifications:** `ai_specs/README.md`
 - **Changelog:** `ai_changelog/README.md`
-- **GitHub Repo:** https://github.com/egoist/whispo
+- **GitHub Repo:** https://github.com/liv-app/liv

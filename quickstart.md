@@ -6,6 +6,8 @@ Este guia orienta qualquer agente a entender a aplicação, executar localmente,
 - App Electron (Main) + React/Vite (Renderer).
 - Função principal: ditar → transcrever (OpenAI/Groq) → pós-processar (OpenAI/Groq/Gemini/OpenRouter) → salvar áudio e texto → copiar/"digitar".
 - **Interface integrada**: Pile (journaling) + Whispo (transcrição) em uma única aplicação.
+- **Contexto opcional**: Captura de clipboard, texto selecionado (placeholder) e OCR da janela ativa.
+- **Auto-diário**: resume gravações recentes e pode anexar OCR da janela ativa (flag opcional).
 - Dados locais: `config.json` e gravações em `recordings/` dentro `appData/<APP_ID>`.
 
 ## Setup
@@ -71,7 +73,7 @@ Este guia orienta qualquer agente a entender a aplicação, executar localmente,
 ### Chat Dialog
 - Acesso: ícone de chat no nav bar
 - **Funcionalidades**:
-  - Painel de contexto (toggle lateral mostrando entradas relevantes do jornal usadas como contexto)
+  - Painel de contexto (toggle lateral; usa entradas recentes do jornal e, se habilitado, contexto de clipboard/screenshot)
   - Seletor de tema (dropdown com 5 cores: light, blue, purple, yellow, green)
   - Exportar conversa (salva como .txt)
   - Animações suaves com AnimatePresence
@@ -82,6 +84,12 @@ Este guia orienta qualquer agente a entender a aplicação, executar localmente,
 - Acesso: ícone de lupa no nav bar
 - Busca semântica no jornal usando vector search
 - Arquivo: `whispo/src/renderer/src/pages/pile/Search/index.jsx`
+
+### Auto Journal
+- Acesso: página Auto Journal na UI do Pile
+- Função: gera resumo do período (15/30/60/120 min) usando transcrições recentes; pode auto-salvar no pile configurado.
+- Novo: flag “Incluir contexto da tela” captura OCR da janela ativa após cada gravação (não bloqueia o Whisper) e injeta no prompt do auto-diário.
+- Arquivos: `whispo/src/main/llm.ts`, `whispo/src/main/services/auto-journal-service.ts`, `whispo/src/renderer/src/pages/pile/AutoJournal/index.jsx`.
 
 ### Tray Menu
 - Start/Cancel Recording
