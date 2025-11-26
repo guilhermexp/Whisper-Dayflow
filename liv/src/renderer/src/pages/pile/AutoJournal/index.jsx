@@ -778,51 +778,52 @@ Bad examples:
                               <div className={styles.ActivityCardLabel}>
                                 {t("autoJournal.gifPreview")}
                               </div>
-                              <div style={{ marginBottom: "6px", color: "var(--secondary)", fontSize: "12px" }}>
+                              <div
+                                style={{
+                                  marginBottom: "6px",
+                                  color: "var(--secondary)",
+                                  fontSize: "12px",
+                                }}
+                              >
                                 {selectedRun.previewGifPath
                                   ? t("autoJournal.gifPreviewDesc")
                                   : t("autoJournal.gifMissing")}
-                              {selectedRun.previewGifPath && (
-                                <div
-                                  style={{
-                                    border: "1px solid var(--border)",
-                                    borderRadius: "10px",
-                                    overflow: "hidden",
-                                    maxWidth: "520px",
-                                    background: "var(--bg-secondary)",
-                                  }}
-                                >
-                                  {(() => {
-                                    const raw = selectedRun.previewGifPath || ""
-                                    const basePath = raw || (gifDir ? `${gifDir}/${selectedRun.id}.gif` : "")
-                                    const src = basePath
-                                      ? basePath.startsWith("assets://")
-                                        ? basePath
-                                        : `assets://file?path=${encodeURIComponent(basePath)}`
-                                      : ""
-                                    return src ? (
-                                      <img
-                                        src={src}
-                                        alt="Context GIF preview"
-                                        style={{
-                                          display: "block",
-                                          width: "100%",
-                                          maxHeight: "360px",
-                                          objectFit: "contain",
-                                        }}
-                                      />
-                                    ) : null
-                                  })()}
-                                </div>
-                              )}
-                                          maxHeight: "360px",
-                                          objectFit: "contain",
-                                        }}
-                                      />
-                                    ) : null
-                                  })()}
-                                </div>
-                              )}
+                              </div>
+                              <div
+                                style={{
+                                  border: "1px solid var(--border)",
+                                  borderRadius: "10px",
+                                  overflow: "hidden",
+                                  maxWidth: "520px",
+                                  background: "var(--bg-secondary)",
+                                }}
+                              >
+                                {(() => {
+                                  const raw = selectedRun.previewGifPath || ""
+                                  const basePath =
+                                    raw || (gifDir ? `${gifDir}/${selectedRun.id}.gif` : "")
+                                  const src = basePath
+                                    ? basePath.startsWith("assets://")
+                                      ? basePath
+                                      : `assets://file?path=${encodeURIComponent(basePath)}`
+                                    : ""
+
+                                  if (!src) return null
+
+                                  return (
+                                    <img
+                                      src={src}
+                                      alt="Context GIF preview"
+                                      style={{
+                                        display: "block",
+                                        width: "100%",
+                                        maxHeight: "360px",
+                                        objectFit: "contain",
+                                      }}
+                                    />
+                                  )
+                                })()}
+                              </div>
                             </div>
                           )}
 

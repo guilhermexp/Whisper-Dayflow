@@ -491,12 +491,12 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
 
     const model =
       provider === "custom"
-        ? config.customEnhancementModel || "gpt-4o-mini"
+        ? config.customEnhancementModel || "gpt-5.1"
         : provider === "openrouter"
           ? config.openrouterModel || "openai/gpt-4o-mini"
           : provider === "groq"
             ? config.groqModel || "llama-3.1-70b-versatile"
-            : config.openaiModel || "gpt-4o-mini"
+            : config.openaiModel || "gpt-5.1"
     debugModel = model
 
     const timeout = config.enhancementTimeout ?? 30000
