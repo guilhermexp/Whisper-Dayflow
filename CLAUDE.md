@@ -127,6 +127,8 @@ liv/
 - **Type Definitions:** `src/shared/types.ts` - Shared types
 - **Recording Logic:** `src/renderer/src/lib/recorder.ts`
 - **Post-Processing:** `src/main/llm.ts`
+- **Screen Capture:** `src/main/services/screen-capture-service.ts` - Production-ready OCR & screenshot (see [docs/screen-capture-robustness.md](docs/screen-capture-robustness.md))
+- **Auto Journal:** `src/main/services/auto-journal-service.ts` - Auto-journaling & GIF generation
 - **Analytics:** `src/renderer/src/pages/pile/Analytics/index.jsx` - Stats & history
 - **Dashboard:** `src/renderer/src/pages/pile/Dashboard/index.jsx` - Charts & metrics
 - **Settings:** `src/renderer/src/pages/pile/Settings/index.jsx` - All configuration
@@ -239,6 +241,55 @@ Transcript received
   → Cache result (optional)
 ```
 
+### 4. Context Capture Flow (Optional)
+```
+Recording completed successfully
+  → Check if screen capture enabled (autoJournalIncludeScreenCapture)
+  → Capture active window screenshot
+  → Run OCR (Tesseract.js) to extract text
+  → Save PNG + metadata to history.json
+  → (Background, non-blocking)
+
+Auto-Journal Run triggered
+  → Collect screenshots from time window
+  → Generate animated GIF with FFmpeg (if available)
+  → Inject OCR text into LLM context
+  → Display GIF preview in run details UI
+```
+
+**Requirements:**
+- FFmpeg (bundled via @ffmpeg-installer/ffmpeg - no installation needed)
+- Tesseract.js (bundled, no installation needed)
+- Enable in Settings > Auto Journal > "Include screen context"
+
+**Operation:**
+- FFmpeg binary is included in app bundle for all platforms (macOS/Windows/Linux)
+- Verified on startup - logs error if bundle is corrupted
+- GIF generation is fully automatic when screen capture is enabled
+
+### 🛡️ Screen Capture Robustness
+
+**Problem Solved:** Electron's `desktopCapturer` can crash on macOS with `NSRangeException` due to ReplayKit framework bugs.
+
+**Solution:** Production-ready implementation inspired by [Dayflow](https://github.com/JerryZLiu/Dayflow) with:
+
+1. **Error Classification** - Distinguishes retryable vs fatal errors
+2. **State Machine** - Prevents race conditions (Idle → Starting → Capturing → Paused)
+3. **Retry Logic** - Exponential backoff (1s, 2s, 4s, 8s) up to 4 attempts
+4. **System Event Handling** - Graceful pause/resume on sleep/wake/lock/unlock
+5. **Graceful Degradation** - Never crashes, always returns null on failure
+
+**Key Features:**
+- Automatic retry with smart backoff
+- System sleep/wake handling (5s delay on resume like Dayflow)
+- Screen lock/unlock handling (500ms delay)
+- OCR best-effort (continues without text if fails)
+- Structured logging for debugging
+
+**Documentation:** See [docs/screen-capture-robustness.md](docs/screen-capture-robustness.md) for complete technical details.
+
+**Status:** ✅ Production-Ready (tested against Dayflow patterns)
+
 ---
 
 ## 🛠️ Development Best Practices
@@ -312,6 +363,31 @@ export const recordingRouter = t.router({
     }),
 });
 ```
+
+---
+
+## 📦 Bundled Dependencies
+
+### FFmpeg (for Auto-Journal GIF Previews)
+
+**Purpose:** Generates animated GIF previews from screenshot sequences in auto-journal runs
+
+**Implementation:**
+- **Package:** `@ffmpeg-installer/ffmpeg` - Provides static FFmpeg binaries for all platforms
+- **Location:** Bundled in app resources, no separate installation needed
+- **Verification:** Checked on startup (`src/main/index.ts` line ~163)
+- **Usage:** `src/main/services/auto-journal-service.ts` (`generateGifFromScreenshots`)
+
+**Platform Support:**
+- ✅ macOS (Apple Silicon + Intel)
+- ✅ Windows (x64)
+- ✅ Linux (x64, arm64)
+
+**Behavior:**
+- FFmpeg binary path resolved automatically by @ffmpeg-installer/ffmpeg
+- Verified on app startup - logs error if bundle verification fails
+- GIF generation works out-of-the-box when screen capture is enabled
+- No user installation or configuration required
 
 ---
 

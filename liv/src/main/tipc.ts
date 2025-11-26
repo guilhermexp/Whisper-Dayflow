@@ -563,15 +563,32 @@ export const router = {
       if (config.autoJournalIncludeScreenCapture) {
         ;(async () => {
           try {
-            const result = await screenCaptureService.captureAndExtractText()
+            const screenshotsDir = path.join(recordingsFolder, "screenshots")
+            const screenshotPath = path.join(screenshotsDir, `${item.id}.png`)
+            const result = await screenCaptureService.captureAndExtractText(
+              screenshotPath,
+            )
             const screenText = result?.text?.trim()
-            if (result && screenText) {
-              historyStore.update(item.id, {
+            const exists =
+              result?.imagePath && fs.existsSync(result.imagePath ?? "")
+            if (result && (screenText || exists)) {
+              const updated = historyStore.update(item.id, {
                 contextCapturedAt: result.timestamp,
-                contextScreenText: screenText.slice(0, 4000),
+                contextScreenText: screenText?.slice(0, 4000),
                 contextScreenAppName: result.appName,
                 contextScreenWindowTitle: result.windowTitle,
+                contextScreenshotPath: exists ? result.imagePath : undefined,
               })
+
+              // Notify renderer so history list can show the screenshot as soon as it is saved
+              if (updated) {
+                const mainWindow = WINDOWS.get("main")
+                if (mainWindow) {
+                  getRendererHandlers<RendererHandlers>(
+                    mainWindow.webContents,
+                  ).refreshRecordingHistory.send()
+                }
+              }
             }
           } catch (error) {
             console.error(

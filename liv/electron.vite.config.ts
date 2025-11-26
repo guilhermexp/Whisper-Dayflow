@@ -37,6 +37,11 @@ export default defineConfig({
   renderer: {
     define,
     plugins: [tsconfigPaths(), react(), tailwindcss()],
+    server: {
+      port: 4180, // avoid default 5173 to prevent conflicts with other apps
+      strictPort: true,
+      host: "127.0.0.1",
+    },
     resolve: {
       alias: {
         renderer: resolve(__dirname, "src/renderer/src"),

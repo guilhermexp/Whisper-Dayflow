@@ -1,14 +1,22 @@
 import fs from "fs"
 import path from "path"
 import { app } from "electron"
+import { execFile } from "child_process"
 import { configStore, recordingsFolder } from "../config"
 import { historyStore } from "../history-store"
 import { generateAutoJournalSummaryFromHistory } from "../llm"
-import type { AutoJournalRun } from "../../shared/types"
+import type { AutoJournalRun, RecordingHistoryItem } from "../../shared/types"
 import { saveAutoJournalEntry } from "./auto-journal-entry"
 import pileIndex from "../pile-utils/pileIndex"
+// @ts-ignore - FFmpeg static binary path
+import ffmpegInstaller from "@ffmpeg-installer/ffmpeg"
 
 const RUNS_DIR = path.join(recordingsFolder, "auto-journal", "runs")
+const GIF_DIR = path.join(recordingsFolder, "auto-journal", "gifs")
+const TEMP_DIR = path.join(recordingsFolder, "auto-journal", "tmp")
+
+// Get bundled FFmpeg path
+const FFMPEG_PATH = ffmpegInstaller.path
 
 // Helper to get the first available pile path
 function getFirstPilePath(): string | null {
@@ -44,6 +52,113 @@ let running = false
 let nextRunAt: number | null = null
 let lastRunAt: number | null = null
 
+/**
+ * Check if bundled FFmpeg is available and functional
+ */
+async function isFfmpegAvailable(): Promise<boolean> {
+  if (!FFMPEG_PATH || !fs.existsSync(FFMPEG_PATH)) {
+    console.error("[ffmpeg] Bundled binary not found at:", FFMPEG_PATH)
+    return false
+  }
+
+  return new Promise((resolve) => {
+    execFile(FFMPEG_PATH, ["-version"], (error) => {
+      if (error) {
+        console.error("[ffmpeg] Version check failed:", error)
+        resolve(false)
+      } else {
+        resolve(true)
+      }
+    })
+  })
+}
+
+/**
+ * Public API: Check if ffmpeg is available
+ * Used by main process to verify bundled FFmpeg on startup
+ */
+export async function checkFfmpegAvailability(): Promise<boolean> {
+  return isFfmpegAvailable()
+}
+
+async function generateGifFromScreenshots(
+  frames: string[],
+  outputPath: string,
+): Promise<{ path: string | null; error?: string }> {
+  if (frames.length === 0) return { path: null }
+
+  // Ensure bundled ffmpeg is available
+  const available = await isFfmpegAvailable()
+  if (!available) {
+    console.warn("[auto-journal] Bundled FFmpeg not available; skipping GIF preview")
+    return { path: null, error: "ffmpeg_not_found" }
+  }
+
+  try {
+    // Create temp list file for concat
+    fs.mkdirSync(TEMP_DIR, { recursive: true })
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+
+    const listPath = path.join(
+      TEMP_DIR,
+      `frames-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`,
+    )
+    const safeLines = frames
+      .filter((f) => fs.existsSync(f))
+      .map((f) => `file '${f.replace(/'/g, "'\\''")}'`)
+    if (safeLines.length === 0) return { path: null }
+
+    await fs.promises.writeFile(listPath, safeLines.join("\n"), "utf-8")
+
+    await new Promise<void>((resolve, reject) => {
+      execFile(
+        FFMPEG_PATH,
+        [
+          "-y",
+          "-f",
+          "concat",
+          "-safe",
+          "0",
+          "-i",
+          listPath,
+          "-vf",
+          "fps=2,scale=1024:-1:force_original_aspect_ratio=decrease",
+          "-loop",
+          "0",
+          outputPath,
+        ],
+        (error) => {
+          if (error) {
+            reject(error)
+          } else {
+            resolve()
+          }
+        },
+      )
+    })
+
+    return { path: fs.existsSync(outputPath) ? outputPath : null }
+  } catch (error) {
+    console.error("[auto-journal] Failed to generate GIF:", error)
+    return { path: null, error: "ffmpeg_failed" }
+  } finally {
+    // Cleanup list file
+    try {
+      const files = await fs.promises.readdir(TEMP_DIR)
+      for (const file of files) {
+        if (file.startsWith("frames-") && file.endsWith(".txt")) {
+          const full = path.join(TEMP_DIR, file)
+          const stats = await fs.promises.stat(full)
+          // Remove files older than ~10 minutes
+          if (Date.now() - stats.mtimeMs > 10 * 60 * 1000) {
+            await fs.promises.unlink(full)
+          }
+        }
+      }
+    } catch {}
+  }
+}
+
 function ensureRunsDir() {
   fs.mkdirSync(RUNS_DIR, { recursive: true })
 }
@@ -74,6 +189,9 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
   lastRunAt = startedAt
   const cfg = configStore.get()
   const wm = windowMinutes ?? cfg.autoJournalWindowMinutes ?? 60
+  const windowMs = wm * 60 * 1000
+  const windowStartTs = Date.now() - windowMs
+  const windowEndTs = Date.now()
   const id = `${startedAt}`
 
   console.log(`[auto-journal] Starting run ${id} with window ${wm} min`)
@@ -81,6 +199,18 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
 
   try {
     const history = historyStore.readAll()
+    // Filter window items once for reuse (LLM + media)
+    const windowItems: RecordingHistoryItem[] = history
+      .filter(
+        (item) =>
+          typeof item.createdAt === "number" &&
+          item.createdAt >= windowStartTs &&
+          item.createdAt <= windowEndTs &&
+          item.transcript &&
+          item.transcript.trim().length > 0,
+      )
+      .sort((a, b) => a.createdAt - b.createdAt)
+
     const summary = await generateAutoJournalSummaryFromHistory(history, {
       windowMinutes: wm,
       promptOverride: cfg.autoJournalPrompt,
@@ -93,7 +223,29 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
       status: "success",
       windowMinutes: wm,
       summary,
+      screenshotCount: windowItems.filter(
+        (i) => i.contextScreenshotPath && fs.existsSync(i.contextScreenshotPath),
+      ).length,
       autoSaved: false,
+    }
+
+    // Build animated GIF from screenshots in window (best-effort, non-blocking)
+    const framePaths = windowItems
+      .map((i) => i.contextScreenshotPath)
+      .filter((p): p is string => Boolean(p && fs.existsSync(p)))
+    if (framePaths.length > 0) {
+      try {
+        const gifPath = path.join(GIF_DIR, `${id}.gif`)
+        const generated = await generateGifFromScreenshots(framePaths, gifPath)
+        if (generated.path) {
+          run.previewGifPath = generated.path
+        } else if (generated.error) {
+          run.gifError = generated.error
+        }
+      } catch (error) {
+        console.error("[auto-journal] GIF generation failed:", error)
+        run.gifError = "gif_generation_failed"
+      }
     }
 
     console.log(`[auto-journal] Run ${id} completed successfully in ${Date.now() - startedAt}ms`)

@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@egoist/electron-panel-window": "^9.0.0",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-tabs": "^1.1.13",
     "@tiptap/core": "^3.11.0",

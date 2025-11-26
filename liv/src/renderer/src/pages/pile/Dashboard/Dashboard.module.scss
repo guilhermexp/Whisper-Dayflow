@@ -646,3 +646,19 @@
     }
   }
 }
+
+// Screenshot thumbnail - small, inline with header actions
+.screenshotThumbnail {
+  width: 70px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0.85;
+
+  &:hover {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}

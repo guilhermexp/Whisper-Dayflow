@@ -770,6 +770,37 @@ Bad examples:
                             </div>
                           )}
 
+                          {(selectedRun.previewGifPath ||
+                            (selectedRun.screenshotCount ?? 0) > 0) && (
+                            <div className={styles.OverallSummary}>
+                              <div className={styles.ActivityCardLabel}>
+                                {t("autoJournal.gifPreview")}
+                              </div>
+                              <div style={{ marginBottom: "6px", color: "var(--secondary)", fontSize: "12px" }}>
+                                {selectedRun.previewGifPath
+                                  ? t("autoJournal.gifPreviewDesc")
+                                  : t("autoJournal.gifMissing")}
+                              </div>
+                              {selectedRun.previewGifPath && (
+                                <div
+                                  style={{
+                                    border: "1px solid var(--border)",
+                                    borderRadius: "10px",
+                                    overflow: "hidden",
+                                    maxWidth: "520px",
+                                    background: "var(--bg-secondary)",
+                                  }}
+                                >
+                                  <img
+                                    src={`assets://file?path=${encodeURIComponent(selectedRun.previewGifPath)}`}
+                                    alt="Context GIF preview"
+                                    style={{ display: "block", width: "100%", maxHeight: "360px", objectFit: "contain" }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {selectedRun.summary?.debug && (
                             <div className={styles.Diagnostics}>
                               <div

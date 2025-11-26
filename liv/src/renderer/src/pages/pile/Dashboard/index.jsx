@@ -491,64 +491,95 @@ export default function Dashboard() {
                           (a, b) =>
                             new Date(b.createdAt) - new Date(a.createdAt),
                         )
-                        .map((item, index) => (
-                          <div
-                            key={`${item.id}-${index}`}
-                            className={styles.HistoryItem}
-                          >
-                            <div className={styles.HistoryHeader}>
-                              <div className={styles.HistoryDate}>
-                                {formatDate(item.createdAt)}
+                        .map((item, index) => {
+                          // Build screenshot URL if available
+                          const screenshotSrc = item.contextScreenshotPath
+                            ? item.contextScreenshotPath.startsWith("assets://")
+                              ? item.contextScreenshotPath
+                              : `assets://file?path=${encodeURIComponent(item.contextScreenshotPath)}`
+                            : null
+
+                          return (
+                            <div
+                              key={`${item.id}-${index}`}
+                              className={styles.HistoryItem}
+                            >
+                              <div className={styles.HistoryHeader}>
+                                <div className={styles.HistoryDate}>
+                                  {formatDate(item.createdAt)}
+                                </div>
+                                <div className={styles.HistoryActions}>
+                                  {/* Screenshot thumbnail - small, right-aligned */}
+                                  {screenshotSrc && (
+                                    <img
+                                      src={screenshotSrc}
+                                      alt=""
+                                      className={styles.screenshotThumbnail}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        window.open(screenshotSrc, "_blank")
+                                      }}
+                                      onError={(e) => {
+                                        const target = e.currentTarget
+                                        if (!target.dataset.fallbackUsed) {
+                                          target.dataset.fallbackUsed = "1"
+                                          target.src = `assets://screenshot/${item.id}`
+                                        }
+                                      }}
+                                    />
+                                  )}
+                                  <span className={styles.HistoryDuration}>
+                                    {formatDuration(item.duration)}
+                                  </span>
+                                  <button
+                                    className={styles.CopyBtn}
+                                    onClick={() => {
+                                      if (item.transcript) {
+                                        navigator.clipboard.writeText(
+                                          item.transcript,
+                                        )
+                                      }
+                                    }}
+                                    title={t("common.copy")}
+                                  >
+                                    <CopyIcon />
+                                  </button>
+                                  <button
+                                    className={styles.DeleteIconBtn}
+                                    onClick={() => {
+                                      if (
+                                        window.confirm(
+                                          t("history.deleteConfirm"),
+                                        )
+                                      ) {
+                                        deleteRecordingMutation.mutate(item.id)
+                                      }
+                                    }}
+                                  >
+                                    {t("common.delete")}
+                                  </button>
+                                </div>
                               </div>
-                              <div className={styles.HistoryActions}>
-                                <span className={styles.HistoryDuration}>
-                                  {formatDuration(item.duration)}
-                                </span>
-                                <button
-                                  className={styles.CopyBtn}
-                                  onClick={() => {
-                                    if (item.transcript) {
-                                      navigator.clipboard.writeText(
-                                        item.transcript,
-                                      )
-                                    }
-                                  }}
-                                  title={t("common.copy")}
-                                >
-                                  <CopyIcon />
-                                </button>
-                                <button
-                                  className={styles.DeleteIconBtn}
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(t("history.deleteConfirm"))
-                                    ) {
-                                      deleteRecordingMutation.mutate(item.id)
-                                    }
-                                  }}
-                                >
-                                  {t("common.delete")}
-                                </button>
+
+                              <div className={styles.HistoryTranscript}>
+                                {item.transcript ||
+                                  t("analytics.noTranscription")}
+                              </div>
+                              <div className={styles.HistoryMeta}>
+                                {item.providerId && (
+                                  <span className={styles.MetaItem}>
+                                    {item.providerId}
+                                  </span>
+                                )}
+                                {item.fileSize && (
+                                  <span className={styles.MetaItem}>
+                                    {formatBytes(item.fileSize)}
+                                  </span>
+                                )}
                               </div>
                             </div>
-                            <div className={styles.HistoryTranscript}>
-                              {item.transcript ||
-                                t("analytics.noTranscription")}
-                            </div>
-                            <div className={styles.HistoryMeta}>
-                              {item.providerId && (
-                                <span className={styles.MetaItem}>
-                                  {item.providerId}
-                                </span>
-                              )}
-                              {item.fileSize && (
-                                <span className={styles.MetaItem}>
-                                  {formatBytes(item.fileSize)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))
+                          )
+                        })
                     )}
                   </div>
                 </div>
