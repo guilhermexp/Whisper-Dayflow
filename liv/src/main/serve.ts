@@ -79,9 +79,24 @@ export function registerServeProtocol() {
       return callback({ path: legacyPath })
     }
 
+    if (host === "screenshot") {
+      const id = pathname.slice(1)
+      const screenshotPath = path.join(
+        recordingsFolder,
+        "screenshots",
+        `${id}.png`,
+      )
+      if (fs.existsSync(screenshotPath)) {
+        return callback({ path: screenshotPath })
+      }
+    }
+
     if (host === "file") {
       const filepath = searchParams.get("path")
+      console.log("[serve] assets://file request, path:", filepath)
       if (filepath) {
+        const exists = fs.existsSync(filepath)
+        console.log("[serve] File exists:", exists, filepath)
         return callback({ path: filepath })
       }
     }

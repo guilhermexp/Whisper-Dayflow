@@ -205,6 +205,9 @@ export type AutoJournalRun = {
   summary?: AutoJournalSummary
   error?: string
   autoSaved?: boolean
+  previewGifPath?: string
+  screenshotCount?: number
+  gifError?: string
 }
 
 export type SavedRecordingSearch = {

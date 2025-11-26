@@ -59,6 +59,10 @@ module.exports = {
         NSDownloadsFolderUsageDescription:
           "Application requests access to the user's Downloads folder.",
       },
+      {
+        NSScreenCaptureDescription:
+          "Application requests access to screen recording for auto-journal context capture.",
+      },
     ],
     notarize: process.env.APPLE_TEAM_ID
       ? {

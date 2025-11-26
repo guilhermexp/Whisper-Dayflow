@@ -159,6 +159,20 @@ app.whenReady().then(() => {
   // Auto-journal scheduler (manual runs still available via IPC)
   startAutoJournalScheduler()
 
+  // Verify bundled ffmpeg for auto-journal GIF generation
+  import("./services/auto-journal-service").then(({ checkFfmpegAvailability }) => {
+    checkFfmpegAvailability().then((available) => {
+      if (!available) {
+        console.error(
+          "[ffmpeg] Bundled binary verification failed!",
+          "Auto-journal GIF previews will be unavailable."
+        )
+      } else {
+        console.log("[ffmpeg] Bundled binary verified - GIF previews enabled for auto-journal")
+      }
+    }).catch((err) => console.error("[ffmpeg] Verification failed:", err))
+  }).catch(console.error)
+
   import("./updater").then((res) => res.init()).catch(console.error)
 
   // Default open or close DevTools by F12 in development

@@ -382,6 +382,223 @@ O LLM retorna JSON puro (sem markdown). O parsing remove:
 
 ---
 
+## Captura de Contexto (Screenshots + OCR)
+
+**Data de Implementação:** 25 de Novembro de 2025
+**Status:** ✅ Implementado
+
+### Visão Geral
+
+A funcionalidade de captura de contexto permite que o auto-journal tenha acesso ao conteúdo visual da tela durante cada gravação, enriquecendo o contexto fornecido ao LLM.
+
+### Fluxo de Dados
+
+```
+Gravação de Voz
+    ↓
+Screenshot da janela ativa → OCR (Tesseract.js) → Texto extraído
+    ↓                              ↓
+Transcrição                    Contexto da tela
+    ↓                              ↓
+         history.json (+ contextScreenshotPath, contextScreenText)
+                       ↓
+            Auto-journal coleta screenshots do período
+                       ↓
+            ffmpeg gera GIF animado (opcional)
+                       ↓
+            Preview visual na UI do run
+```
+
+### Componentes
+
+#### 1. Screen Capture Service
+
+**`src/main/services/screen-capture-service.ts`**
+
+- Captura a janela ativa usando Electron `desktopCapturer`
+- Extrai texto usando Tesseract.js (OCR local, suporta `eng+por`)
+- Salva screenshot como PNG
+- Retorna:
+  - `text`: Texto extraído via OCR
+  - `windowTitle`: Título da janela
+  - `appName`: Nome do aplicativo
+  - `timestamp`: Momento da captura
+  - `imagePath`: Caminho do arquivo PNG
+
+**Características:**
+- Roda em background, não bloqueia transcrição
+- Cache de worker Tesseract para melhor performance
+- Configurável via `autoJournalIncludeScreenCapture`
+
+#### 2. GIF Generation
+
+**`src/main/services/auto-journal-service.ts`**
+
+Função: `generateGifFromScreenshots(frames[], outputPath)`
+
+- Concatena screenshots em GIF animado usando FFmpeg
+- Configuração: 2 FPS, escala 1024px largura
+- Loop infinito
+- Best-effort: se falhar, auto-journal continua normalmente
+
+**Requisitos:**
+- FFmpeg bundled via `@ffmpeg-installer/ffmpeg` (incluído no app)
+- Validação no startup (`checkFfmpegAvailability()`)
+- Erro no console se verificação do bundle falhar
+
+#### 3. Integração no Recording Flow
+
+**Quando habilitado:**
+1. Após cada transcrição bem-sucedida
+2. Captura screenshot + OCR da janela ativa
+3. Salva PNG em `recordings/screenshots/{id}.png`
+4. Adiciona campos ao `RecordingHistoryItem`:
+   - `contextScreenshotPath`: Caminho do PNG
+   - `contextCapturedAt`: Timestamp
+   - `contextScreenText`: Texto extraído via OCR
+   - `contextScreenAppName`: Nome do app
+   - `contextScreenWindowTitle`: Título da janela
+
+**No Auto-Journal Run:**
+1. Coleta todos os screenshots do período (window)
+2. Gera GIF com `ffmpeg` (se disponível)
+3. Salva em `recordings/auto-journal/gifs/{runId}.gif`
+4. Adiciona ao `AutoJournalRun`:
+   - `previewGifPath`: Caminho do GIF
+   - `screenshotCount`: Quantidade de frames
+   - `gifError`: Erro se ffmpeg falhou (`"ffmpeg_not_found"` ou `"ffmpeg_failed"`)
+
+#### 4. Tipos Atualizados
+
+**`src/shared/types.ts`**
+
+```typescript
+export type RecordingHistoryItem = {
+  // ... campos existentes
+  // Context capture (experimental)
+  contextScreenshotPath?: string
+  contextCapturedAt?: number
+  contextScreenText?: string
+  contextScreenAppName?: string
+  contextScreenWindowTitle?: string
+}
+
+export type AutoJournalRun = {
+  // ... campos existentes
+  previewGifPath?: string
+  screenshotCount?: number
+  gifError?: string  // "ffmpeg_not_found" | "ffmpeg_failed"
+}
+
+export type Config = {
+  // ... campos existentes
+  autoJournalIncludeScreenCapture?: boolean
+}
+```
+
+### UI
+
+#### Settings Tab (Auto Journal)
+
+**Toggle:** "Incluir contexto da tela"
+- Descrição: "Após cada gravação, captura a janela ativa (OCR) e adiciona ao contexto do auto diário."
+- Helper condicional (ℹ️): Exibe instruções de instalação do FFmpeg quando toggle está ativo
+
+**Strings i18n:**
+- `autoJournal.screenCapture`
+- `autoJournal.screenCaptureDesc`
+- `autoJournal.gifPreview`
+- `autoJournal.gifPreviewDesc`
+- `autoJournal.gifMissing`
+
+#### Run Details Panel
+
+**Seção "Sequência da tela":**
+- Exibe GIF animado se disponível (`previewGifPath`)
+- Aviso se geração do GIF falhou (`gifError`)
+- Renderizado via protocolo `assets://file`
+
+### FFmpeg Bundled
+
+**Implementação:**
+- Pacote: `@ffmpeg-installer/ffmpeg` (npm)
+- Fornece binários estáticos para macOS, Windows e Linux
+- Incluído automaticamente no bundle do app
+
+**Verificação no Startup:**
+- `src/main/index.ts` verifica o binário bundled ao iniciar
+- Logs de erro se verificação falhar
+- Caminho do binário resolvido automaticamente
+
+**Plataformas Suportadas:**
+- ✅ macOS (Apple Silicon + Intel)
+- ✅ Windows (x64)
+- ✅ Linux (x64, arm64)
+
+**Nenhuma instalação manual necessária!**
+
+### Comportamento
+
+**Normal (FFmpeg bundled OK):**
+- ✅ OCR funciona
+- ✅ Screenshots capturados e salvos
+- ✅ Contexto de texto injetado no prompt
+- ✅ GIF preview gerado automaticamente
+
+**Se FFmpeg bundle falhar (raro):**
+- ✅ OCR continua funcionando
+- ✅ Screenshots são capturados e salvos
+- ✅ Contexto de texto é injetado no prompt
+- ❌ GIF preview não é gerado
+- ⚠️ Erro logado no console
+
+O sistema **nunca falha** por problemas com FFmpeg - é graceful.
+
+### Performance
+
+**Tesseract.js:**
+- Worker pool reutilizado (não cria novo worker a cada captura)
+- Cache de linguagens (eng+por) em `userData/tesseract-cache`
+- OCR roda em thread separada, não bloqueia main
+
+**FFmpeg:**
+- Execução síncrona durante `runAutoJournalOnce`
+- Timeout não aplicado (GIF pode levar alguns segundos)
+- Limpeza automática de arquivos temporários (> 10 min)
+
+### Configuração
+
+**Caminho dos dados:**
+- Screenshots: `recordings/screenshots/`
+- GIFs: `recordings/auto-journal/gifs/`
+- Temporários: `recordings/auto-journal/tmp/`
+
+**Formato das imagens:**
+- PNG para screenshots (alta qualidade)
+- GIF para preview (2 FPS, 1024px largura)
+
+### Troubleshooting
+
+**OCR retorna texto vazio:**
+- Normal para janelas gráficas (design tools, videos)
+- Tesseract funciona melhor com texto nítido e contraste alto
+
+**GIF não é gerado:**
+1. Verificar logs do console para mensagens de erro do FFmpeg
+2. Validar que screenshots existem no disco
+3. Verificar se o bundle do FFmpeg não foi corrompido (reinstalar app se necessário)
+
+**Screenshots muito grandes:**
+- Tesseract.js captura em resolução nativa
+- Considerar limpeza periódica de screenshots antigos
+
+**FFmpeg bundle verification failed:**
+- Erro raro que indica problema no bundle do app
+- Reinstalar aplicação
+- Reportar issue com logs do console
+
+---
+
 ## Contato
 
 Para dúvidas ou sugestões sobre esta implementação, consulte os specs em `ai_specs/auto-journal/`.
