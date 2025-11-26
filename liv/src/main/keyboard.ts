@@ -101,15 +101,21 @@ const parseEvent = (event: any) => {
 const keysPressed = new Map<string, number>()
 
 const hasRecentKeyPress = () => {
+  const now = Date.now() / 1000
+
+  // prune stale entries so we don't block shortcuts because of missing KeyRelease events
+  for (const [key, time] of keysPressed.entries()) {
+    if (now - time > 5) {
+      keysPressed.delete(key)
+    }
+  }
+
   if (keysPressed.size === 0) return false
 
-  const now = Date.now() / 1000
   return [...keysPressed.values()].some((time) => {
-    // 10 seconds
-    // for some weird reasons sometime KeyRelease event is missing for some keys
-    // so they stay in the map
-    // therefore we have to check if the key was pressed in the last 10 seconds
-    return now - time < 10
+    // For some weird reasons sometimes KeyRelease event is missing for some keys
+    // so they stay in the map; only consider them "recent" for a short window.
+    return now - time < 5
   })
 }
 

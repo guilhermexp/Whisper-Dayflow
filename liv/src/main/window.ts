@@ -206,7 +206,11 @@ export async function showPanelWindowAndStartRecording() {
 
   // Mute system audio if enabled
   console.log("[Window] Calling mediaController.muteSystemAudio()")
-  await mediaController.muteSystemAudio()
+  try {
+    await mediaController.muteSystemAudio()
+  } catch (error) {
+    console.warn("[Window] muteSystemAudio failed, continuing anyway", error)
+  }
 
   getWindowRendererHandlers("panel")?.startRecording.send()
 }

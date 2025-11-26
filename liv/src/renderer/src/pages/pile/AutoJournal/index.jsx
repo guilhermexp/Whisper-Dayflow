@@ -61,6 +61,8 @@ function AutoJournal() {
     queryFn: async () => tipcClient.getAutoJournalSettings(),
   })
 
+  const gifDir = settingsQuery.data?.autoJournalGifDir
+
   const schedulerStatusQuery = useQuery({
     queryKey: ["auto-journal-scheduler-status"],
     queryFn: async () => tipcClient.getAutoJournalSchedulerStatus(),
@@ -780,7 +782,6 @@ Bad examples:
                                 {selectedRun.previewGifPath
                                   ? t("autoJournal.gifPreviewDesc")
                                   : t("autoJournal.gifMissing")}
-                              </div>
                               {selectedRun.previewGifPath && (
                                 <div
                                   style={{
@@ -791,11 +792,35 @@ Bad examples:
                                     background: "var(--bg-secondary)",
                                   }}
                                 >
-                                  <img
-                                    src={`assets://file?path=${encodeURIComponent(selectedRun.previewGifPath)}`}
-                                    alt="Context GIF preview"
-                                    style={{ display: "block", width: "100%", maxHeight: "360px", objectFit: "contain" }}
-                                  />
+                                  {(() => {
+                                    const raw = selectedRun.previewGifPath || ""
+                                    const basePath = raw || (gifDir ? `${gifDir}/${selectedRun.id}.gif` : "")
+                                    const src = basePath
+                                      ? basePath.startsWith("assets://")
+                                        ? basePath
+                                        : `assets://file?path=${encodeURIComponent(basePath)}`
+                                      : ""
+                                    return src ? (
+                                      <img
+                                        src={src}
+                                        alt="Context GIF preview"
+                                        style={{
+                                          display: "block",
+                                          width: "100%",
+                                          maxHeight: "360px",
+                                          objectFit: "contain",
+                                        }}
+                                      />
+                                    ) : null
+                                  })()}
+                                </div>
+                              )}
+                                          maxHeight: "360px",
+                                          objectFit: "contain",
+                                        }}
+                                      />
+                                    ) : null
+                                  })()}
                                 </div>
                               )}
                             </div>

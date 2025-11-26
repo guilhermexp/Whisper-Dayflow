@@ -93,6 +93,12 @@ export function Component() {
       mimeType,
       audioProfile,
     }: TranscribePayload) => {
+      if (!blob.size || duration <= 0) {
+        throw new Error(
+          "Não capturamos áudio. Segure a tecla por ~1 segundo antes de soltar para iniciar a gravação.",
+        )
+      }
+
       await tipcClient.createRecording({
         recording: await blob.arrayBuffer(),
         duration,
@@ -184,6 +190,17 @@ export function Component() {
 
       if (!isConfirmedRef.current) {
         resetAudioProfileMetrics()
+        return
+      }
+
+      if (!blob || blob.size === 0 || duration <= 0) {
+        handleError(
+          new Error(
+            "Não capturamos áudio. Tente novamente segurando a tecla por ~1 segundo para garantir que o microfone começou a gravar.",
+          ),
+        )
+        resetAudioProfileMetrics()
+        setPhase("idle")
         return
       }
 
