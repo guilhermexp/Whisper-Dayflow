@@ -33,6 +33,7 @@ const normalizeRMS = (rms: number) => {
 }
 
 const TARGET_SAMPLE_RATE = 16000
+const MIN_RECORDING_MS = 500
 
 const writeString = (view: DataView, offset: number, text: string) => {
   for (let i = 0; i < text.length; i++) {
@@ -117,6 +118,8 @@ export class Recorder extends EventEmitter<{
   stream: MediaStream | null = null
   mediaRecorder: MediaRecorder | null = null
   audioCuesEnabled = true
+  recordStartTime: number | null = null
+  pendingStopTimeout: number | null = null
 
   constructor() {
     super()
@@ -206,6 +209,7 @@ export class Recorder extends EventEmitter<{
     mediaRecorder.onstart = () => {
       log("onstart")
       startTime = Date.now()
+      this.recordStartTime = startTime
       this.emit("record-start")
       const stopAnalysing = this.analyseAudio(stream)
       this.once("destroy", stopAnalysing)
@@ -220,23 +224,53 @@ export class Recorder extends EventEmitter<{
     mediaRecorder.onstop = async () => {
       const duration = Date.now() - startTime
       const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType })
-      try {
-        const wavBlob = await convertBlobToWavBlob(blob)
-        this.emit("record-end", wavBlob, duration, "audio/wav")
-      } catch (error) {
-        console.error("[Recorder] Failed to convert audio to WAV", error)
+
+      // Guard against empty or too-short blobs
+      if (!blob.size || duration < MIN_RECORDING_MS) {
+        console.warn("[Recorder] Ignoring empty/short blob", {
+          size: blob.size,
+          duration,
+          mime: mediaRecorder.mimeType,
+        })
         this.emit("record-end", blob, duration, blob.type)
+      } else {
+        try {
+          const wavBlob = await convertBlobToWavBlob(blob)
+          this.emit("record-end", wavBlob, duration, "audio/wav")
+        } catch (error) {
+          console.error("[Recorder] Failed to convert audio to WAV", error)
+          this.emit("record-end", blob, duration, blob.type)
+        }
       }
 
       audioChunks = []
+      this.recordStartTime = null
+      if (this.pendingStopTimeout !== null) {
+        clearTimeout(this.pendingStopTimeout)
+        this.pendingStopTimeout = null
+      }
     }
 
     mediaRecorder.start()
   }
 
   stopRecording() {
+    if (this.pendingStopTimeout !== null) return
+
     if (this.mediaRecorder) {
-      this.mediaRecorder.stop()
+      const now = Date.now()
+      const elapsed = this.recordStartTime ? now - this.recordStartTime : null
+
+      if (elapsed !== null && elapsed < MIN_RECORDING_MS) {
+        const remaining = MIN_RECORDING_MS - elapsed
+        this.pendingStopTimeout = window.setTimeout(() => {
+          this.pendingStopTimeout = null
+          this.mediaRecorder?.stop()
+        }, remaining)
+      } else {
+        this.mediaRecorder.stop()
+      }
+
       this.mediaRecorder = null
     }
 
@@ -244,7 +278,6 @@ export class Recorder extends EventEmitter<{
       this.stream.getTracks().forEach((track) => track.stop())
       this.stream = null
     }
-
 
     this.emit("destroy")
 

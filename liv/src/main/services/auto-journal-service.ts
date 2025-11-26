@@ -12,7 +12,7 @@ import pileIndex from "../pile-utils/pileIndex"
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg"
 
 const RUNS_DIR = path.join(recordingsFolder, "auto-journal", "runs")
-const GIF_DIR = path.join(recordingsFolder, "auto-journal", "gifs")
+export const GIF_DIR = path.join(recordingsFolder, "auto-journal", "gifs")
 const TEMP_DIR = path.join(recordingsFolder, "auto-journal", "tmp")
 
 // Get bundled FFmpeg path
@@ -87,42 +87,41 @@ async function generateGifFromScreenshots(
 ): Promise<{ path: string | null; error?: string }> {
   if (frames.length === 0) return { path: null }
 
-  // Ensure bundled ffmpeg is available
   const available = await isFfmpegAvailable()
   if (!available) {
     console.warn("[auto-journal] Bundled FFmpeg not available; skipping GIF preview")
     return { path: null, error: "ffmpeg_not_found" }
   }
 
+  // Normalize frames and copy to a temp folder with sequential names for ffmpeg
+  const tmpDir = path.join(TEMP_DIR, `gif-${Date.now()}-${Math.random().toString(36).slice(2)}`)
   try {
-    // Create temp list file for concat
-    fs.mkdirSync(TEMP_DIR, { recursive: true })
+    fs.mkdirSync(tmpDir, { recursive: true })
     fs.mkdirSync(path.dirname(outputPath), { recursive: true })
 
-    const listPath = path.join(
-      TEMP_DIR,
-      `frames-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`,
-    )
-    const safeLines = frames
-      .filter((f) => fs.existsSync(f))
-      .map((f) => `file '${f.replace(/'/g, "'\\''")}'`)
-    if (safeLines.length === 0) return { path: null }
+    const seqFrames: string[] = []
+    let idx = 1
+    for (const f of frames) {
+      if (!f || !fs.existsSync(f)) continue
+      const target = path.join(tmpDir, `frame-${String(idx).padStart(4, "0")}.png`)
+      fs.copyFileSync(f, target)
+      seqFrames.push(target)
+      idx++
+    }
 
-    await fs.promises.writeFile(listPath, safeLines.join("\n"), "utf-8")
+    if (seqFrames.length === 0) return { path: null }
 
     await new Promise<void>((resolve, reject) => {
       execFile(
         FFMPEG_PATH,
         [
           "-y",
-          "-f",
-          "concat",
-          "-safe",
-          "0",
+          "-framerate",
+          "2",
           "-i",
-          listPath,
+          path.join(tmpDir, "frame-%04d.png"),
           "-vf",
-          "fps=2,scale=1024:-1:force_original_aspect_ratio=decrease",
+          "scale=1024:-1:force_original_aspect_ratio=decrease",
           "-loop",
           "0",
           outputPath,
@@ -137,23 +136,20 @@ async function generateGifFromScreenshots(
       )
     })
 
-    return { path: fs.existsSync(outputPath) ? outputPath : null }
+    const ok = fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0
+    if (!ok) {
+      return { path: null, error: "ffmpeg_empty_output" }
+    }
+
+    return { path: outputPath }
   } catch (error) {
     console.error("[auto-journal] Failed to generate GIF:", error)
     return { path: null, error: "ffmpeg_failed" }
   } finally {
-    // Cleanup list file
+    // Cleanup temp files
     try {
-      const files = await fs.promises.readdir(TEMP_DIR)
-      for (const file of files) {
-        if (file.startsWith("frames-") && file.endsWith(".txt")) {
-          const full = path.join(TEMP_DIR, file)
-          const stats = await fs.promises.stat(full)
-          // Remove files older than ~10 minutes
-          if (Date.now() - stats.mtimeMs > 10 * 60 * 1000) {
-            await fs.promises.unlink(full)
-          }
-        }
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true })
       }
     } catch {}
   }
@@ -323,6 +319,43 @@ export async function listAutoJournalRuns(limit = 50): Promise<AutoJournalRun[]>
   for (const file of selected) {
     try {
       const data = JSON.parse(fs.readFileSync(path.join(RUNS_DIR, file), "utf-8")) as AutoJournalRun
+
+      // Regenerate GIF lazily if missing or empty
+      if (
+        data.summary?.windowStartTs &&
+        (!data.previewGifPath || !fs.existsSync(data.previewGifPath) || fs.statSync(data.previewGifPath).size === 0)
+      ) {
+        const history = historyStore.readAll()
+        const frames = history
+          .filter(
+            (h) =>
+              typeof h.createdAt === "number" &&
+              h.createdAt >= data.summary!.windowStartTs &&
+              h.createdAt <= data.summary!.windowEndTs &&
+              h.contextScreenshotPath &&
+              fs.existsSync(h.contextScreenshotPath),
+          )
+          .sort((a, b) => a.createdAt - b.createdAt)
+          .map((h) => h.contextScreenshotPath as string)
+
+        if (frames.length > 0) {
+          const gifPath = path.join(GIF_DIR, `${data.id}.gif`)
+          try {
+            const generated = await generateGifFromScreenshots(frames, gifPath)
+            if (generated.path) {
+              data.previewGifPath = generated.path
+              data.gifError = undefined
+              await writeRun(data)
+            } else if (generated.error) {
+              data.gifError = generated.error
+            }
+          } catch (err) {
+            data.gifError = "gif_regen_failed"
+            console.error("[auto-journal] GIF regen failed", err)
+          }
+        }
+      }
+
       runs.push(data)
     } catch {}
   }

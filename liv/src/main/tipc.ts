@@ -42,6 +42,8 @@ import {
   stopAutoJournalScheduler,
   restartAutoJournalScheduler,
   getSchedulerStatus,
+  startAutoJournalScheduler,
+  GIF_DIR,
 } from "./services/auto-journal-service"
 import { saveAutoJournalEntry } from "./services/auto-journal-entry"
 
@@ -330,6 +332,31 @@ export const router = {
       const recordedAt = Date.now()
       const recordingId = recordedAt.toString()
       const recordingBuffer = Buffer.from(input.recording)
+
+      if (!recordingBuffer.byteLength || !input.duration || input.duration <= 0) {
+        const error = new Error(
+          "Não capturamos áudio (o arquivo veio vazio). Tente novamente mantendo a tecla pressionada por cerca de 1 segundo.",
+        )
+        error.name = "EmptyRecordingError"
+        throw error
+      }
+
+      if (recordingBuffer.byteLength < 5000 || input.duration < 300) {
+        console.warn(
+          "[createRecording] Received very small audio blob",
+          {
+            bytes: recordingBuffer.byteLength,
+            duration: input.duration,
+            mimeType: input.mimeType,
+          },
+        )
+        // Stop early with a friendly error to avoid sending tiny blobs to the provider
+        const error = new Error(
+          "Gravação muito curta. Segure a tecla por pelo menos meio segundo para iniciar o áudio.",
+        )
+        error.name = "EmptyRecordingError"
+        throw error
+      }
       const providerId = deriveSttProviderId(config)
       const isLocalProvider = providerId.startsWith(LOCAL_PROVIDER_PREFIX)
       const localModelId = isLocalProvider
@@ -487,7 +514,14 @@ export const router = {
           return
         }
 
-        throw error
+        const err = error as Error
+        if (/file is empty/i.test(err.message)) {
+          err.name = "EmptyRecordingError"
+          err.message =
+            "Não capturamos áudio (o arquivo veio vazio). Tente novamente mantendo a tecla pressionada por cerca de 1 segundo."
+        }
+
+        throw err
       } finally {
         if (state.transcriptionAbortController === controller) {
           state.transcriptionAbortController = null
@@ -769,6 +803,7 @@ export const router = {
       autoJournalSummaryPromptEnabled:
         cfg.autoJournalSummaryPromptEnabled ?? false,
       autoJournalSummaryPrompt: cfg.autoJournalSummaryPrompt ?? "",
+      autoJournalGifDir: GIF_DIR,
     }
   }),
 

@@ -63,13 +63,18 @@ class MediaController {
     }
 
     try {
-      // First check if audio is already muted (to know if we should unmute later)
+      // Only mute if audio is currently unmuted; otherwise skip to avoid stacking
       this.wasAudioMutedBeforeRecording = await this.isSystemAudioMuted()
       console.log("[MediaController] Audio was muted before recording:", this.wasAudioMutedBeforeRecording)
 
-      // Always execute mute command to ensure audio is muted
+      if (this.wasAudioMutedBeforeRecording) {
+        this.didMuteAudio = false
+        console.log("[MediaController] Skipping mute: already muted")
+        return true
+      }
+
       console.log("[MediaController] Executing mute command...")
-      const { stdout, stderr } = await execAsync(
+      const { stderr } = await execAsync(
         'osascript -e "set volume with output muted"'
       )
 

@@ -8,7 +8,7 @@ import {
   GaugeIcon,
   CopyIcon,
 } from "renderer/icons"
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import * as Dialog from "@radix-ui/react-dialog"
 import * as Tabs from "@radix-ui/react-tabs"
@@ -46,6 +46,24 @@ export default function Dashboard() {
     queryKey: ["recording-history"],
     queryFn: async () => tipcClient.getRecordingHistory(),
   })
+
+  const [previewSrc, setPreviewSrc] = useState(null)
+
+  // Close preview with ESC without bubbling to the Radix Dialog (prevents navigation away)
+  useEffect(() => {
+    if (!previewSrc) return
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.stopPropagation()
+        e.preventDefault()
+        setPreviewSrc(null)
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown, true)
+    return () => window.removeEventListener("keydown", onKeyDown, true)
+  }, [previewSrc])
 
   // Mutations
   const deleteRecordingHistoryMutation = useMutation({
@@ -504,79 +522,87 @@ export default function Dashboard() {
                               key={`${item.id}-${index}`}
                               className={styles.HistoryItem}
                             >
-                              <div className={styles.HistoryHeader}>
-                                <div className={styles.HistoryDate}>
-                                  {formatDate(item.createdAt)}
-                                </div>
-                                <div className={styles.HistoryActions}>
-                                  {/* Screenshot thumbnail - small, right-aligned */}
-                                  {screenshotSrc && (
-                                    <img
-                                      src={screenshotSrc}
-                                      alt=""
-                                      className={styles.screenshotThumbnail}
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        window.open(screenshotSrc, "_blank")
-                                      }}
-                                      onError={(e) => {
-                                        const target = e.currentTarget
-                                        if (!target.dataset.fallbackUsed) {
-                                          target.dataset.fallbackUsed = "1"
-                                          target.src = `assets://screenshot/${item.id}`
+                              {/* Conteúdo principal */}
+                              <div className={styles.HistoryContent}>
+                                <div className={styles.HistoryHeader}>
+                                  <div className={styles.HistoryDate}>
+                                    {formatDate(item.createdAt)}
+                                  </div>
+                                  <div className={styles.HistoryActions}>
+                                    <span className={styles.HistoryDuration}>
+                                      {formatDuration(item.duration)}
+                                    </span>
+                                    <button
+                                      className={styles.CopyBtn}
+                                      onClick={() => {
+                                        if (item.transcript) {
+                                          navigator.clipboard.writeText(
+                                            item.transcript,
+                                          )
                                         }
                                       }}
-                                    />
+                                      title={t("common.copy")}
+                                    >
+                                      <CopyIcon />
+                                    </button>
+                                    <button
+                                      className={styles.DeleteIconBtn}
+                                      onClick={() => {
+                                        if (
+                                          window.confirm(
+                                            t("history.deleteConfirm"),
+                                          )
+                                        ) {
+                                          deleteRecordingMutation.mutate(
+                                            item.id,
+                                          )
+                                        }
+                                      }}
+                                    >
+                                      {t("common.delete")}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className={styles.HistoryTranscript}>
+                                  {item.transcript ||
+                                    t("analytics.noTranscription")}
+                                </div>
+                                <div className={styles.HistoryMeta}>
+                                  {item.providerId && (
+                                    <span className={styles.MetaItem}>
+                                      {item.providerId}
+                                    </span>
                                   )}
-                                  <span className={styles.HistoryDuration}>
-                                    {formatDuration(item.duration)}
-                                  </span>
-                                  <button
-                                    className={styles.CopyBtn}
-                                    onClick={() => {
-                                      if (item.transcript) {
-                                        navigator.clipboard.writeText(
-                                          item.transcript,
-                                        )
-                                      }
-                                    }}
-                                    title={t("common.copy")}
-                                  >
-                                    <CopyIcon />
-                                  </button>
-                                  <button
-                                    className={styles.DeleteIconBtn}
-                                    onClick={() => {
-                                      if (
-                                        window.confirm(
-                                          t("history.deleteConfirm"),
-                                        )
-                                      ) {
-                                        deleteRecordingMutation.mutate(item.id)
-                                      }
-                                    }}
-                                  >
-                                    {t("common.delete")}
-                                  </button>
+                                  {item.fileSize && (
+                                    <span className={styles.MetaItem}>
+                                      {formatBytes(item.fileSize)}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
-                              <div className={styles.HistoryTranscript}>
-                                {item.transcript ||
-                                  t("analytics.noTranscription")}
-                              </div>
-                              <div className={styles.HistoryMeta}>
-                                {item.providerId && (
-                                  <span className={styles.MetaItem}>
-                                    {item.providerId}
-                                  </span>
-                                )}
-                                {item.fileSize && (
-                                  <span className={styles.MetaItem}>
-                                    {formatBytes(item.fileSize)}
-                                  </span>
-                                )}
-                              </div>
+                              {/* Thumbnail box à direita */}
+                              {screenshotSrc && (
+                                <div className={styles.HistoryThumbnailBox}>
+                                  <img
+                                    src={screenshotSrc}
+                                    alt=""
+                                    className={styles.screenshotThumbnail}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setPreviewSrc(screenshotSrc)
+                                    }}
+                                    onError={(e) => {
+                                      const target = e.currentTarget
+                                      if (!target.dataset.fallbackUsed) {
+                                        target.dataset.fallbackUsed = "1"
+                                        target.src = `assets://screenshot/${item.id}`
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              )}
                             </div>
                           )
                         })
@@ -587,7 +613,34 @@ export default function Dashboard() {
             </Tabs.Root>
           </div>
         </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  )
+
+        {previewSrc && (
+          <div
+            className={styles.ImagePreviewOverlay}
+            onClick={(e) => {
+              e.stopPropagation()
+              setPreviewSrc(null)
+            }}
+          >
+            <div
+              className={styles.ImagePreviewContent}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className={styles.ImagePreviewClose}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setPreviewSrc(null)
+                }}
+              >
+                ×
+              </button>
+              <img src={previewSrc} alt="Screenshot preview" />
+            </div>
+          </div>
+        )}
+        </Dialog.Portal>
+      </Dialog.Root>
+    )
 }
