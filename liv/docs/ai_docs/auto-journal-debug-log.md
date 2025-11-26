@@ -2,6 +2,14 @@
 
 Registro completo do que foi feito nesta sessão para o Auto Journal (backend + frontend), incluindo caminhos de arquivos tocados, comportamentos esperados e pendências.
 
+## Atualização 26 Nov 2025 (refino GIF + modelo)
+- Default do modelo OpenAI para o Auto Diário passou a ser **gpt-5.1** (quando nenhum modelo custom é definido).
+- Geração de GIF ficou resiliente:
+  - Regera automaticamente ao listar runs se o GIF estiver faltando ou com tamanho 0.
+  - Validação do ffmpeg antes de marcar sucesso.
+  - `autoJournalGifDir` é exposto via IPC; renderer monta `assets://file?path=...`.
+  - Prévia no UI corrigida: sem overlay duplicado e área clicável do botão de fechar alinhada.
+
 ## 1) Contexto inicial
 - Feature existente: geração de runs (auto/manual) com resumo JSON; UI tinha botão “Salvar no diário”, mas não criava post automático nem havia auto-save.
 - Problemas observados: sem auto-save no scheduler; botão manual sem feedback; scroll da página quebrado.

@@ -1,6 +1,6 @@
 # Auto Journal - Implementação Estilo Dayflow
 
-**Data:** 22 de Novembro de 2025
+**Data:** 22 de Novembro de 2025 (atualizado em 26 de Novembro de 2025)
 **Status:** Em desenvolvimento
 **Versão:** 1.0
 
@@ -374,7 +374,7 @@ O LLM retorna JSON puro (sem markdown). O parsing remove:
 
 ### Providers Suportados
 
-1. **OpenAI** - gpt-4o-mini (default)
+1. **OpenAI** - gpt-5.1 (default para o Auto Diário quando nenhum modelo custom é definido)
 2. **Groq** - llama-3.1-70b-versatile
 3. **Gemini** - gemini-1.5-flash-002
 4. **OpenRouter** - Qualquer modelo compatível
@@ -440,6 +440,14 @@ Função: `generateGifFromScreenshots(frames[], outputPath)`
 - Configuração: 2 FPS, escala 1024px largura
 - Loop infinito
 - Best-effort: se falhar, auto-journal continua normalmente
+- Caminhos padrão:
+  - GIFs: `~/Library/Application Support/app.liv/recordings/auto-journal/gifs/{runId}.gif`
+  - Temp: `~/Library/Application Support/app.liv/recordings/auto-journal/tmp`
+- Resiliência recente (26/11/2025):
+  - Regera o GIF ao listar runs se o arquivo estiver ausente ou com tamanho 0.
+  - Valida saída do ffmpeg antes de marcar sucesso; se falhar, mantém o run porém sem prévia.
+  - Renderer recebe `autoJournalGifDir` via IPC e monta `assets://file?path=...` com `encodeURIComponent` para exibir a prévia.
+  - UI de preview foi corrigida para não duplicar overlay/dialog e aceitar cliques no botão de fechar.
 
 **Requisitos:**
 - FFmpeg bundled via `@ffmpeg-installer/ffmpeg` (incluído no app)
