@@ -11,3 +11,17 @@ export const abortOngoingTranscription = () => {
     state.transcriptionAbortController = null
   }
 }
+
+/**
+ * Reset all transcription-related state
+ * Use after errors or cancellation to ensure clean state
+ */
+export const resetTranscriptionState = () => {
+  console.log("[State] Resetting transcription state", {
+    wasRecording: state.isRecording,
+    wasTranscribing: state.isTranscribing,
+  })
+  state.isRecording = false
+  state.isTranscribing = false
+  state.transcriptionAbortController = null
+}

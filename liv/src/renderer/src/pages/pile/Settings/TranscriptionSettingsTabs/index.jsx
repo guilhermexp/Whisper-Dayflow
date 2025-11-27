@@ -134,7 +134,8 @@ export default function TranscriptionSettingsTabs() {
   const getCurrentModelName = () => {
     const providerId = config.sttProviderId || 'openai';
     if (providerId === 'openai') return config.openaiWhisperModel || 'gpt-4o-mini-transcribe';
-    if (providerId === 'groq') return config.groqWhisperModel || 'whisper-large-v3';
+    if (providerId === 'groq') return config.groqWhisperModel || 'whisper-large-v3-turbo';
+    if (providerId === 'deepgram') return config.deepgramModel || 'nova-3';
     if (providerId === 'gemini') return config.geminiModel || 'gemini-1.5-flash';
     if (providerId === 'openrouter') return config.openrouterModel || 'openrouter';
     if (providerId.startsWith('local:')) {
@@ -162,6 +163,7 @@ export default function TranscriptionSettingsTabs() {
         >
           <option value="openai">{t('providers.openai')}</option>
           <option value="groq">{t('providers.groq')}</option>
+          <option value="deepgram">{t('providers.deepgram')}</option>
           <option value="gemini">{t('providers.gemini')}</option>
           <option value="openrouter">{t('providers.openrouter')}</option>
           {localModels.filter(m => m.isDownloaded || m.provider === 'local-imported').map(model => (
@@ -203,12 +205,25 @@ export default function TranscriptionSettingsTabs() {
               return (
                 <select
                   className={styles.input}
-                  value={config.groqWhisperModel || 'whisper-large-v3'}
+                  value={config.groqWhisperModel || 'whisper-large-v3-turbo'}
                   onChange={handleInputChange('groqWhisperModel')}
                 >
+                  <option value="whisper-large-v3-turbo">whisper-large-v3-turbo (recomendado)</option>
                   <option value="whisper-large-v3">whisper-large-v3</option>
-                  <option value="whisper-large-v3-turbo">whisper-large-v3-turbo</option>
-                  <option value="distil-whisper-large-v3-en">distil-whisper-large-v3-en</option>
+                  <option value="distil-whisper-large-v3-en">distil-whisper-large-v3-en (inglês)</option>
+                </select>
+              );
+            }
+            if (providerId === 'deepgram') {
+              return (
+                <select
+                  className={styles.input}
+                  value={config.deepgramModel || 'nova-3'}
+                  onChange={handleInputChange('deepgramModel')}
+                >
+                  <option value="nova-3">nova-3 (recomendado)</option>
+                  <option value="nova-2">nova-2</option>
+                  <option value="nova-3-medical">nova-3-medical</option>
                 </select>
               );
             }
@@ -432,12 +447,70 @@ export default function TranscriptionSettingsTabs() {
                       <label className={styles.label}>{t('settingsDialog.transcription.model')}</label>
                       <select
                         className={styles.input}
-                        value={config.groqWhisperModel || 'whisper-large-v3'}
+                        value={config.groqWhisperModel || 'whisper-large-v3-turbo'}
                         onChange={handleInputChange('groqWhisperModel')}
                       >
+                        <option value="whisper-large-v3-turbo">whisper-large-v3-turbo (recomendado)</option>
                         <option value="whisper-large-v3">whisper-large-v3</option>
-                        <option value="whisper-large-v3-turbo">whisper-large-v3-turbo</option>
-                        <option value="distil-whisper-large-v3-en">distil-whisper-large-v3-en</option>
+                        <option value="distil-whisper-large-v3-en">distil-whisper-large-v3-en (inglês)</option>
+                      </select>
+                    </fieldset>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Deepgram */}
+            <div style={{ background: 'var(--bg-tertiary)', borderRadius: '8px', overflow: 'hidden' }}>
+              <button
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--primary)',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                }}
+                onClick={() => setExpandedProvider(expandedProvider === 'deepgram' ? null : 'deepgram')}
+              >
+                <span>{t('providers.deepgram')}</span>
+                <ChevronRightIcon
+                  style={{
+                    height: '14px',
+                    width: '14px',
+                    transform: expandedProvider === 'deepgram' ? 'rotate(90deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease'
+                  }}
+                />
+              </button>
+              {expandedProvider === 'deepgram' && (
+                <div style={{ padding: '0 12px 12px' }}>
+                  <div className={styles.group}>
+                    <fieldset className={styles.fieldset}>
+                      <label className={styles.label}>{t('settingsDialog.transcription.apiKey')}</label>
+                      <input
+                        className={styles.input}
+                        type="password"
+                        value={config.deepgramApiKey || ''}
+                        onChange={handleInputChange('deepgramApiKey')}
+                        placeholder="Token..."
+                      />
+                    </fieldset>
+                    <fieldset className={styles.fieldset}>
+                      <label className={styles.label}>{t('settingsDialog.transcription.model')}</label>
+                      <select
+                        className={styles.input}
+                        value={config.deepgramModel || 'nova-3'}
+                        onChange={handleInputChange('deepgramModel')}
+                      >
+                        <option value="nova-3">nova-3 (recomendado)</option>
+                        <option value="nova-2">nova-2</option>
+                        <option value="nova-3-medical">nova-3-medical</option>
                       </select>
                     </fieldset>
                   </div>

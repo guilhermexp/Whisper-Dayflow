@@ -518,7 +518,10 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
         body: JSON.stringify({
           model,
           temperature: 0.2,
-          max_tokens: 1200,
+          // Novos modelos OpenAI (gpt-4o, gpt-4o-mini, gpt-5.1, o1, o3) usam max_completion_tokens
+          ...(model.startsWith("gpt-4o") || model.startsWith("gpt-5") || model.startsWith("o1") || model.startsWith("o3")
+            ? { max_completion_tokens: 1200 }
+            : { max_tokens: 1200 }),
           messages: [
             {
               role: "user",

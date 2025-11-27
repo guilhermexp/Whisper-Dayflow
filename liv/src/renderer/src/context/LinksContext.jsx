@@ -138,7 +138,7 @@ export const LinksContextProvider = ({ children }) => {
 
     const response = await ai.chat.completions.create({
       model: 'gpt-4o',
-      max_tokens: 500,
+      max_completion_tokens: 500,
       messages: context,
       response_format: {
         type: 'json_object',

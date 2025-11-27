@@ -33,21 +33,23 @@ const handleApp = async (
     rendererDir,
     decodeURIComponent(new URL(request.url).pathname),
   )
-  const resolvedPath = await getPath(filePath)
   const fileExtension = path.extname(filePath)
 
-  if (
-    resolvedPath ||
-    !fileExtension ||
-    fileExtension === ".html" ||
-    fileExtension === ".asar"
-  ) {
-    callback({
-      path: resolvedPath || indexPath,
-    })
-  } else {
-    callback({ error: FILE_NOT_FOUND })
+  // For static assets (css, js, etc), try to serve directly
+  // fs.existsSync works with asar files in Electron
+  if (fileExtension && fs.existsSync(filePath)) {
+    return callback({ path: filePath })
   }
+
+  // For routes without extension or html, serve index.html (SPA fallback)
+  if (!fileExtension || fileExtension === ".html") {
+    const resolvedPath = await getPath(filePath)
+    return callback({ path: resolvedPath || indexPath })
+  }
+
+  // File not found
+  console.log("[serve] File not found:", filePath)
+  callback({ error: FILE_NOT_FOUND })
 }
 
 export function registerServeSchema() {

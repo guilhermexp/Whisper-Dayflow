@@ -351,7 +351,7 @@ export const transcribeWithSherpa = async ({
 
   // Write audio buffer to temporary WAV file
   const tempDir = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), "voiceflow-sherpa-")
+    path.join(os.tmpdir(), "liv-sherpa-")
   )
   const wavPath = path.join(tempDir, "input.wav")
 

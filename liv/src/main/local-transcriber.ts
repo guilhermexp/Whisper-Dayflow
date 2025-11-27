@@ -238,7 +238,7 @@ export const transcribeWithLocalModel = async ({
   console.log(`[local-transcriber] Model format validated`)
 
   const tempDir = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), "voiceflow-local-"),
+    path.join(os.tmpdir(), "liv-local-"),
   )
   const wavPath = path.join(tempDir, "input.wav")
   console.log(`[local-transcriber] Created temp directory: ${tempDir}`)

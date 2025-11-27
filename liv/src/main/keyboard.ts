@@ -127,6 +127,10 @@ export function listenToKeyboardEvents() {
   let isEscPrimed = false
   const ESC_DOUBLE_PRESS_THRESHOLD = 1500
 
+  // Debounce toggle - prevent double-click issues
+  let lastToggleTime = 0
+  const TOGGLE_DEBOUNCE_MS = 400
+
   console.log("[Keyboard] Starting keyboard listener...")
   console.log("[Keyboard] Binary path:", LIV_RS_BINARY_PATH)
 
@@ -203,11 +207,43 @@ export function listenToKeyboardEvents() {
           }
 
           if (shortcut === "instant-ctrl" || shortcut === "fn-key") {
+            // Debounce: ignore toggle if too close to last one
+            const now = Date.now()
+            if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) {
+              console.log("[Keyboard] Ignoring toggle - debounce active")
+              return
+            }
+
+            // Se já está gravando, finaliza e transcreve (toggle)
+            if (state.isRecording) {
+              console.log("finish recording (toggle)")
+              lastToggleTime = now
+              getWindowRendererHandlers("panel")?.startOrFinishRecording.send()
+              isHoldingShortcutKey = false
+              return
+            }
+
+            // Se está transcrevendo, ignore novo comando
+            if (state.isTranscribing) {
+              console.log("[Keyboard] Ignoring start - transcription in progress")
+              return
+            }
+
             if (isHoldingShortcutKey) return
 
             isHoldingShortcutKey = true
+            lastToggleTime = now
             console.log("start recording (instant)")
             showPanelWindowAndStartRecording()
+            return
+          }
+
+          // Se já está gravando, finaliza e transcreve (toggle)
+          if (state.isRecording) {
+            console.log("finish recording (toggle - hold mode)")
+            getWindowRendererHandlers("panel")?.startOrFinishRecording.send()
+            isHoldingShortcutKey = false
+            cancelRecordingTimer()
             return
           }
 

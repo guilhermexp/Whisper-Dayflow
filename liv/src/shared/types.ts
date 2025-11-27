@@ -256,6 +256,9 @@ export type Config = {
   openrouterBaseUrl?: string
   openrouterModel?: string
 
+  deepgramApiKey?: string
+  deepgramModel?: string // nova-3, nova-2, etc.
+
   transcriptPostProcessingEnabled?: boolean
   transcriptPostProcessingProviderId?: CHAT_PROVIDER_ID
   transcriptPostProcessingPrompt?: string
