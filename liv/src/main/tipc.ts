@@ -20,13 +20,13 @@ import type {
   RecordingHistoryItem,
   RecordingHistorySearchFilters,
 } from "../shared/types"
-import { RendererHandlers } from "./renderer-handlers"
+import { RendererHandlers, ErrorNotification } from "./renderer-handlers"
 import {
   postProcessTranscript,
   generateAutoJournalSummaryFromHistory,
 } from "./llm"
 import { enhancementService } from "./services/enhancement-service"
-import { abortOngoingTranscription, state } from "./state"
+import { abortOngoingTranscription, resetTranscriptionState, state } from "./state"
 import { updateTrayIcon } from "./tray"
 import { isAccessibilityGranted } from "./utils"
 import { writeText, openAccessibilitySettings } from "./keyboard"
@@ -42,12 +42,26 @@ import {
   stopAutoJournalScheduler,
   restartAutoJournalScheduler,
   getSchedulerStatus,
-  startAutoJournalScheduler,
+  deleteAutoJournalRun,
   GIF_DIR,
 } from "./services/auto-journal-service"
 import { saveAutoJournalEntry } from "./services/auto-journal-entry"
 
 const t = tipc.create()
+
+/**
+ * Send a notification to the main window renderer
+ * Use for user-facing feedback (errors, warnings, info)
+ */
+const sendNotification = (notification: ErrorNotification) => {
+  const mainWindow = WINDOWS.get("main")
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    getRendererHandlers<RendererHandlers>(mainWindow.webContents).showNotification.send(notification)
+  } else {
+    // Fallback: log to console if main window not available
+    console.log(`[Notification] ${notification.type}: ${notification.title} - ${notification.message}`)
+  }
+}
 
 const normalizeProviderError = {
   stt(response: Response, body: string) {
@@ -80,6 +94,7 @@ const normalizeProviderError = {
 const CLOUD_STT_MODEL_LABELS: Record<string, string> = {
   openai: "OpenAI (gpt-4o-mini-transcribe)",
   groq: "Groq Whisper (whisper-large-v3)",
+  deepgram: "Deepgram (nova-3)",
 }
 
 const LOCAL_PROVIDER_PREFIX = "local:"
@@ -318,9 +333,33 @@ export const router = {
       fs.mkdirSync(recordingsFolder, { recursive: true })
 
       if (state.isTranscribing) {
+        console.warn("[createRecording] Transcription already in progress, rejecting new request")
+        sendNotification({
+          type: "warning",
+          title: "Aguarde",
+          message: "Uma transcrição já está em andamento. Aguarde ela terminar antes de iniciar outra.",
+          code: "BusyError",
+        })
         const error = new Error("Transcription already in progress")
         error.name = "BusyError"
         throw error
+      }
+
+      // Helper to ensure cleanup on any error path and send notification
+      const ensureCleanup = async (error?: Error) => {
+        resetTranscriptionState()
+        const { mediaController } = await import("./services/media-controller")
+        await mediaController.forceUnmute()
+
+        // Send user-facing notification if there's an error
+        if (error && error.name !== "AbortError") {
+          sendNotification({
+            type: "error",
+            title: error.name === "EmptyRecordingError" ? "Gravação Vazia" : "Erro na Transcrição",
+            message: error.message,
+            code: error.name,
+          })
+        }
       }
 
       const controller = new AbortController()
@@ -333,28 +372,31 @@ export const router = {
       const recordingId = recordedAt.toString()
       const recordingBuffer = Buffer.from(input.recording)
 
-      if (!recordingBuffer.byteLength || !input.duration || input.duration <= 0) {
+      if (
+        !recordingBuffer.byteLength ||
+        !input.duration ||
+        input.duration <= 0
+      ) {
         const error = new Error(
           "Não capturamos áudio (o arquivo veio vazio). Tente novamente mantendo a tecla pressionada por cerca de 1 segundo.",
         )
         error.name = "EmptyRecordingError"
+        await ensureCleanup(error)
         throw error
       }
 
       if (recordingBuffer.byteLength < 5000 || input.duration < 300) {
-        console.warn(
-          "[createRecording] Received very small audio blob",
-          {
-            bytes: recordingBuffer.byteLength,
-            duration: input.duration,
-            mimeType: input.mimeType,
-          },
-        )
+        console.warn("[createRecording] Received very small audio blob", {
+          bytes: recordingBuffer.byteLength,
+          duration: input.duration,
+          mimeType: input.mimeType,
+        })
         // Stop early with a friendly error to avoid sending tiny blobs to the provider
         const error = new Error(
           "Gravação muito curta. Segure a tecla por pelo menos meio segundo para iniciar o áudio.",
         )
         error.name = "EmptyRecordingError"
+        await ensureCleanup(error)
         throw error
       }
       const providerId = deriveSttProviderId(config)
@@ -418,6 +460,31 @@ export const router = {
             threads: config.localInferenceThreads,
             signal: controller.signal,
           })
+        } else if (providerId === "deepgram") {
+          // Deepgram has a different API format
+          console.log(`[transcription] Using Deepgram provider`)
+          const deepgramModel = config.deepgramModel || "nova-3"
+          const deepgramUrl = `https://api.deepgram.com/v1/listen?model=${deepgramModel}&language=pt&smart_format=true`
+
+          const transcriptResponse = await fetch(deepgramUrl, {
+            method: "POST",
+            headers: {
+              Authorization: `Token ${config.deepgramApiKey}`,
+              "Content-Type": mimeType,
+            },
+            body: recordingBuffer,
+            signal: controller.signal,
+          })
+
+          if (!transcriptResponse.ok) {
+            const raw = await transcriptResponse.text()
+            throw new Error(normalizeProviderError.stt(transcriptResponse, raw))
+          }
+
+          const json = await transcriptResponse.json()
+          // Deepgram returns transcript in results.channels[0].alternatives[0].transcript
+          baseTranscript =
+            json?.results?.channels?.[0]?.alternatives?.[0]?.transcript || ""
         } else {
           console.log(`[transcription] Using cloud provider ${providerId}`)
           const form = new FormData()
@@ -429,7 +496,7 @@ export const router = {
           )
           const model =
             providerId === "groq"
-              ? config.groqWhisperModel || "whisper-large-v3"
+              ? config.groqWhisperModel || "whisper-large-v3-turbo"
               : providerId === "openrouter"
                 ? config.openrouterModel || "gpt-4o-mini-transcribe"
                 : providerId === "openai"
@@ -511,6 +578,7 @@ export const router = {
       } catch (error) {
         if ((error as Error).name === "AbortError") {
           console.info("[createRecording] transcription aborted by user")
+          await ensureCleanup()
           return
         }
 
@@ -521,8 +589,11 @@ export const router = {
             "Não capturamos áudio (o arquivo veio vazio). Tente novamente mantendo a tecla pressionada por cerca de 1 segundo."
         }
 
+        // Ensure cleanup on error before throwing - this also sends notification
+        await ensureCleanup(err)
         throw err
       } finally {
+        // Safety net: always ensure state is clean
         if (state.transcriptionAbortController === controller) {
           state.transcriptionAbortController = null
         }
@@ -599,9 +670,8 @@ export const router = {
           try {
             const screenshotsDir = path.join(recordingsFolder, "screenshots")
             const screenshotPath = path.join(screenshotsDir, `${item.id}.png`)
-            const result = await screenCaptureService.captureAndExtractText(
-              screenshotPath,
-            )
+            const result =
+              await screenCaptureService.captureAndExtractText(screenshotPath)
             const screenText = result?.text?.trim()
             const exists =
               result?.imagePath && fs.existsSync(result.imagePath ?? "")
@@ -788,6 +858,12 @@ export const router = {
       return listAutoJournalRuns(input?.limit ?? 50)
     }),
 
+  deleteAutoJournalRun: t.procedure
+    .input<{ runId: string }>()
+    .action(async ({ input }) => {
+      return deleteAutoJournalRun(input.runId)
+    }),
+
   getAutoJournalSettings: t.procedure.action(async () => {
     const cfg = configStore.get()
     return {
@@ -823,7 +899,8 @@ export const router = {
     .action(async ({ input }) => {
       const cfg = configStore.get()
       const wasEnabled = cfg.autoJournalEnabled ?? false
-      const willBeEnabled = input.autoJournalEnabled ?? cfg.autoJournalEnabled ?? false
+      const willBeEnabled =
+        input.autoJournalEnabled ?? cfg.autoJournalEnabled ?? false
 
       configStore.save({
         ...cfg,
@@ -867,10 +944,10 @@ export const router = {
         autoJournalEnabled: updatedCfg.autoJournalEnabled,
         autoJournalWindowMinutes: updatedCfg.autoJournalWindowMinutes,
         autoJournalTargetPilePath: updatedCfg.autoJournalTargetPilePath,
-      autoJournalAutoSaveEnabled: updatedCfg.autoJournalAutoSaveEnabled,
-      autoJournalIncludeScreenCapture:
-        updatedCfg.autoJournalIncludeScreenCapture,
-      autoJournalPrompt: updatedCfg.autoJournalPrompt,
+        autoJournalAutoSaveEnabled: updatedCfg.autoJournalAutoSaveEnabled,
+        autoJournalIncludeScreenCapture:
+          updatedCfg.autoJournalIncludeScreenCapture,
+        autoJournalPrompt: updatedCfg.autoJournalPrompt,
         autoJournalTitlePromptEnabled: updatedCfg.autoJournalTitlePromptEnabled,
         autoJournalTitlePrompt: updatedCfg.autoJournalTitlePrompt,
         autoJournalSummaryPromptEnabled:

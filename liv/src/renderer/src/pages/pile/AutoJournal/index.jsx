@@ -7,8 +7,11 @@ import {
   ChevronRightIcon,
   HomeIcon,
   NotebookIcon,
+  TrashIcon,
+  EditIcon,
 } from "renderer/icons"
 import { useState, useMemo, useEffect } from "react"
+import Markdown from "react-markdown"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, Link } from "react-router-dom"
 import * as Tabs from "@radix-ui/react-tabs"
@@ -41,6 +44,8 @@ function AutoJournal() {
   const [selectedRunId, setSelectedRunId] = useState(null)
   const [savingRunId, setSavingRunId] = useState(null)
   const [savedRunIds, setSavedRunIds] = useState(new Set())
+  const [editingTitlePrompt, setEditingTitlePrompt] = useState(false)
+  const [editingSummaryPrompt, setEditingSummaryPrompt] = useState(false)
   const themeStyles = useMemo(
     () => (currentTheme ? `${currentTheme}Theme` : ""),
     [currentTheme],
@@ -115,6 +120,28 @@ function AutoJournal() {
         windowStartTs: run.summary.windowStartTs,
         windowEndTs: run.summary.windowEndTs,
         highlight: run.summary.highlight || null,
+      })
+    },
+  })
+
+  const deleteRunMutation = useMutation({
+    mutationFn: (runId) => tipcClient.deleteAutoJournalRun({ runId }),
+    onSuccess(_, runId) {
+      // Clear selection if we deleted the selected run
+      if (selectedRunId === runId) {
+        setSelectedRunId(null)
+      }
+      queryClient.invalidateQueries({ queryKey: ["auto-journal-runs"] })
+      addNotification({
+        id: Date.now(),
+        message: t("autoJournal.runDeleted"),
+      })
+    },
+    onError(error) {
+      addNotification({
+        id: Date.now(),
+        type: "error",
+        message: `${t("autoJournal.deleteError")} ${error.message}`,
       })
     },
   })
@@ -554,7 +581,7 @@ Bad examples:
                                 <span className={styles.RunDate}>
                                   {formatDate(run.startedAt)}
                                 </span>
-                                <div style={{ display: "flex", gap: "6px" }}>
+                                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                                   {!runHasContent && run.status === "success" && (
                                     <span
                                       style={{
@@ -590,6 +617,17 @@ Bad examples:
                                       ? t("autoJournal.statusSuccess")
                                       : t("autoJournal.statusError")}
                                   </span>
+                                  <button
+                                    className={styles.DeleteBtn}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      deleteRunMutation.mutate(run.id)
+                                    }}
+                                    disabled={deleteRunMutation.isPending}
+                                    title={t("common.delete")}
+                                  >
+                                    <TrashIcon style={{ height: 12, width: 12 }} />
+                                  </button>
                                 </div>
                               </div>
                             <div className={styles.RunMeta}>
@@ -1098,15 +1136,33 @@ Bad examples:
 
                 {settings.autoJournalTitlePromptEnabled && (
                   <fieldset className={styles.Fieldset}>
-                    <textarea
-                      value={
-                        settings.autoJournalTitlePrompt || defaultTitlePrompt
-                      }
-                      onChange={(e) => handleTitlePromptChange(e.target.value)}
-                      className={styles.Textarea}
-                      rows={8}
-                      placeholder="Enter custom prompt for titles..."
-                    />
+                    <div className={styles.PromptEditor}>
+                      <button
+                        className={styles.EditPromptBtn}
+                        onClick={() => setEditingTitlePrompt(!editingTitlePrompt)}
+                        title={editingTitlePrompt ? t("common.preview") : t("common.edit")}
+                      >
+                        <EditIcon style={{ height: 14, width: 14 }} />
+                        {editingTitlePrompt ? t("common.preview") : t("common.edit")}
+                      </button>
+                      {editingTitlePrompt ? (
+                        <textarea
+                          value={
+                            settings.autoJournalTitlePrompt || defaultTitlePrompt
+                          }
+                          onChange={(e) => handleTitlePromptChange(e.target.value)}
+                          className={styles.Textarea}
+                          rows={12}
+                          placeholder="Enter custom prompt for titles..."
+                        />
+                      ) : (
+                        <div className={styles.MarkdownPreview}>
+                          <Markdown>
+                            {settings.autoJournalTitlePrompt || defaultTitlePrompt}
+                          </Markdown>
+                        </div>
+                      )}
+                    </div>
                   </fieldset>
                 )}
 
@@ -1134,18 +1190,36 @@ Bad examples:
 
                 {settings.autoJournalSummaryPromptEnabled && (
                   <fieldset className={styles.Fieldset}>
-                    <textarea
-                      value={
-                        settings.autoJournalSummaryPrompt ||
-                        defaultSummaryPrompt
-                      }
-                      onChange={(e) =>
-                        handleSummaryPromptChange(e.target.value)
-                      }
-                      className={styles.Textarea}
-                      rows={8}
-                      placeholder="Enter custom prompt for summaries..."
-                    />
+                    <div className={styles.PromptEditor}>
+                      <button
+                        className={styles.EditPromptBtn}
+                        onClick={() => setEditingSummaryPrompt(!editingSummaryPrompt)}
+                        title={editingSummaryPrompt ? t("common.preview") : t("common.edit")}
+                      >
+                        <EditIcon style={{ height: 14, width: 14 }} />
+                        {editingSummaryPrompt ? t("common.preview") : t("common.edit")}
+                      </button>
+                      {editingSummaryPrompt ? (
+                        <textarea
+                          value={
+                            settings.autoJournalSummaryPrompt ||
+                            defaultSummaryPrompt
+                          }
+                          onChange={(e) =>
+                            handleSummaryPromptChange(e.target.value)
+                          }
+                          className={styles.Textarea}
+                          rows={12}
+                          placeholder="Enter custom prompt for summaries..."
+                        />
+                      ) : (
+                        <div className={styles.MarkdownPreview}>
+                          <Markdown>
+                            {settings.autoJournalSummaryPrompt || defaultSummaryPrompt}
+                          </Markdown>
+                        </div>
+                      )}
+                    </div>
                   </fieldset>
                 )}
               </div>

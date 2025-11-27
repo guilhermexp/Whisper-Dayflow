@@ -5,6 +5,7 @@
     "cancel": "Cancelar",
     "delete": "Excluir",
     "edit": "Editar",
+    "preview": "Visualizar",
     "close": "Fechar",
     "back": "Voltar",
     "next": "Próximo",
@@ -52,7 +53,7 @@
       "audioCuesDesc": "Reproduzir sinais sonoros quando a gravação iniciar ou finalizar.",
       "startup": "Inicialização",
       "launchOnLogin": "Iniciar ao fazer login",
-      "launchOnLoginDesc": "Iniciar o VoiceFlow automaticamente quando você fizer login.",
+      "launchOnLoginDesc": "Iniciar o Liv automaticamente quando você fizer login.",
       "launchOnLoginUnavailable": "Início automático está disponível nas versões para macOS e Windows.",
       "language": "Idioma",
       "languageDesc": "Escolha seu idioma preferido para a interface.",
@@ -433,6 +434,7 @@
   "providers": {
     "openai": "OpenAI",
     "groq": "Groq",
+    "deepgram": "Deepgram",
     "gemini": "Gemini",
     "openrouter": "OpenRouter",
     "custom": "Personalizado",
@@ -534,7 +536,9 @@
     "schedulerInactive": "Scheduler Inativo",
     "nextRun": "Próxima execução",
     "lastRun": "Última execução",
-    "empty": "Vazio"
+    "empty": "Vazio",
+    "runDeleted": "Execução excluída com sucesso.",
+    "deleteError": "Falha ao excluir execução."
   },
   "highlights": {
     "title": "Destaques",

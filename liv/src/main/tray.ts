@@ -132,7 +132,7 @@ const buildMenu = (tray: Tray) =>
       },
     },
     {
-      label: "Open VoiceFlow",
+      label: "Open Liv",
       click() {
         showMainWindow("/")
       },

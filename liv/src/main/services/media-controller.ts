@@ -26,6 +26,47 @@ class MediaController {
   }
 
   /**
+   * Force reset internal state - use when an error occurs and state may be stuck
+   * This does NOT unmute audio, just resets internal tracking
+   */
+  forceResetState() {
+    console.log("[MediaController] Forcing state reset", {
+      previousDidMute: this.didMuteAudio,
+      previousWasMuted: this.wasAudioMutedBeforeRecording,
+    })
+    this.didMuteAudio = false
+    this.wasAudioMutedBeforeRecording = false
+  }
+
+  /**
+   * Force unmute audio regardless of internal state
+   * Use in error recovery scenarios
+   */
+  async forceUnmute(): Promise<void> {
+    if (process.platform !== "darwin") {
+      return
+    }
+
+    console.log("[MediaController] Force unmuting audio")
+    try {
+      const { stderr } = await execAsync(
+        'osascript -e "set volume without output muted"'
+      )
+      if (stderr) {
+        console.error("[MediaController] Force unmute error:", stderr)
+      } else {
+        console.log("[MediaController] ✅ Force unmute successful")
+      }
+    } catch (error) {
+      console.error("[MediaController] Force unmute failed:", error)
+    }
+
+    // Always reset state after force unmute
+    this.didMuteAudio = false
+    this.wasAudioMutedBeforeRecording = false
+  }
+
+  /**
    * Checks if the system audio is currently muted using AppleScript
    */
   private async isSystemAudioMuted(): Promise<boolean> {

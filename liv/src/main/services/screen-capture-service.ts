@@ -214,8 +214,7 @@ class ScreenCaptureService {
       sources.find(
         (source) =>
           !source.name.includes(appName) &&
-          !source.name.includes("Liv") &&
-          !source.name.includes("VoiceFlow"),
+          !source.name.includes("Liv"),
       ) || sources[0]
 
     if (!targetSource) {

@@ -1,28 +1,65 @@
 import fs from "fs"
 import path from "path"
 import { app } from "electron"
-import { execFile } from "child_process"
+import { execFile, exec } from "child_process"
 import { configStore, recordingsFolder } from "../config"
 import { historyStore } from "../history-store"
 import { generateAutoJournalSummaryFromHistory } from "../llm"
 import type { AutoJournalRun, RecordingHistoryItem } from "../../shared/types"
 import { saveAutoJournalEntry } from "./auto-journal-entry"
 import pileIndex from "../pile-utils/pileIndex"
-// @ts-ignore - FFmpeg static binary path
-import ffmpegInstaller from "@ffmpeg-installer/ffmpeg"
 
 const RUNS_DIR = path.join(recordingsFolder, "auto-journal", "runs")
 export const GIF_DIR = path.join(recordingsFolder, "auto-journal", "gifs")
 const TEMP_DIR = path.join(recordingsFolder, "auto-journal", "tmp")
 
-// Get bundled FFmpeg path
-const FFMPEG_PATH = ffmpegInstaller.path
+// FFmpeg path - try system ffmpeg first, then bundled
+let FFMPEG_PATH: string | null = null
+
+// Try to find ffmpeg
+async function findFfmpeg(): Promise<string | null> {
+  // Common system paths
+  const systemPaths = [
+    "/usr/local/bin/ffmpeg",
+    "/opt/homebrew/bin/ffmpeg",
+    "/usr/bin/ffmpeg",
+  ]
+
+  for (const p of systemPaths) {
+    if (fs.existsSync(p)) {
+      console.log("[ffmpeg] Found system ffmpeg at:", p)
+      return p
+    }
+  }
+
+  // Try which command
+  return new Promise((resolve) => {
+    exec("which ffmpeg", (error, stdout) => {
+      if (!error && stdout.trim()) {
+        console.log("[ffmpeg] Found ffmpeg via which:", stdout.trim())
+        resolve(stdout.trim())
+      } else {
+        console.log("[ffmpeg] No ffmpeg found on system")
+        resolve(null)
+      }
+    })
+  })
+}
+
+// Initialize ffmpeg path
+findFfmpeg().then((p) => {
+  FFMPEG_PATH = p
+})
 
 // Helper to get the first available pile path
 function getFirstPilePath(): string | null {
   try {
     const userHomeDirectoryPath = app.getPath("home")
-    const pilesConfigPath = path.join(userHomeDirectoryPath, "Piles", "piles.json")
+    const pilesConfigPath = path.join(
+      userHomeDirectoryPath,
+      "Piles",
+      "piles.json",
+    )
 
     if (!fs.existsSync(pilesConfigPath)) {
       console.log("[auto-journal] piles.json not found at:", pilesConfigPath)
@@ -32,10 +69,17 @@ function getFirstPilePath(): string | null {
     const pilesConfig = JSON.parse(fs.readFileSync(pilesConfigPath, "utf-8"))
 
     // piles.json is an array directly, not an object with a "piles" property
-    const piles = Array.isArray(pilesConfig) ? pilesConfig : (pilesConfig.piles || [])
+    const piles = Array.isArray(pilesConfig)
+      ? pilesConfig
+      : pilesConfig.piles || []
 
     if (piles.length > 0 && piles[0].path) {
-      console.log("[auto-journal] Found pile:", piles[0].name, "at", piles[0].path)
+      console.log(
+        "[auto-journal] Found pile:",
+        piles[0].name,
+        "at",
+        piles[0].path,
+      )
       return piles[0].path
     }
 
@@ -53,20 +97,26 @@ let nextRunAt: number | null = null
 let lastRunAt: number | null = null
 
 /**
- * Check if bundled FFmpeg is available and functional
+ * Check if FFmpeg is available and functional
  */
 async function isFfmpegAvailable(): Promise<boolean> {
-  if (!FFMPEG_PATH || !fs.existsSync(FFMPEG_PATH)) {
-    console.error("[ffmpeg] Bundled binary not found at:", FFMPEG_PATH)
+  // Try to find ffmpeg if not already found
+  if (!FFMPEG_PATH) {
+    FFMPEG_PATH = await findFfmpeg()
+  }
+
+  if (!FFMPEG_PATH) {
+    console.error("[ffmpeg] No ffmpeg found on system")
     return false
   }
 
   return new Promise((resolve) => {
-    execFile(FFMPEG_PATH, ["-version"], (error) => {
+    execFile(FFMPEG_PATH!, ["-version"], (error) => {
       if (error) {
         console.error("[ffmpeg] Version check failed:", error)
         resolve(false)
       } else {
+        console.log("[ffmpeg] Available at:", FFMPEG_PATH)
         resolve(true)
       }
     })
@@ -89,12 +139,17 @@ async function generateGifFromScreenshots(
 
   const available = await isFfmpegAvailable()
   if (!available) {
-    console.warn("[auto-journal] Bundled FFmpeg not available; skipping GIF preview")
+    console.warn(
+      "[auto-journal] Bundled FFmpeg not available; skipping GIF preview",
+    )
     return { path: null, error: "ffmpeg_not_found" }
   }
 
   // Normalize frames and copy to a temp folder with sequential names for ffmpeg
-  const tmpDir = path.join(TEMP_DIR, `gif-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  const tmpDir = path.join(
+    TEMP_DIR,
+    `gif-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  )
   try {
     fs.mkdirSync(tmpDir, { recursive: true })
     fs.mkdirSync(path.dirname(outputPath), { recursive: true })
@@ -103,7 +158,10 @@ async function generateGifFromScreenshots(
     let idx = 1
     for (const f of frames) {
       if (!f || !fs.existsSync(f)) continue
-      const target = path.join(tmpDir, `frame-${String(idx).padStart(4, "0")}.png`)
+      const target = path.join(
+        tmpDir,
+        `frame-${String(idx).padStart(4, "0")}.png`,
+      )
       fs.copyFileSync(f, target)
       seqFrames.push(target)
       idx++
@@ -112,6 +170,10 @@ async function generateGifFromScreenshots(
     if (seqFrames.length === 0) return { path: null }
 
     await new Promise<void>((resolve, reject) => {
+      if (!FFMPEG_PATH) {
+        reject(new Error("FFmpeg not available"))
+        return
+      }
       execFile(
         FFMPEG_PATH,
         [
@@ -165,6 +227,30 @@ async function writeRun(run: AutoJournalRun) {
   await fs.promises.writeFile(file, JSON.stringify(run, null, 2), "utf-8")
 }
 
+export async function deleteAutoJournalRun(runId: string): Promise<boolean> {
+  try {
+    const runFile = path.join(RUNS_DIR, `${runId}.json`)
+    const gifFile = path.join(GIF_DIR, `${runId}.gif`)
+
+    // Delete run JSON
+    if (fs.existsSync(runFile)) {
+      await fs.promises.unlink(runFile)
+      console.log("[auto-journal] Deleted run file:", runFile)
+    }
+
+    // Delete associated GIF if exists
+    if (fs.existsSync(gifFile)) {
+      await fs.promises.unlink(gifFile)
+      console.log("[auto-journal] Deleted GIF file:", gifFile)
+    }
+
+    return true
+  } catch (error) {
+    console.error("[auto-journal] Failed to delete run:", runId, error)
+    return false
+  }
+}
+
 async function addEntryToIndex(pilePath: string, relativePath: string) {
   try {
     await pileIndex.load(pilePath)
@@ -191,7 +277,9 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
   const id = `${startedAt}`
 
   console.log(`[auto-journal] Starting run ${id} with window ${wm} min`)
-  console.log(`[auto-journal] Auto-save enabled: ${cfg.autoJournalAutoSaveEnabled}, target pile: ${cfg.autoJournalTargetPilePath || '(not set)'}`)
+  console.log(
+    `[auto-journal] Auto-save enabled: ${cfg.autoJournalAutoSaveEnabled}, target pile: ${cfg.autoJournalTargetPilePath || "(not set)"}`,
+  )
 
   try {
     const history = historyStore.readAll()
@@ -220,7 +308,8 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
       windowMinutes: wm,
       summary,
       screenshotCount: windowItems.filter(
-        (i) => i.contextScreenshotPath && fs.existsSync(i.contextScreenshotPath),
+        (i) =>
+          i.contextScreenshotPath && fs.existsSync(i.contextScreenshotPath),
       ).length,
       autoSaved: false,
     }
@@ -244,23 +333,31 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
       }
     }
 
-    console.log(`[auto-journal] Run ${id} completed successfully in ${Date.now() - startedAt}ms`)
+    console.log(
+      `[auto-journal] Run ${id} completed successfully in ${Date.now() - startedAt}ms`,
+    )
 
     // Check if there's actual content to save (not just "No recordings found" message)
     const hasRealContent =
       summary.activities &&
       summary.activities.length > 0 &&
-      !summary.summary.includes("No recordings found in the selected time window")
+      !summary.summary.includes(
+        "No recordings found in the selected time window",
+      )
 
     if (cfg.autoJournalAutoSaveEnabled) {
       if (!hasRealContent) {
-        console.log("[auto-journal] No recordings found in window, skipping auto-save")
+        console.log(
+          "[auto-journal] No recordings found in window, skipping auto-save",
+        )
       } else {
         // Use configured target pile, or fall back to first available pile
         let pilePath: string | null | undefined = cfg.autoJournalTargetPilePath
         if (!pilePath || pilePath.trim().length === 0) {
           pilePath = getFirstPilePath()
-          console.log(`[auto-journal] No target pile configured, using first available: ${pilePath}`)
+          console.log(
+            `[auto-journal] No target pile configured, using first available: ${pilePath}`,
+          )
         }
 
         if (pilePath && pilePath.trim().length > 0) {
@@ -310,20 +407,28 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
   }
 }
 
-export async function listAutoJournalRuns(limit = 50): Promise<AutoJournalRun[]> {
+export async function listAutoJournalRuns(
+  limit = 50,
+): Promise<AutoJournalRun[]> {
   ensureRunsDir()
   const files = fs.readdirSync(RUNS_DIR).filter((f) => f.endsWith(".json"))
-  const sorted = files.sort((a, b) => Number(b.replace(".json", "")) - Number(a.replace(".json", "")))
+  const sorted = files.sort(
+    (a, b) => Number(b.replace(".json", "")) - Number(a.replace(".json", "")),
+  )
   const selected = sorted.slice(0, limit)
   const runs: AutoJournalRun[] = []
   for (const file of selected) {
     try {
-      const data = JSON.parse(fs.readFileSync(path.join(RUNS_DIR, file), "utf-8")) as AutoJournalRun
+      const data = JSON.parse(
+        fs.readFileSync(path.join(RUNS_DIR, file), "utf-8"),
+      ) as AutoJournalRun
 
       // Regenerate GIF lazily if missing or empty
       if (
         data.summary?.windowStartTs &&
-        (!data.previewGifPath || !fs.existsSync(data.previewGifPath) || fs.statSync(data.previewGifPath).size === 0)
+        (!data.previewGifPath ||
+          !fs.existsSync(data.previewGifPath) ||
+          fs.statSync(data.previewGifPath).size === 0)
       ) {
         const history = historyStore.readAll()
         const frames = history
@@ -380,18 +485,28 @@ export function startAutoJournalScheduler(runImmediately = false) {
   nextRunAt = Date.now() + periodMs
 
   intervalId = setInterval(() => {
-    console.log(`[auto-journal] Scheduled run triggered at ${new Date().toLocaleTimeString()}`)
+    console.log(
+      `[auto-journal] Scheduled run triggered at ${new Date().toLocaleTimeString()}`,
+    )
     nextRunAt = Date.now() + periodMs
-    runAutoJournalOnce().catch((err) => console.error("[auto-journal] scheduled run failed", err))
+    runAutoJournalOnce().catch((err) =>
+      console.error("[auto-journal] scheduled run failed", err),
+    )
   }, periodMs)
 
-  console.log(`[auto-journal] Scheduler started. Window ${wm} min, period ${periodMs / 60000} min`)
-  console.log(`[auto-journal] Next run at: ${new Date(nextRunAt).toLocaleTimeString()}`)
+  console.log(
+    `[auto-journal] Scheduler started. Window ${wm} min, period ${periodMs / 60000} min`,
+  )
+  console.log(
+    `[auto-journal] Next run at: ${new Date(nextRunAt).toLocaleTimeString()}`,
+  )
 
   // Run immediately if requested (e.g., when user enables the scheduler)
   if (runImmediately) {
     console.log("[auto-journal] Running immediately as requested")
-    runAutoJournalOnce().catch((err) => console.error("[auto-journal] immediate run failed", err))
+    runAutoJournalOnce().catch((err) =>
+      console.error("[auto-journal] immediate run failed", err),
+    )
   }
 }
 

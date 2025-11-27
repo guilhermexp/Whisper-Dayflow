@@ -5,6 +5,7 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
+    "preview": "Preview",
     "close": "Close",
     "back": "Back",
     "next": "Next",
@@ -52,7 +53,7 @@
       "audioCuesDesc": "Play audible cues when recording starts or finishes.",
       "startup": "Startup",
       "launchOnLogin": "Launch on login",
-      "launchOnLoginDesc": "Launch VoiceFlow automatically when you sign in.",
+      "launchOnLoginDesc": "Launch Liv automatically when you sign in.",
       "launchOnLoginUnavailable": "Auto-launch is available on macOS and Windows builds.",
       "language": "Language",
       "languageDesc": "Choose your preferred language for the interface.",
@@ -433,6 +434,7 @@
   "providers": {
     "openai": "OpenAI",
     "groq": "Groq",
+    "deepgram": "Deepgram",
     "gemini": "Gemini",
     "openrouter": "OpenRouter",
     "custom": "Custom",
@@ -533,7 +535,10 @@
     "schedulerInactive": "Scheduler Inactive",
     "nextRun": "Next run",
     "lastRun": "Last run",
-    "empty": "Empty"
+    "empty": "Empty",
+    "runDeleted": "Run deleted successfully.",
+    "deleteError": "Failed to delete run.",
+    "noContentToSave": "No content to save."
   },
   "highlights": {
     "title": "Highlights",
