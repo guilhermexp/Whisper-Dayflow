@@ -9,7 +9,11 @@ const OverlayScrollbar = React.forwardRef<HTMLDivElement, Props>(
         ref={ref}
         {...props}
         className={className}
-        style={{ ...style, overflow: "overlay", overflowX: "hidden" }}
+        style={{
+          ...style,
+          overflowY: "auto",
+          overflowX: "hidden",
+        }}
       />
     )
   },

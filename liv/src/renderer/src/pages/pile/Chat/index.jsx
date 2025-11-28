@@ -28,6 +28,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import Search from "../Search"
 import Settings from "../Settings"
 import Dashboard from "../Dashboard"
+import { PENDING_MESSAGE_MARKER } from "@shared/constants"
 
 export default function Chat() {
   const { t } = useTranslation()
@@ -88,9 +89,8 @@ export default function Chat() {
         if (!history || history.length === 0) return []
         const last = history[history.length - 1]
         if (last?.role === "system") {
-          // Replace @@PENDING@@ or append to existing content
-          const currentContent =
-            last.content === "@@PENDING@@" ? "" : last.content
+          // Replace pending marker or append to existing content
+          const currentContent = last.content === PENDING_MESSAGE_MARKER ? "" : last.content
           return [
             ...history.slice(0, -1),
             { role: "system", content: currentContent + bufferedContent },
@@ -132,7 +132,7 @@ export default function Chat() {
     const messages = await addMessage(message)
     setHistory((history) => [
       ...history,
-      { role: "system", content: "@@PENDING@@" },
+      { role: "system", content: PENDING_MESSAGE_MARKER },
     ])
     await getAIResponse(messages, appendToLastSystemMessage)
     // Flush any remaining tokens after streaming completes

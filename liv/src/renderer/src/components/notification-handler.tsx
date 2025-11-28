@@ -1,29 +1,62 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { rendererHandlers } from "~/lib/tipc-client"
 import type { ErrorNotification } from "../../../main/renderer-handlers"
 import { AnimatePresence, motion } from "framer-motion"
 
-type NotificationItem = ErrorNotification & { id: number }
+const AUTO_DISMISS_MS = 5000
+const MAX_NOTIFICATIONS = 50
+const RATE_LIMIT_COUNT = 5
+const RATE_LIMIT_WINDOW_MS = 10_000
+
+type NotificationItem = ErrorNotification & { id: string }
 
 export function NotificationHandler() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const idCounterRef = useRef(0)
+  const rateLimitTimestampsRef = useRef<number[]>([])
 
   useEffect(() => {
     const unlisten = rendererHandlers.showNotification.listen((notification) => {
-      const id = Date.now()
-      setNotifications((prev) => [...prev, { ...notification, id }])
+      const now = Date.now()
+      // Drop bursts over the configured window
+      rateLimitTimestampsRef.current = rateLimitTimestampsRef.current.filter(
+        (ts) => now - ts < RATE_LIMIT_WINDOW_MS,
+      )
+      if (rateLimitTimestampsRef.current.length >= RATE_LIMIT_COUNT) {
+        console.warn("[NotificationHandler] Dropping notification due to rate limit")
+        return
+      }
+      rateLimitTimestampsRef.current.push(now)
 
-      // Auto-dismiss after 5 seconds
-      setTimeout(() => {
+      const id = `${now}-${idCounterRef.current++}`
+      setNotifications((prev) => {
+        const next = [...prev, { ...notification, id }]
+        // Keep only the latest N notifications to avoid unbounded growth
+        return next.slice(-MAX_NOTIFICATIONS)
+      })
+
+      const timer = setTimeout(() => {
         setNotifications((prev) => prev.filter((n) => n.id !== id))
-      }, 5000)
+        timersRef.current.delete(id)
+      }, AUTO_DISMISS_MS)
+      timersRef.current.set(id, timer)
     })
 
-    return unlisten
+    return () => {
+      unlisten()
+      timersRef.current.forEach(clearTimeout)
+      timersRef.current.clear()
+    }
   }, [])
 
-  const dismiss = (id: number) => {
+  const dismiss = (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id))
+    const timer = timersRef.current.get(id)
+    if (timer) {
+      clearTimeout(timer)
+      timersRef.current.delete(id)
+    }
   }
 
   return (

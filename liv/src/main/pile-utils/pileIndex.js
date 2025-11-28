@@ -42,6 +42,8 @@ class PileIndex {
       const loadedIndex = new Map(JSON.parse(data))
       const sortedIndex = this.sortMap(loadedIndex)
       this.index = sortedIndex
+      // Clean up orphaned entries (files that no longer exist)
+      this.cleanupOrphanedEntries()
     } else {
       // init empty index
       this.save()
@@ -57,6 +59,28 @@ class PileIndex {
     console.log("📍 VECTOR INDEX LOADED")
 
     return this.index
+  }
+
+  cleanupOrphanedEntries() {
+    let removedCount = 0
+    const entriesToRemove = []
+
+    for (const [filePath] of this.index) {
+      const fullPath = path.join(this.pilePath, filePath)
+      if (!fs.existsSync(fullPath)) {
+        entriesToRemove.push(filePath)
+      }
+    }
+
+    for (const filePath of entriesToRemove) {
+      this.index.delete(filePath)
+      removedCount++
+    }
+
+    if (removedCount > 0) {
+      console.log(`🧹 Cleaned up ${removedCount} orphaned entries from index`)
+      this.save()
+    }
   }
 
   walkAndGenerateIndex = (pilePath) => {
@@ -138,7 +162,8 @@ class PileIndex {
         convertHTMLToPlainText(content)
 
       // concat the contents of replies
-      for (let replyPath of metedata.replies) {
+      const replies = metedata.replies || []
+      for (let replyPath of replies) {
         try {
           let replyFullPath = path.join(this.pilePath, replyPath)
           let replyFileContent = fs.readFileSync(replyFullPath, "utf8")
@@ -153,7 +178,8 @@ class PileIndex {
       }
       return content
     } catch (error) {
-      console.log("Failed to get thread as text")
+      console.log("Failed to get thread as text:", filePath, error.message)
+      return null
     }
   }
 

@@ -38,13 +38,14 @@ export default defineConfig({
     define,
     plugins: [tsconfigPaths(), react(), tailwindcss()],
     server: {
-      port: 4180, // avoid default 5173 to prevent conflicts with other apps
+      port: 5000,
       strictPort: true,
       host: "127.0.0.1",
     },
     resolve: {
       alias: {
         renderer: resolve(__dirname, "src/renderer/src"),
+        "@shared": resolve(__dirname, "src/shared"),
       },
     },
     css: {

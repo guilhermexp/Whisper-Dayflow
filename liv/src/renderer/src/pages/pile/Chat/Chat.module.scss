@@ -63,8 +63,8 @@
   height: 100vh;
   animation: none;
   // Removed blur to prevent GPU overdraw flicker during streaming
-  backdrop-filter: none;
-  background: rgba(12, 12, 12, 0.92);
+  backdrop-filter: blur(30px);
+  background: transparent;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -86,11 +86,7 @@
   padding: 0 85px;
   z-index: 1000;
 
-  background: linear-gradient(
-    180deg,
-    var(--bg-secondary) 0%,
-    rgba(0, 0, 0, 0) 100%
-  );
+  background: transparent;
 
   .wrapper {
     position: relative;
@@ -346,7 +342,8 @@
   .holder {
     display: flex;
     flex-direction: column;
-    background: var(--bg-tertiary);
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
     padding: 4px 4px 4px 4px;
     border-radius: 17px 17px 0 0;
   }
@@ -372,8 +369,8 @@
     background: none;
     border: none;
     font-size: 1.2em;
-    background: var(--bg);
-    color: var(--secondary);
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
     resize: none;
     width: 100%;
     outline: none;
@@ -384,11 +381,11 @@
     border-radius: 13px 7px 7px 7px;
 
     &::placeholder {
-      color: var(--secondary);
+      color: rgba(255, 255, 255, 0.5);
     }
 
     &:focus {
-      color: var(--primary);
+      color: #ffffff;
     }
   }
 
