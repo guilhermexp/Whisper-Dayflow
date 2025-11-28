@@ -1,11 +1,12 @@
 import styles from "./Message.module.scss"
-import { useState, useEffect, useCallback, memo } from "react"
+import { memo } from "react"
 import { AIIcon, PersonIcon } from "renderer/icons"
-import Markdown from "react-markdown"
+import { PENDING_MESSAGE_MARKER } from "@shared/constants"
+import TipTapRenderer from "./TipTapRenderer"
 
-const Message = ({ index, message, scrollToBottom }) => {
+const Message = memo(({ index, message, scrollToBottom }) => {
   const isUser = message.role === "user"
-  const [streamedResponse, setStreamedResponse] = useState("")
+  const isPending = message.content === PENDING_MESSAGE_MARKER || message.content === ""
 
   return (
     <div style={{ minHeight: 72 }}>
@@ -25,15 +26,17 @@ const Message = ({ index, message, scrollToBottom }) => {
               <AIIcon className={styles.avatar} />
             </div>
             <div className={styles.text}>
-              {message.content === "@@PENDING@@" || message.content === ""
-                ? "..."
-                : message.content}
+              {isPending ? (
+                <span className={styles.pending}>...</span>
+              ) : (
+                <TipTapRenderer content={message.content} className={styles.tiptapContent} />
+              )}
             </div>
           </div>
         </div>
       )}
     </div>
   )
-}
+})
 
 export default Message

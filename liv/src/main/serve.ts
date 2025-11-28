@@ -95,10 +95,7 @@ export function registerServeProtocol() {
 
     if (host === "file") {
       const filepath = searchParams.get("path")
-      console.log("[serve] assets://file request, path:", filepath)
       if (filepath) {
-        const exists = fs.existsSync(filepath)
-        console.log("[serve] File exists:", exists, filepath)
         return callback({ path: filepath })
       }
     }

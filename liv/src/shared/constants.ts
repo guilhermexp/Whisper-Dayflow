@@ -1,0 +1,1 @@
+export const PENDING_MESSAGE_MARKER = "@@PENDING@@"

@@ -1,6 +1,6 @@
 /* For Chrome, Safari, and Opera */
 .scrollbar::-webkit-scrollbar {
-  width: 11px;
+  width: 8px;
 }
 
 .scrollbar::-webkit-scrollbar-track {
@@ -8,19 +8,18 @@
 }
 
 .scrollbar::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 90px;
-}
 
-.scrollbar::-webkit-scrollbar-thumb:hover {
-  cursor: pointer;
-  background: var(--base);
+  &:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
 }
 
 /* For Firefox */
 .scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   overflow-x: hidden;
-  overflow-y: overlay;
+  overflow-y: auto;
 }

@@ -57,6 +57,8 @@ class PileEmbeddings {
       if (fs.existsSync(embeddingsFilePath)) {
         const data = fs.readFileSync(embeddingsFilePath, 'utf8');
         this.embeddings = new Map(JSON.parse(data));
+        // Clean up orphaned embeddings (entries not in index)
+        this.cleanupOrphanedEmbeddings(index);
       } else {
         // Embeddings need to be generated based on the index
         await this.walkAndGenerateEmbeddings(pilePath, index);
@@ -66,6 +68,27 @@ class PileEmbeddings {
       console.error('Failed to load embeddings:', error);
     }
     return {};
+  }
+
+  cleanupOrphanedEmbeddings(index) {
+    let removedCount = 0;
+    const entriesToRemove = [];
+
+    for (const [entryPath] of this.embeddings) {
+      if (!index.has(entryPath)) {
+        entriesToRemove.push(entryPath);
+      }
+    }
+
+    for (const entryPath of entriesToRemove) {
+      this.embeddings.delete(entryPath);
+      removedCount++;
+    }
+
+    if (removedCount > 0) {
+      console.log(`🧹 Cleaned up ${removedCount} orphaned embeddings`);
+      this.saveEmbeddings();
+    }
   }
 
   async initializeAPIKey() {

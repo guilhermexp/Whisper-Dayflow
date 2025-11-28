@@ -41,7 +41,8 @@ class PileSearchIndex {
             let { content } = matter(fileContent);
 
             // concat the contents of replies
-            for (let replyPath of metadata.replies) {
+            const replies = metadata.replies || []
+            for (let replyPath of replies) {
               let replyFullPath = path.join(this.pilePath, replyPath);
               let replyFileContent = fs.readFileSync(replyFullPath, 'utf8');
               let { content: replyContent } = matter(replyFileContent);
@@ -50,8 +51,8 @@ class PileSearchIndex {
 
             let doc = {
               id: filePath,
-              title: metadata.title,
-              attachments: metadata.attachments.join(' '),
+              title: metadata.title || '',
+              attachments: (metadata.attachments || []).join(' '),
               content: convertHTMLToPlainText(content),
               isReply: metadata.isReply,
               isAI: metadata.isAI,

@@ -1,57 +1,60 @@
-import React, { useCallback, useState, memo } from 'react';
+import React, { useCallback, memo, useMemo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import { motion } from 'framer-motion';
 import { useTimelineContext } from 'renderer/context/TimelineContext';
 import NewPost from '../NewPost';
 import Post from './Post';
-import OverlayScrollbar from '../../../components/ui/overlay-scrollbar';
 import styles from './Scrollbar/Scrollbar.module.scss';
 
-const PostItem = memo(({ postPath, post }) => {
+const PostItem = memo(({ postPath }) => {
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      style={{ minHeight: 72, width: '100%' }}
-    >
+    <div style={{ minHeight: 72, width: '100%' }}>
       <Post postPath={postPath} />
-    </motion.div>
+    </div>
   );
 });
 
 const MemoizedNewPost = memo(() => <NewPost />);
 
+// Memoized Scroller component to avoid recreation on each render
+const ScrollerComponent = React.forwardRef((props, ref) => (
+  <div
+    ref={ref}
+    {...props}
+    className={styles.scrollbar}
+    style={{
+      ...props.style,
+      overflowY: 'auto',
+      overflowX: 'hidden',
+    }}
+  />
+));
+
 const VirtualTimeline = memo(({ data }) => {
   const { virtualListRef, setVisibleIndex } = useTimelineContext();
-  const [isScrolling, setIsScrolling] = useState(false);
 
   const handleRangeChanged = useCallback((range) => {
     setVisibleIndex(range.startIndex);
   }, [setVisibleIndex]);
 
   const renderItem = useCallback((index, entry) => {
-    // Only render NewPost at the very top
     if (index === 0) {
       return <MemoizedNewPost />;
     }
 
-    const [postPath, post] = entry;
-    return (
-      <PostItem
-        postPath={postPath}
-        post={post}
-      />
-    );
+    const [postPath] = entry;
+    return <PostItem postPath={postPath} />;
   }, []);
 
   const getKey = useCallback((index, entry) => {
     if (index === 0) return 'new-post';
     const [postPath, post] = entry;
-    return `${postPath}-${post.updatedAt}`;
+    return `${postPath}-${post?.updatedAt || ''}`;
   }, []);
+
+  const components = useMemo(() => ({
+    Scroller: ScrollerComponent,
+    Footer: () => <div style={{ height: 20 }} />,
+  }), []);
 
   return (
     <Virtuoso
@@ -60,19 +63,11 @@ const VirtualTimeline = memo(({ data }) => {
       rangeChanged={handleRangeChanged}
       itemContent={renderItem}
       computeItemKey={getKey}
-      components={{
-        Scroller: React.forwardRef((props, ref) => (
-          <OverlayScrollbar ref={ref} {...props} className={styles.scrollbar} />
-        )),
-        Footer: () => <div style={{ height: 20 }} />,
-        EmptyPlaceholder: () => <div></div>,
-      }}
-      overscan={5}
-      defaultItemHeight={220}
+      components={components}
+      overscan={10}
+      defaultItemHeight={200}
       style={{ height: '100%', width: '100%' }}
-      initialTopMostItemIndex={0}
-      followOutput={'smooth'}
-      alignToBottom={false}
+      increaseViewportBy={{ top: 200, bottom: 200 }}
     />
   );
 });
