@@ -11,6 +11,7 @@ import { usePilesContext } from "renderer/context/PilesContext"
 import Toasts from "./Toasts"
 import Search from "./Search"
 import Dashboard from "./Dashboard"
+import Kanban from "./Kanban"
 import { useTimelineContext } from "renderer/context/TimelineContext"
 import { AnimatePresence, motion } from "framer-motion"
 import InstallUpdate from "./InstallUpdate"
@@ -95,6 +96,7 @@ export default function PileLayout({ children }) {
             <Link to="/auto-journal" className={styles.iconHolder}>
               <NotebookIcon />
             </Link>
+            <Kanban />
             <Dashboard />
             <Link to="/" className={styles.iconHolder}>
               <HomeIcon className={styles.homeIcon} />

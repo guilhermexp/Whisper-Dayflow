@@ -51,6 +51,7 @@ export * from './img/CardIcon';
 export * from './img/CoinIcon';
 export * from './img/BoxOpenIcon';
 export * from './img/CopyIcon';
+export * from './img/KanbanIcon';
 
 // logos
 export * from './logos/OllamaIcon';
