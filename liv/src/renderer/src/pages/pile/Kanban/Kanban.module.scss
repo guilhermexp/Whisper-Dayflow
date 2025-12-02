@@ -1,0 +1,492 @@
+// Kanban.module.scss - Using theme CSS variables
+
+// --- Dialog Styles ---
+
+.DialogOverlay {
+  background-color: var(--bg-tertiary);
+  position: fixed;
+  inset: 0;
+  animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0.9;
+  z-index: 40;
+  backdrop-filter: blur(2px);
+}
+
+.DialogContent {
+  z-index: 50;
+  background-color: var(--bg);
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+  left: 0;
+  animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: none;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+// --- Header ---
+
+.header {
+  padding: 0 24px;
+  flex-shrink: 0;
+  background: linear-gradient(
+    180deg,
+    var(--bg-secondary) 0%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+
+  .wrapper {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: 100%;
+    gap: 16px;
+
+    .DialogTitle {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--primary);
+      margin: 0;
+      flex-shrink: 0;
+    }
+
+    .headerActions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      margin-right: 48px;
+    }
+
+    .close {
+      position: absolute;
+      right: 0;
+      text-wrap: nowrap;
+      background: var(--bg-secondary);
+      color: var(--secondary);
+      border-radius: 8px;
+      height: 32px;
+      width: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all ease-in-out 150ms;
+      cursor: pointer;
+      border: none;
+
+      &:hover {
+        background: var(--bg-tertiary);
+        color: var(--primary);
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
+    }
+  }
+}
+
+.headerBtn {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--secondary);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: var(--primary);
+    background: var(--bg-secondary);
+  }
+}
+
+.headerBtnIcon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+  background: var(--bg-secondary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  svg {
+    color: var(--secondary);
+  }
+
+  &:hover {
+    background: var(--bg-tertiary);
+  }
+}
+
+.viewToggle {
+  display: flex;
+  align-items: center;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.viewBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--secondary);
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: var(--primary);
+  }
+
+  &.active {
+    background: var(--bg);
+    color: var(--primary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.headerDivider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+// --- Main Content ---
+
+.mainContent {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 24px;
+
+  &::-webkit-scrollbar {
+    height: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 20px;
+
+    &:hover {
+      background-color: var(--secondary);
+    }
+  }
+}
+
+// --- Board Layout ---
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(320px, 1fr));
+  gap: 24px;
+  min-height: 100%;
+  width: 100%;
+}
+
+// --- Column ---
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 16px;
+  align-self: flex-start;
+}
+
+.columnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+}
+
+.columnTitleArea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.columnIconSvg {
+  flex-shrink: 0;
+}
+
+.columnIconCircle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid;
+  flex-shrink: 0;
+}
+
+.columnTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary);
+  margin: 0;
+}
+
+.columnCount {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--secondary);
+}
+
+.columnActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.columnAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--secondary);
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--bg-tertiary);
+    color: var(--primary);
+  }
+}
+
+// --- Card List ---
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// --- Card ---
+
+.card {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--secondary);
+  }
+
+  &.highlighted {
+    border-color: var(--base);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    transform: scale(1.02);
+    z-index: 1;
+  }
+}
+
+.cardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--primary);
+  margin: 0;
+}
+
+.cardBullets {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  li {
+    font-size: 13px;
+    color: var(--secondary);
+    line-height: 1.5;
+  }
+}
+
+.cardDescription {
+  font-size: 13px;
+  color: var(--secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.tagIcon {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--tag-color, var(--secondary));
+}
+
+.tagLabel {
+  font-weight: 500;
+  color: var(--secondary);
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--secondary);
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+// --- Floating Search Button ---
+
+.floatingSearch {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--primary);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--bg-secondary);
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// --- Animations ---
+
+@keyframes overlayShow {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 0.9;
+  }
+}
+
+@keyframes contentShow {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// --- Responsive ---
+
+@media (max-width: 1100px) {
+  .board {
+    grid-template-columns: repeat(2, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .board {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .mainContent {
+    padding: 16px;
+  }
+
+  .header .wrapper {
+    .headerActions {
+      display: none;
+    }
+
+    .DialogTitle {
+      position: static;
+      transform: none;
+    }
+  }
+}
+
+@media (max-width: 500px) {
+  .column {
+    padding: 12px;
+  }
+
+  .card {
+    padding: 12px;
+  }
+
+  .cardTitle {
+    font-size: 13px;
+  }
+
+  .cardBullets li,
+  .cardDescription {
+    font-size: 12px;
+  }
+}
