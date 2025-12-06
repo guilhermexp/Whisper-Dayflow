@@ -4,16 +4,13 @@ import {
   RefreshIcon,
   ClockIcon,
   SettingsIcon,
-  ChevronRightIcon,
-  HomeIcon,
-  NotebookIcon,
   TrashIcon,
   EditIcon,
 } from "renderer/icons"
 import { useState, useMemo, useEffect } from "react"
 import Markdown from "react-markdown"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import * as Tabs from "@radix-ui/react-tabs"
 import * as Switch from "@radix-ui/react-switch"
 import { tipcClient } from "renderer/lib/tipc-client"
@@ -27,17 +24,14 @@ import { useToastsContext } from "renderer/context/ToastsContext"
 import { useIndexContext } from "renderer/context/IndexContext"
 import layoutStyles from "../PileLayout.module.scss"
 import Toasts from "../Toasts"
-import InstallUpdate from "../InstallUpdate"
-import Chat from "../Chat"
-import Search from "../Search"
-import Settings from "../Settings"
-import Dashboard from "../Dashboard"
+import Navigation from "../Navigation"
 
 function AutoJournal() {
+
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { piles, getCurrentPilePath, currentTheme } = usePilesContext()
+  const { piles, getCurrentPilePath, currentTheme, currentPile } = usePilesContext()
   const { addNotification } = useToastsContext()
   const { prependIndex, addIndex } = useIndexContext()
   const [mainTab, setMainTab] = useState("runs")
@@ -1228,24 +1222,7 @@ Bad examples:
         </div>
       </div>
 
-      {/* Bottom Navigation Bar */}
-      <div className={layoutStyles.bottomNav}>
-        <div className={layoutStyles.navPill}>
-          <Chat />
-          <Search />
-          <Settings />
-          <div className={layoutStyles.divider} />
-          <Link to="/auto-journal" className={layoutStyles.iconHolder}>
-            <NotebookIcon />
-          </Link>
-          <Dashboard />
-          <Link to="/" className={layoutStyles.iconHolder}>
-            <HomeIcon />
-          </Link>
-        </div>
-      </div>
-
-      <div id="dialog"></div>
+      <Navigation />
     </div>
   )
 }

@@ -23,11 +23,12 @@ export const PilesContextProvider = ({ children }) => {
   const location = useLocation();
   const [currentPile, setCurrentPile] = useState(null);
   const [piles, setPiles] = useState([]);
+  const [isPilesLoaded, setIsPilesLoaded] = useState(false);
 
-  // Initialize config file
+  // Initialize config file (only once on mount)
   useEffect(() => {
     getConfig();
-  }, [location]);
+  }, []);
 
   // Set the current pile based on the url
   useEffect(() => {
@@ -46,16 +47,27 @@ export const PilesContextProvider = ({ children }) => {
     // or read in the existing
     if (!window.electron.existsSync(configFilePath)) {
       window.electron.writeFile(configFilePath, JSON.stringify([]), (err) => {
-        if (err) return;
+        if (err) {
+          setIsPilesLoaded(true);
+          return;
+        }
         setPiles([]);
+        setIsPilesLoaded(true);
       });
-    } else {
-      await window.electron.readFile(configFilePath, (err, data) => {
-        if (err) return;
-        const jsonData = JSON.parse(data);
-        setPiles(jsonData);
-      });
+      return;
     }
+
+    await window.electron.readFile(configFilePath, (err, data) => {
+      if (!err) {
+        try {
+          const jsonData = JSON.parse(data);
+          setPiles(jsonData);
+        } catch (_parseErr) {
+          // keep piles empty on parse errors
+        }
+      }
+      setIsPilesLoaded(true);
+    });
   };
 
   const getCurrentPilePath = (appendPath = '') => {
@@ -143,6 +155,7 @@ export const PilesContextProvider = ({ children }) => {
 
   const pilesContextValue = {
     piles,
+    isPilesLoaded,
     getCurrentPilePath,
     createPile,
     currentPile,

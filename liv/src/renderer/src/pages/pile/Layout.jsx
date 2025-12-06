@@ -1,21 +1,15 @@
-import { useParams, Link } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import styles from "./PileLayout.module.scss"
-import { HomeIcon, ClockIcon, NotebookIcon } from "renderer/icons"
 import Sidebar from "./Sidebar/Timeline/index"
 import { useIndexContext } from "renderer/context/IndexContext"
 import { useEffect, useState, useMemo } from "react"
 import { DateTime } from "luxon"
-import Settings from "./Settings"
-import HighlightsDialog from "./Highlights"
 import { usePilesContext } from "renderer/context/PilesContext"
 import Toasts from "./Toasts"
-import Search from "./Search"
-import Dashboard from "./Dashboard"
-import Kanban from "./Kanban"
 import { useTimelineContext } from "renderer/context/TimelineContext"
-import { AnimatePresence, motion } from "framer-motion"
+import { motion } from "framer-motion"
 import InstallUpdate from "./InstallUpdate"
-import Chat from "./Chat"
+import Navigation from "./Navigation"
 
 export default function PileLayout({ children }) {
   const { pileName } = useParams()
@@ -86,26 +80,9 @@ export default function PileLayout({ children }) {
           {children}
         </div>
 
-        {/* Bottom Navigation Bar */}
-        <div className={styles.bottomNav}>
-          <div className={styles.navPill}>
-            <Chat />
-            <Search />
-            <Settings />
-            <div className={styles.divider} />
-            <Link to="/auto-journal" className={styles.iconHolder}>
-              <NotebookIcon />
-            </Link>
-            <Kanban />
-            <Dashboard />
-            <Link to="/" className={styles.iconHolder}>
-              <HomeIcon className={styles.homeIcon} />
-            </Link>
-          </div>
-        </div>
+        <Navigation />
       </div>
       <div id="reflections"></div>
-      <div id="dialog"></div>
     </div>
   )
 }

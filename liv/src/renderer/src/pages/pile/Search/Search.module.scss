@@ -1,77 +1,90 @@
-.iconHolder {
+// Search.module.scss - Route-based page (no Dialog)
+
+// Page Container (matches AutoJournal pattern)
+.pageContainer {
+  position: fixed;
+  top: 30px;
+  left: calc(56px + 8px);
+  right: 12px;
+  bottom: 12px;
+  background-color: var(--bg);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 32px;
-  min-width: 36px;
-  border-radius: 8px;
-  transition: all ease-in-out 120ms;
-  -webkit-app-region: none;
-  background: transparent;
-  margin-right: -2px;
-
-  .settingsIcon {
-    color: var(--secondary);
-    height: 20px;
-    width: 20px;
-    transition: all ease-in-out 220ms;
-    transition-delay: 40ms;
-    opacity: 0.5;
-  }
-
-  &:hover {
-    cursor: pointer;
-    background: var(--bg-secondary);
-    color: var(--primary);
-
-    .homeIcon,
-    .settingsIcon {
-      opacity: 1;
-    }
-  }
-
-  &:active {
-    background: var(--bg-tertiary);
-  }
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1400;
 }
 
-.DialogContent button,
-.DialogContent fieldset,
-.DialogContent input {
+.pageContainer button,
+.pageContainer fieldset,
+.pageContainer input {
   all: unset;
 }
 
-.DialogOverlay {
-  background-color: var(--bg-tertiary);
-  position: fixed;
-  inset: 0;
-  animation: none;
-  opacity: 0.9;
-  z-index: 4;
-  overflow-y: overlay;
+// Header (matches other pages)
+.header {
+  padding: 0 32px;
+  flex-shrink: 0;
+  background: transparent;
+  z-index: 10;
+  -webkit-app-region: drag;
+
+  .headerWrapper {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: 100%;
+
+    .pageTitle {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--primary);
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0.9;
+      -webkit-app-region: none;
+    }
+
+    .close {
+      position: absolute;
+      right: 0;
+      background: transparent;
+      color: var(--secondary);
+      border-radius: 8px;
+      height: 32px;
+      width: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all ease-out 100ms;
+      cursor: pointer;
+      border: none;
+      opacity: 0.6;
+      -webkit-app-region: none;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        opacity: 1;
+      }
+
+      &:active {
+        transform: scale(0.94);
+      }
+    }
+  }
 }
 
-.DialogContent {
-  z-index: 6;
-  background-color: var(--bg);
-  border-radius: 17px;
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 90vw;
-  max-width: 960px;
-  min-width: 420px;
-  max-height: 85vh;
-  display: block;
-  padding: 12px 12px 6px 12px;
-  animation: none;
-  transition: all ease-in-out 120ms;
-  overflow-y: auto;
-}
-
-.DialogContent:focus {
-  outline: none;
+// Main content wrapper
+.mainContent {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0 32px 24px 32px;
 }
 
 .DialogTitle {

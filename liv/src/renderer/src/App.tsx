@@ -10,7 +10,7 @@ function App(): React.ReactNode {
   return (
     <>
       <LanguageSync />
-      <RouterProvider router={router}></RouterProvider>
+      <RouterProvider router={router} />
 
       <Suspense>
         <Updater />

@@ -42,12 +42,15 @@
 }
 
 .DialogOverlay {
-  background-color: var(--bg-tertiary);
+  background-color: rgba(0, 0, 0, 0.5);
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 56px;
   animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  opacity: 0.9;
   z-index: 4;
+  backdrop-filter: blur(4px);
 }
 
 .DialogContent {

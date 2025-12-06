@@ -53,43 +53,45 @@
   }
 }
 
-// Bottom Navigation Bar (floating pill)
+// Left Navigation Rail (full height)
 .bottomNav {
   position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1300;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: var(--nav-rail-width, 56px);
+  z-index: 9999;
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
 }
 
 .navPill {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 8px 16px;
-  background: var(--bg);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-  border-radius: 50px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(12px);
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  border: none;
 
   .divider {
-    width: 1px;
-    height: 20px;
-    background: var(--border-color, rgba(255, 255, 255, 0.15));
-    margin: 0 8px;
+    display: none;
   }
 
   .iconHolder {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 36px;
-    min-width: 36px;
+    height: 38px;
+    width: 38px;
     padding: 0;
-    border-radius: 50%;
-    transition: all ease-in-out 150ms;
+    border-radius: 10px;
+    transition: all ease-out 100ms;
     -webkit-app-region: none;
     background: transparent;
     border: none;
@@ -97,36 +99,31 @@
 
     svg {
       color: var(--primary);
-      height: 18px;
-      width: 18px;
-      transition: all ease-in-out 150ms;
-      opacity: 0.5;
-      filter: none;
+      height: 19px;
+      width: 19px;
+      transition: all ease-out 100ms;
+      opacity: 0.4;
     }
 
     &.active {
+      background: rgba(255, 255, 255, 0.1);
       svg {
-        color: var(--primary);
-        opacity: 0.95;
-        filter: none;
+        opacity: 1;
       }
     }
 
     &:hover {
       cursor: pointer;
-      background: var(--bg-secondary);
+      background: rgba(255, 255, 255, 0.08);
       svg {
-        color: var(--primary);
         opacity: 0.85;
-        filter: none;
       }
     }
 
     &:active {
-      transform: scale(0.95);
+      transform: scale(0.94);
       svg {
-        opacity: 0.75;
-        filter: none;
+        opacity: 0.7;
       }
     }
   }
@@ -136,16 +133,19 @@
   display: flex;
   position: relative;
   max-width: 100vw;
+  --nav-rail-width: 56px;
 
   .sidebar {
     display: block;
     position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
+    top: 30px;
+    left: calc(var(--nav-rail-width) + 8px);
+    height: calc(100vh - 42px);
     width: var(--sidebar-width);
     flex: 0 0 var(--sidebar-width);
-    border-right: 1px solid rgba(0, 0, 0, 0.03);
+    border-right: none;
+    background: var(--bg);
+    border-radius: 16px 0 0 16px;
 
     @media only screen and (max-width: 909px) {
       display: none;
@@ -192,21 +192,25 @@
 
   .content {
     position: relative;
-    flex: 1 0 calc(100vw - var(--sidebar-width));
-    margin-left: var(--sidebar-width);
+    flex: 1 0 calc(100vw - var(--sidebar-width) - var(--nav-rail-width) - 16px);
+    margin-left: calc(var(--sidebar-width) + var(--nav-rail-width) + 8px);
+    margin-top: 30px;
+    margin-right: 12px;
+    margin-bottom: 12px;
     font-size: 0.9em;
     background: var(--bg);
-    box-shadow: -1px -1px 2px 0 rgba(0, 0, 0, 0.05);
-    background: var(--bg);
-    min-height: 100vh;
-    height: 100vh;
+    border-radius: 0 16px 16px 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    min-height: calc(100vh - 42px);
+    height: calc(100vh - 42px);
     overflow-y: overlay;
     overflow-x: hidden;
-    padding-bottom: 100px; // Space for bottom navigation
+    padding-bottom: 40px;
 
     @media only screen and (max-width: 909px) {
-      margin-left: 0;
-      box-shadow: none;
+      margin-left: calc(var(--nav-rail-width) + 8px);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     }
   }
 }

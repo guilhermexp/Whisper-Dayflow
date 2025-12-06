@@ -12,7 +12,7 @@ import {
   Search2Icon,
 } from 'renderer/icons';
 import { useEffect, useState, useMemo } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
+import { useNavigate } from 'react-router-dom';
 import { useAIContext } from 'renderer/context/AIContext';
 import { useTranslation } from 'react-i18next';
 import {
@@ -39,6 +39,7 @@ export default function InputBar({
   onSubmit,
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const statusFromMain = useIPCListener('vector-index', '');
   const [setupRun, setSetupRun] = useState(false);
   const [status, setStatus] = useState('loading');
@@ -124,11 +125,9 @@ export default function InputBar({
               <Search2Icon className={styles.icon} />
             )}
           </button>
-          <Dialog.Close asChild>
-            <button className={styles.close} aria-label="Close search">
-              <CrossIcon className={styles.icon} />
-            </button>
-          </Dialog.Close>
+          <button className={styles.close} aria-label="Close search" onClick={() => navigate(-1)}>
+            <CrossIcon className={styles.icon} />
+          </button>
         </div>
       </div>
     </div>

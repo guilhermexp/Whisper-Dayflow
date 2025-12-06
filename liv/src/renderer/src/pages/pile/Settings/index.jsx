@@ -1,24 +1,16 @@
 import styles from "./Settings.module.scss"
 import layoutStyles from "../PileLayout.module.scss"
 import {
-  SettingsIcon,
   CrossIcon,
-  OllamaIcon,
   ChevronRightIcon,
   NotebookIcon,
   AudiowaveIcon,
   AIIcon,
-  PlusIcon,
-  EditIcon,
-  TrashIcon,
-  HomeIcon,
-  ChatIcon,
-  SearchIcon,
 } from "renderer/icons"
-import { useEffect, useState } from "react"
-import * as Dialog from "@radix-ui/react-dialog"
+import { useEffect, useState, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
+import { AnimatePresence, motion } from "framer-motion"
 import * as Tabs from "@radix-ui/react-tabs"
-import { Link } from "react-router-dom"
 import { Switch } from "../../../components/ui/switch"
 import { tipcClient } from "renderer/lib/tipc-client"
 import { useAIContext } from "renderer/context/AIContext"
@@ -32,11 +24,9 @@ import {
   useSaveConfigMutation,
 } from "renderer/lib/query-client"
 import { PREDEFINED_PROMPTS } from "../../../../../shared/data/predefined-prompts"
-import Chat from "../Chat"
-import Search from "../Search"
-import Dashboard from "../Dashboard"
+import Navigation from "../Navigation"
 
-export default function Settings() {
+function Settings() {
   const { t } = useTranslation()
   const { regenerateEmbeddings } = useIndexContext()
   const {
@@ -54,8 +44,20 @@ export default function Settings() {
     baseUrl,
   } = useAIContext()
   const [APIkey, setCurrentKey] = useState("")
+  const [originalAPIkey, setOriginalAPIkey] = useState("")
   const { currentTheme, setTheme } = usePilesContext()
+
+  const themeStyles = useMemo(
+    () => (currentTheme ? `${currentTheme}Theme` : ""),
+    [currentTheme],
+  )
+
+  const hasChanges = useMemo(() => {
+    return APIkey !== originalAPIkey
+  }, [APIkey, originalAPIkey])
+
   const [mainTab, setMainTab] = useState("journal")
+  const navigate = useNavigate()
 
   // Liv configuration hooks
   const livConfigQuery = useConfigQuery()
@@ -167,6 +169,7 @@ export default function Settings() {
   const retrieveKey = async () => {
     const k = await getKey()
     setCurrentKey(k)
+    setOriginalAPIkey(k)
   }
 
   useEffect(() => {
@@ -203,6 +206,9 @@ export default function Settings() {
       updateSettings(prompt)
       // regenerateEmbeddings();
 
+      // Update original value to match saved value
+      setOriginalAPIkey(APIkey)
+
       setSaveStatus("success")
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (error) {
@@ -233,32 +239,29 @@ export default function Settings() {
       )
     })
   }
+  const handleClose = () => {
+    navigate(-1)
+  }
+
+  // Detect platform
+  const isMac = window.electron?.isMac
+  const osStyles = isMac ? layoutStyles.macOS : layoutStyles.windows
+
   return (
-    <Dialog.Root>
-      <Dialog.Trigger asChild>
-        <div className={layoutStyles.iconHolder}>
-          <SettingsIcon />
-        </div>
-      </Dialog.Trigger>
-      <Dialog.Portal container={document.getElementById("dialog")}>
-        <Dialog.Overlay className={styles.DialogOverlay} />
-        <Dialog.Content
-          className={styles.DialogContent}
-          aria-describedby={undefined}
-        >
-          {/* Header */}
-          <div className={styles.header}>
-            <div className={styles.wrapper}>
-              <Dialog.Title className={styles.DialogTitle}>
-                {t("settingsDialog.title")}
-              </Dialog.Title>
-              <Dialog.Close asChild>
-                <button className={styles.close} aria-label="Close">
-                  <CrossIcon style={{ height: 14, width: 14 }} />
-                </button>
-              </Dialog.Close>
-            </div>
+    <div className={`${layoutStyles.frame} ${themeStyles} ${osStyles}`}>
+      <div className={layoutStyles.bg}></div>
+      <div className={styles.pageContainer}>
+        {/* Header */}
+        <div className={styles.header}>
+          <div className={styles.wrapper}>
+            <h1 className={styles.DialogTitle}>
+              {t("settingsDialog.title")}
+            </h1>
+            <button className={styles.close} aria-label="Close" onClick={handleClose}>
+              <CrossIcon style={{ height: 14, width: 14 }} />
+            </button>
           </div>
+        </div>
 
           {/* Main Content */}
           <div className={styles.mainContent}>
@@ -1418,27 +1421,38 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className={styles.footer}>
-            <button
-              className={styles.Button}
-              onClick={handleSaveChanges}
-              style={{
-                background:
-                  saveStatus === "success"
-                    ? "var(--success, #22c55e)"
+          <AnimatePresence>
+            {(hasChanges || saveStatus) && (
+              <motion.div
+                className={styles.footer}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <button
+                  className={styles.Button}
+                  onClick={handleSaveChanges}
+                  disabled={!hasChanges && !saveStatus}
+                  style={{
+                    background:
+                      saveStatus === "success"
+                        ? "var(--success, #22c55e)"
+                        : saveStatus === "error"
+                          ? "var(--error, #ef4444)"
+                          : undefined,
+                    transition: "background 0.3s ease",
+                  }}
+                >
+                  {saveStatus === "success"
+                    ? "✓ " + t("settingsDialog.saved")
                     : saveStatus === "error"
-                      ? "var(--error, #ef4444)"
-                      : undefined,
-                transition: "background 0.3s ease",
-              }}
-            >
-              {saveStatus === "success"
-                ? "✓ " + t("settingsDialog.saved")
-                : saveStatus === "error"
-                  ? "✗ " + t("settingsDialog.saveError")
-                  : t("settingsDialog.saveChanges")}
-            </button>
-          </div>
+                      ? "✗ " + t("settingsDialog.saveError")
+                      : t("settingsDialog.saveChanges")}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Prompt Editor Dialog - Inside Dialog.Content for proper z-index */}
           {promptEditorOpen && (
@@ -1632,8 +1646,11 @@ export default function Settings() {
               </div>
             </div>
           )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </div>
+        <Navigation />
+      </div>
   )
 }
+
+export default Settings
+export const Component = Settings

@@ -2,18 +2,13 @@ import styles from "./Timeline.module.scss"
 import layoutStyles from "../PileLayout.module.scss"
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { tipcClient } from "renderer/lib/tipc-client"
-import { ChevronLeftIcon, ChevronRightIcon, EditIcon, CrossIcon, HomeIcon, NotebookIcon } from "renderer/icons"
+import { ChevronLeftIcon, ChevronRightIcon, EditIcon, CrossIcon } from "renderer/icons"
 import dayjs from "dayjs"
 import { useTranslation } from "react-i18next"
 import { usePilesContext } from "renderer/context/PilesContext"
-import Toasts from "../Toasts"
-import InstallUpdate from "../InstallUpdate"
-import Chat from "../Chat"
-import Search from "../Search"
-import Settings from "../Settings"
-import Dashboard from "../Dashboard"
+import Navigation from "../Navigation"
 
 function Timeline() {
   const { t } = useTranslation()
@@ -113,52 +108,65 @@ function Timeline() {
 
   return (
     <div className={`${layoutStyles.frame} ${themeStyles} ${osStyles}`}>
-      <div className={styles.container}>
-        {/* Left Panel - Timeline */}
-        <div className={styles.timelinePanel}>
+      <div className={layoutStyles.bg}></div>
+
+      <div className={styles.pageContainer}>
         {/* Header */}
         <div className={styles.header}>
-          <div className={styles.dateNav}>
-            <h1 className={styles.dateTitle}>
-              {selectedDate.format("ddd, MMM D")}
-            </h1>
-            <div className={styles.navButtons}>
-              <button onClick={goToPreviousDay} className={styles.navBtn}>
-                <ChevronLeftIcon />
-              </button>
-              <button onClick={goToNextDay} className={styles.navBtn}>
-                <ChevronRightIcon />
-              </button>
+          <div className={styles.wrapper}>
+            <div className={styles.DialogTitle}>
+              <span>{t("timeline.title")}</span>
             </div>
-            <button
-              onClick={() => navigate(-1)}
-              className={styles.backBtn}
-              title="Voltar"
+            <div
+              className={styles.close}
+              onClick={() => navigate("/")}
+              title={t("common.close")}
             >
-              <CrossIcon />
-            </button>
-          </div>
-
-          {/* Legend */}
-          <div className={styles.legend}>
-            <div className={styles.legendItem}>
-              <span className={`${styles.legendDot} ${styles.categoryWork}`} />
-              <span>{t("timeline.work")}</span>
-            </div>
-            <div className={styles.legendItem}>
-              <span className={`${styles.legendDot} ${styles.categoryPersonal}`} />
-              <span>{t("timeline.personal")}</span>
-            </div>
-            <div className={styles.legendItem}>
-              <span className={`${styles.legendDot} ${styles.categoryDistraction}`} />
-              <span>{t("timeline.distraction")}</span>
-            </div>
-            <div className={styles.legendItem}>
-              <span className={`${styles.legendDot} ${styles.categoryIdle}`} />
-              <span>{t("timeline.idle")}</span>
+              <CrossIcon style={{ height: 14, width: 14 }} />
             </div>
           </div>
         </div>
+
+        {/* Main Content */}
+        <div className={styles.mainContent}>
+          {/* Left Panel - Timeline */}
+          <div className={styles.timelinePanel}>
+            {/* Timeline Header */}
+            <div className={styles.timelineHeader}>
+              <div className={styles.dateNav}>
+                <h1 className={styles.dateTitle}>
+                  {selectedDate.format("ddd, MMM D")}
+                </h1>
+                <div className={styles.navButtons}>
+                  <button onClick={goToPreviousDay} className={styles.navBtn}>
+                    <ChevronLeftIcon />
+                  </button>
+                  <button onClick={goToNextDay} className={styles.navBtn}>
+                    <ChevronRightIcon />
+                  </button>
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className={styles.legend}>
+                <div className={styles.legendItem}>
+                  <span className={`${styles.legendDot} ${styles.categoryWork}`} />
+                  <span>{t("timeline.work")}</span>
+                </div>
+                <div className={styles.legendItem}>
+                  <span className={`${styles.legendDot} ${styles.categoryPersonal}`} />
+                  <span>{t("timeline.personal")}</span>
+                </div>
+                <div className={styles.legendItem}>
+                  <span className={`${styles.legendDot} ${styles.categoryDistraction}`} />
+                  <span>{t("timeline.distraction")}</span>
+                </div>
+                <div className={styles.legendItem}>
+                  <span className={`${styles.legendDot} ${styles.categoryIdle}`} />
+                  <span>{t("timeline.idle")}</span>
+                </div>
+              </div>
+            </div>
 
         {/* Timeline */}
         <div className={styles.timeline}>
@@ -191,10 +199,10 @@ function Timeline() {
             ))}
           </div>
         </div>
-      </div>
+          </div>
 
-      {/* Right Panel - Activity Details */}
-      <div className={styles.detailPanel}>
+          {/* Right Panel - Activity Details */}
+          <div className={styles.detailPanel}>
         {selectedActivity ? (
           <div className={styles.activityCard}>
             {/* Card Header */}
@@ -263,8 +271,11 @@ function Timeline() {
             <p>{t("timeline.generateToSee")}</p>
           </div>
         )}
+          </div>
+        </div>
       </div>
-      </div>
+
+      <Navigation />
     </div>
   )
 }

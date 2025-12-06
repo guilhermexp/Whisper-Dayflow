@@ -1,5 +1,6 @@
 import '../pile-app.scss';
-import { Outlet } from 'react-router-dom';
+import { Suspense, useEffect, useRef } from 'react';
+import { Outlet, useLocation, useNavigation } from 'react-router-dom';
 import { PilesContextProvider } from 'renderer/context/PilesContext';
 import { ToastsContextProvider } from 'renderer/context/ToastsContext';
 import { AutoUpdateContextProvider } from 'renderer/context/AutoUpdateContext';
@@ -11,6 +12,21 @@ import { TimelineContextProvider } from 'renderer/context/TimelineContext';
 import { LinksContextProvider } from 'renderer/context/LinksContext';
 
 export function Component() {
+  const location = useLocation();
+  const navigation = useNavigation();
+  const lastPathRef = useRef(location.pathname);
+
+  // Track if we're navigating to a DIFFERENT route (not just reloading same route)
+  const isNavigating = navigation.state === 'loading' &&
+    navigation.location?.pathname !== location.pathname;
+
+  // Update last path when navigation completes
+  useEffect(() => {
+    if (navigation.state === 'idle') {
+      lastPathRef.current = location.pathname;
+    }
+  }, [navigation.state, location.pathname]);
+
   return (
     <PilesContextProvider>
       <ToastsContextProvider>
@@ -21,7 +37,17 @@ export function Component() {
                 <TagsContextProvider>
                   <TimelineContextProvider>
                     <LinksContextProvider>
-                      <Outlet />
+                      <Suspense fallback={null}>
+                        {/* Hide content during navigation to prevent flash */}
+                        <div style={{
+                          opacity: isNavigating ? 0 : 1,
+                          pointerEvents: isNavigating ? 'none' : 'auto',
+                          transition: 'opacity 0.05s ease-out'
+                        }}>
+                          <Outlet />
+                        </div>
+                      </Suspense>
+                      <div id="dialog"></div>
                     </LinksContextProvider>
                   </TimelineContextProvider>
                 </TagsContextProvider>
