@@ -101,19 +101,12 @@
   gap: 20px;
   align-items: center;
 
-  /* Custom Scrollbar */
   &::-webkit-scrollbar {
-    width: 6px;
+    display: none;
   }
 
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 3px;
-  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .Container {

@@ -169,21 +169,11 @@
   padding: 24px;
 
   &::-webkit-scrollbar {
-    height: 10px;
+    display: none;
   }
 
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 20px;
-
-    &:hover {
-      background-color: var(--secondary);
-    }
-  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 // --- Board Layout ---

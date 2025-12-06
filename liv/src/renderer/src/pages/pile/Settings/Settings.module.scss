@@ -77,27 +77,17 @@
 .mainContent {
   flex: 1;
   overflow-y: auto;
-  padding: clamp(16px, 4vw, 48px);
+  padding: 16px clamp(16px, 4vw, 48px) clamp(16px, 4vw, 48px);
   display: flex;
   flex-direction: column;
   align-items: center;
 
   &::-webkit-scrollbar {
-    width: 10px;
+    display: none;
   }
 
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 20px;
-
-    &:hover {
-      background-color: var(--secondary);
-    }
-  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .footer {
@@ -135,7 +125,6 @@
 
 .Container {
   width: 100%;
-  max-width: min(960px, 92vw); // Keep content roomy on wide screens but responsive on smaller ones
   display: flex;
   flex-direction: column;
   gap: 24px;
