@@ -1,44 +1,9 @@
-// Dashboard.module.scss - Aligned with Settings/Chat
+// Dashboard.module.scss - Baseado no Design System documentado
 
-// --- Shared Styles ---
+// ==============================================
+// 1. PAGE CONTAINER
+// ==============================================
 
-.iconHolder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 32px;
-  min-width: 36px;
-  border-radius: 8px;
-  transition: all ease-in-out 120ms;
-  -webkit-app-region: none;
-  background: transparent;
-  margin-right: -2px;
-
-  .dashboardIcon {
-    color: var(--secondary);
-    height: 19px;
-    width: 19px;
-    transition: all ease-in-out 220ms;
-    transition-delay: 40ms;
-    opacity: 0.5;
-  }
-
-  &:hover {
-    cursor: pointer;
-    background: var(--bg-secondary);
-    color: var(--primary);
-
-    .dashboardIcon {
-      opacity: 1;
-    }
-  }
-
-  &:active {
-    background: var(--bg-tertiary);
-  }
-}
-
-// Page Container (route-based page structure)
 .pageContainer {
   position: fixed;
   top: 30px;
@@ -54,7 +19,9 @@
   z-index: 1400;
 }
 
-// --- Header ---
+// ==============================================
+// 2. HEADER
+// ==============================================
 
 .header {
   padding: 0 32px;
@@ -62,52 +29,52 @@
   background: transparent;
   z-index: 10;
   -webkit-app-region: drag;
+}
 
-  .wrapper {
-    height: 52px;
-    display: flex;
-    align-items: center;
-    position: relative;
-    width: 100%;
+.wrapper {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
 
-    .DialogTitle {
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--primary);
-      margin: 0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      opacity: 0.9;
-      -webkit-app-region: none;
-    }
+.DialogTitle {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.9;
+  -webkit-app-region: none;
+}
 
-    .close {
-      position: absolute;
-      right: 0;
-      background: transparent;
-      color: var(--secondary);
-      border-radius: 8px;
-      height: 32px;
-      width: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all ease-out 100ms;
-      cursor: pointer;
-      border: none;
-      opacity: 0.6;
-      -webkit-app-region: none;
+.close {
+  position: absolute;
+  right: 0;
+  background: transparent;
+  color: var(--secondary);
+  border-radius: 8px;
+  height: 32px;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all ease-out 100ms;
+  cursor: pointer;
+  border: none;
+  opacity: 0.6;
+  -webkit-app-region: none;
 
-      &:hover {
-        background: rgba(255, 255, 255, 0.08);
-        opacity: 1;
-      }
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    opacity: 1;
+  }
 
-      &:active {
-        transform: scale(0.94);
-      }
-    }
+  &:active {
+    transform: scale(0.94);
   }
 }
 
@@ -120,11 +87,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
   color: var(--secondary);
 
   &:hover {
-    background: var(--bg-secondary);
+    background: rgba(255, 255, 255, 0.08);
     color: var(--primary);
   }
 
@@ -134,41 +101,45 @@
   }
 }
 
-// --- Main Content ---
+// ==============================================
+// 3. MAIN CONTENT
+// ==============================================
 
 .mainContent {
   flex: 1;
   overflow-y: auto;
-  padding: clamp(16px, 4vw, 48px);
+  padding: 16px clamp(16px, 4vw, 48px) clamp(16px, 4vw, 48px);
   display: flex;
   flex-direction: column;
   align-items: center;
 
   &::-webkit-scrollbar {
-    width: 10px;
+    display: none;
   }
 
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 20px;
-
-    &:hover {
-      background-color: var(--secondary);
-    }
-  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-// --- Tabs ---
+// ==============================================
+// 4. CONTAINER
+// ==============================================
+
+.Container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+// ==============================================
+// 5. TABS (Radix UI)
+// ==============================================
 
 .tabsRoot {
   display: flex;
   flex-direction: column;
   width: 100%;
-  align-items: center; // Center the tabs list
 }
 
 .TabsList {
@@ -208,72 +179,90 @@
   }
 }
 
-// --- Dashboard Specific Styles ---
+// ==============================================
+// 6. DASHBOARD FRAME
+// ==============================================
 
 .DashboardFrame {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   width: 100%;
-  max-width: min(1200px, 92vw); // Match Settings/AutoJournal responsive width while allowing grid breathing room
 }
+
+// ==============================================
+// 7. STATS CARDS
+// ==============================================
 
 .StatsRow {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: 16px;
 }
 
 .StatCard {
-  background: var(--bg-tertiary); // Match Auto Journal filled style
-  border: none; // Remove border
-  border-radius: 12px; // Match Auto Journal radius
-  padding: 16px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 16px;
   text-align: center;
-  transition: transform 0.2s ease;
+  transition: all 0.2s;
 
   &:hover {
     transform: translateY(-1px);
-  }
-
-  .StatValue {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--primary);
-    font-variant-numeric: tabular-nums;
-    line-height: 1.2;
-  }
-
-  .StatLabel {
-    font-size: 12px;
-    color: var(--secondary);
-    margin-top: 6px;
-    font-weight: 500;
+    background: rgba(255, 255, 255, 0.03);
   }
 }
+
+.StatValue {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.StatLabel {
+  font-size: 12px;
+  color: var(--secondary);
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+// ==============================================
+// 8. CHARTS SECTION
+// ==============================================
 
 .ChartsSection {
   display: grid;
   grid-template-columns: 1.8fr 1fr;
-  gap: 12px;
+  gap: 16px;
 }
 
 .TimelineCard,
 .ProviderCard,
 .PerformanceCard {
-  background: var(--bg-tertiary); // Match Auto Journal filled style
-  border: none; // Remove border
-  border-radius: 12px; // Match Auto Journal radius
-  padding: 16px;
-  transition: transform 0.2s ease;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s;
 
   &:hover {
     transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.03);
   }
 }
 
+.CardTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 16px;
+}
+
 .TimelineChart {
-  height: 180px;
+  height: 200px;
   width: 100%;
 }
 
@@ -292,316 +281,9 @@
   flex-shrink: 0;
 }
 
-.CardTitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--primary);
-  margin-bottom: 12px;
-}
-
-.TableWrapper {
-  overflow-x: auto;
-  border: 1px solid var(--border); // Keep border for table wrapper or remove? Let's keep it subtle or remove.
-  // Actually, let's remove it to be cleaner inside the card
-  border: none;
-  border-radius: 6px;
-  background: var(--bg); // Inner background for contrast
-}
-
-.Table {
-  width: 100%;
-  font-size: 12px;
-  border-collapse: collapse;
-
-  th {
-    padding: 10px 12px;
-    text-align: left;
-    font-weight: 600;
-    border-bottom: 1px solid var(--border);
-    color: var(--secondary);
-    background: var(--bg-secondary); // Slightly darker than card
-
-    &:not(:first-child) {
-      text-align: right;
-    }
-  }
-
-  td {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-    color: var(--secondary);
-    background: var(--bg); // Inner background
-
-    &:not(:first-child) {
-      text-align: right;
-    }
-  }
-
-  tr:last-child td {
-    border-bottom: none;
-  }
-}
-
-.ModelName {
-  color: var(--primary) !important;
-  font-weight: 500;
-}
-
-.SuccessRate {
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-// --- History Styles ---
-
-.HistoryContainer {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  max-width: min(960px, 92vw); // Align with responsive content width used elsewhere
-  flex: 1;
-  min-height: 0;
-}
-
-.HistoryListHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 4px;
-  flex-shrink: 0;
-}
-
-.HistoryCount {
-  font-size: 13px;
-  color: var(--secondary);
-}
-
-.DeleteAllBtn {
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgba(239, 68, 68, 0.2);
-  }
-}
-
-.HistoryList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-  padding-right: 4px;
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 3px;
-  }
-}
-
-// Card de histórico com thumbnail integrado
-.HistoryItem {
-  background: var(--bg-tertiary);
-  border: none;
-  border-radius: 12px;
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  transition: all 0.2s ease;
-  cursor: default;
-  overflow: hidden;
-
-  &:hover {
-    background: var(--bg-secondary);
-    transform: translateY(-1px);
-  }
-}
-
-// Conteúdo do card (lado esquerdo)
-.HistoryContent {
-  flex: 1;
-  min-width: 0;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-// Container do thumbnail (lado direito)
-.HistoryThumbnailBox {
-  flex-shrink: 0;
-  width: 220px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
-  border-left: 1px solid var(--border);
-  padding: 16px 12px;
-  border-radius: 0 14px 14px 0;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
-}
-
-.ImagePreviewOverlay {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  display: grid;
-  place-items: center;
-  z-index: 1400;
-  pointer-events: auto;
-}
-
-.ImagePreviewContent {
-  position: relative;
-  max-width: 92vw;
-  max-height: 92vh;
-  padding: 18px;
-  background: var(--bg);
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ImagePreviewContent img {
-  max-width: 88vw;
-  max-height: 82vh;
-  border-radius: 12px;
-  object-fit: contain;
-}
-
-.ImagePreviewClose {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border);
-  color: var(--primary);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.14);
-  }
-}
-
-.HistoryHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.HistoryDate {
-  font-size: 14px; // Match Auto Journal date size
-  font-weight: 500;
-  color: var(--primary);
-}
-
-.HistoryActions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.HistoryDuration {
-  font-size: 11px;
-  color: var(--secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.CopyBtn,
-.DeleteIconBtn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--secondary);
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background: var(--bg-secondary); // Adjust for tertiary parent
-    color: var(--primary);
-  }
-}
-
-.DeleteIconBtn:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
-}
-
-.HistoryTranscript {
-  font-size: 13px;
-  color: var(--secondary);
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  opacity: 0.9;
-}
-
-.HistoryMeta {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.MetaItem {
-  font-size: 10px;
-  color: var(--secondary);
-  background: var(--bg); // Darker than card
-  padding: 2px 6px;
-  border-radius: 4px;
-  opacity: 0.8;
-}
-
-.EmptyState {
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--secondary);
-  font-size: 13px;
-  background: var(--bg-tertiary);
-  border-radius: 12px;
-  opacity: 0.8;
-}
-
-// --- Pie Chart Legend ---
+// ==============================================
+// 8. PIE CHART LEGEND
+// ==============================================
 
 .PieLegend {
   flex: 1;
@@ -640,31 +322,330 @@
   font-variant-numeric: tabular-nums;
 }
 
-// --- Animations ---
+// ==============================================
+// 9. TABLE (Performance)
+// ==============================================
 
-@keyframes overlayShow {
-  from {
-    opacity: 0;
+.TableWrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.Table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    color: var(--secondary);
+    background: var(--bg-secondary);
+
+    &:not(:first-child) {
+      text-align: right;
+    }
   }
 
-  to {
-    opacity: 0.9;
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--secondary);
+    background: var(--bg);
+
+    &:not(:first-child) {
+      text-align: right;
+    }
+  }
+
+  tr:last-child td {
+    border-bottom: none;
   }
 }
 
-@keyframes contentShow {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
+.ModelName {
+  color: var(--primary) !important;
+  font-weight: 500;
+}
+
+.SuccessRate {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+// ==============================================
+// 10. HISTORY TAB
+// ==============================================
+
+.HistoryContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: min(960px, 92vw);
+  flex: 1;
+  min-height: 0;
+}
+
+.HistoryListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.HistoryCount {
+  font-size: 13px;
+  color: var(--secondary);
+}
+
+.DeleteAllBtn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.2);
+  }
+}
+
+.HistoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 4px;
+
+  &::-webkit-scrollbar {
+    display: none;
   }
 
-  to {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+// ==============================================
+// 11. HISTORY ITEM CARD
+// ==============================================
+
+.HistoryItem {
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  transition: all 0.2s;
+  cursor: default;
+  overflow: hidden;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+  }
+}
+
+.HistoryContent {
+  flex: 1;
+  min-width: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.HistoryThumbnailBox {
+  flex-shrink: 0;
+  width: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border-left: 1px solid var(--border);
+  padding: 16px 12px;
+  border-radius: 0 12px 12px 0;
+}
+
+.HistoryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.HistoryDate {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.HistoryActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.HistoryDuration {
+  font-size: 11px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.CopyBtn,
+.DeleteIconBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--secondary);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--primary);
+  }
+}
+
+.DeleteIconBtn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.HistoryTranscript {
+  font-size: 13px;
+  color: var(--secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  opacity: 0.9;
+}
+
+.HistoryMeta {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.MetaItem {
+  font-size: 10px;
+  color: var(--secondary);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0.8;
+}
+
+.screenshotThumbnail {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0.9;
+
+  &:hover {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1.03);
   }
 }
 
-// Responsive adjustments
+// ==============================================
+// 12. IMAGE PREVIEW OVERLAY
+// ==============================================
+
+.ImagePreviewOverlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  z-index: 1500;
+  pointer-events: auto;
+}
+
+.ImagePreviewContent {
+  position: relative;
+  max-width: 92vw;
+  max-height: 92vh;
+  padding: 18px;
+  background: var(--bg);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    max-width: 88vw;
+    max-height: 82vh;
+    border-radius: 12px;
+    object-fit: contain;
+  }
+}
+
+.ImagePreviewClose {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  color: var(--primary);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
+}
+
+// ==============================================
+// 13. EMPTY STATE
+// ==============================================
+
+.EmptyState {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--secondary);
+  font-size: 13px;
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+}
+
+// ==============================================
+// 14. RESPONSIVE
+// ==============================================
+
 @media (max-width: 900px) {
   .ChartsSection {
     grid-template-columns: 1fr 1fr;
@@ -680,62 +661,14 @@
     grid-template-columns: 1fr;
   }
 
-  .StatCard .StatValue {
+  .StatValue {
     font-size: 20px;
   }
 
   .TimelineChart {
     height: 150px;
   }
-}
 
-@media (max-width: 500px) {
-  .header {
-    padding: 0 20px;
-  }
-
-  .DashboardFrame {
-    padding: 0 12px;
-    gap: 12px;
-  }
-
-  .StatsRow {
-    gap: 8px;
-  }
-
-  .StatCard {
-    padding: 12px 10px;
-
-    .StatValue {
-      font-size: 18px;
-    }
-
-    .StatLabel {
-      font-size: 10px;
-    }
-  }
-}
-
-// Screenshot thumbnail dentro da box
-.screenshotThumbnail {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  opacity: 0.9;
-
-  &:hover {
-    opacity: 1;
-    transform: scale(1.05) translateY(-2px);
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28), 0 6px 16px rgba(255, 255, 255, 0.06);
-  }
-}
-
-// Responsivo
-@media (max-width: 700px) {
   .HistoryItem {
     flex-direction: column-reverse;
   }
@@ -759,8 +692,24 @@
 }
 
 @media (max-width: 500px) {
-  .HistoryContainer {
-    padding: 0 8px;
+  .header {
+    padding: 0 20px;
+  }
+
+  .StatsRow {
+    gap: 8px;
+  }
+
+  .StatCard {
+    padding: 12px 10px;
+  }
+
+  .StatValue {
+    font-size: 18px;
+  }
+
+  .StatLabel {
+    font-size: 10px;
   }
 
   .HistoryContent {
@@ -768,7 +717,7 @@
   }
 
   .HistoryDate {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .HistoryTranscript {

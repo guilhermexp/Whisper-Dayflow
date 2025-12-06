@@ -1,55 +1,6 @@
-// AutoJournal.module.scss - Aligned with Settings/Chat/Dashboard
+// AutoJournal.module.scss - COPIADO DO SETTINGS
 
-// --- Shared Styles ---
-
-.iconHolder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 32px;
-  min-width: 36px;
-  border-radius: 8px;
-  transition: all ease-in-out 120ms;
-  -webkit-app-region: none;
-  background: transparent;
-  margin-right: -2px;
-
-  .autoJournalIcon {
-    color: var(--secondary);
-    height: 19px;
-    width: 19px;
-    transition: all ease-in-out 220ms;
-    transition-delay: 40ms;
-    opacity: 0.5;
-  }
-
-  &:hover {
-    cursor: pointer;
-    background: var(--bg-secondary);
-    color: var(--primary);
-
-    .autoJournalIcon {
-      opacity: 1;
-    }
-  }
-
-  &:active {
-    background: var(--bg-tertiary);
-  }
-}
-
-.DialogOverlay {
-  background-color: rgba(0, 0, 0, 0.5);
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 56px;
-  animation: none;
-  z-index: 1300;
-  backdrop-filter: blur(4px);
-}
-
+// Page Container (IGUAL Settings)
 .pageContainer {
   position: fixed;
   top: 30px;
@@ -65,7 +16,7 @@
   z-index: 1400;
 }
 
-// --- Header ---
+// --- Header (IGUAL Settings) ---
 
 .header {
   padding: 0 32px;
@@ -79,7 +30,6 @@
     display: flex;
     align-items: center;
     position: relative;
-    width: 100%;
 
     .DialogTitle {
       font-size: 15px;
@@ -88,7 +38,7 @@
       margin: 0;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
       opacity: 0.9;
       -webkit-app-region: none;
     }
@@ -131,11 +81,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
   color: var(--secondary);
 
   &:hover {
-    background: var(--bg-secondary);
+    background: rgba(255, 255, 255, 0.08);
     color: var(--primary);
   }
 
@@ -145,42 +95,39 @@
   }
 }
 
-// --- Main Content ---
+// --- Main Content (IGUAL Settings) ---
 
 .mainContent {
   flex: 1;
-  overflow: hidden;
-  min-height: 0;
-  height: calc(100vh - 50px - 80px); // viewport - header - bottomNav
-  padding: 16px 24px;
-  padding-bottom: 0;
+  overflow-y: auto;
+  padding: 16px clamp(16px, 4vw, 48px) 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .Container {
   width: 100%;
-  max-width: min(960px, 92vw); // Match Settings responsive width
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
-.contentOffset {
-  padding-top: 0;
-}
-
-// --- Tabs ---
+// --- Tabs (IGUAL Settings) ---
 
 .tabsRoot {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100%;
   flex: 1;
-  max-width: 1400px; // Allow wider width for SplitPane
-  align-items: center; // Center the tabs list
+  min-height: 0;
 }
 
 .TabsList {
@@ -188,18 +135,18 @@
   gap: 8px;
   background: var(--bg-tertiary);
   padding: 4px;
-  border-radius: 12px; // Match Settings
+  border-radius: 12px;
   margin-bottom: 24px;
-  align-self: center; // Center the tabs list
 }
 
 .TabTrigger {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 8px 16px;
-  border-radius: 8px; // Match Settings
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
   color: var(--secondary);
@@ -220,539 +167,7 @@
   }
 }
 
-// --- Runs Tab (Split Pane) ---
-
-.RunsTabContent {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  flex: 1;
-}
-
-.ContentShell {
-  width: 100%;
-  height: 100%;
-  max-width: 1200px; // Wider to accommodate split pane
-  display: flex;
-  flex-direction: column;
-}
-
-.SplitPane {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  flex: 1;
-  gap: 24px;
-  padding: 0 24px;
-  position: relative;
-}
-
-.LeftPanel {
-  flex: 1;
-  max-width: 600px; // Match standard width when alone
-  margin: 0 auto; // Center when alone
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.SplitPaneWithSelection {
-  .LeftPanel {
-    margin: 0; // Align left when panel is open
-    max-width: 400px; // Shrink to make room
-  }
-}
-
-.RightPanel {
-  flex: 1.5;
-  background: var(--bg);
-  border-left: 1px solid var(--border);
-  padding-left: 24px;
-  overflow-y: auto;
-  padding-bottom: 20px;
-
-  // Custom scrollbar
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 3px;
-
-    &:hover {
-      background-color: var(--secondary);
-    }
-  }
-
-  // Animation
-  opacity: 0;
-  transform: translateX(20px);
-  pointer-events: none;
-  position: relative;
-  display: none; // Hidden by default
-
-  &.Visible {
-    display: block;
-    opacity: 1;
-    transform: translateX(0);
-    pointer-events: all;
-    animation: none;
-  }
-}
-
-// --- Generate Card ---
-
-.GenerateCard {
-  background: var(--bg-tertiary); // Match Settings Section
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: none; // Remove border to match Settings style
-}
-
-.GenerateHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  color: var(--secondary);
-  font-size: 13px;
-  gap: 12px;
-
-  span {
-    opacity: 0.9;
-    line-height: 1.4;
-    font-weight: 500;
-  }
-}
-
-.ActionBtn {
-  background: var(--active);
-  color: var(--active-text);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-  flex-shrink: 0;
-  border: none;
-
-  &:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-}
-
-// --- Run List ---
-
-.RunList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 4px;
-
-  // Custom scrollbar
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 3px;
-
-    &:hover {
-      background-color: var(--secondary);
-    }
-  }
-}
-
-.RunItem {
-  background: var(--bg-tertiary); // Match Settings style
-  border-radius: 12px;
-  padding: 16px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: var(--bg-secondary); // Slightly lighter on hover
-    transform: translateY(-1px);
-  }
-
-  &.selected {
-    border-color: var(--active);
-    background: var(--bg-secondary);
-  }
-}
-
-.RunHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.RunDate {
-  color: var(--primary);
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.RunStatus {
-  font-size: 10px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  text-transform: uppercase;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-
-  &.success {
-    background: rgba(34, 197, 94, 0.15);
-    color: #22c55e;
-  }
-
-  &.error {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
-  }
-}
-
-.RunMeta {
-  display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--secondary);
-  margin-bottom: 8px;
-  opacity: 0.8;
-
-  span {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-}
-
-.RunPreview {
-  font-size: 13px;
-  color: var(--secondary);
-  line-height: 1.5;
-  opacity: 0.9;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.RunError {
-  font-size: 11px;
-  color: var(--secondary);
-  margin-top: 8px;
-  background: var(--bg-secondary);
-  padding: 8px 10px;
-  border-radius: 6px;
-  opacity: 0.7;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.DeleteBtn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--secondary);
-  opacity: 0;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.3;
-  }
-}
-
-.RunItem:hover .DeleteBtn {
-  opacity: 0.6;
-
-  &:hover {
-    opacity: 1;
-  }
-}
-
-.EmptyState {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--secondary);
-  font-size: 13px;
-  background: var(--bg-tertiary);
-  border-radius: 12px;
-  opacity: 0.8;
-}
-
-// --- Run Details (Side Panel) ---
-
-.RunDetails {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.RunDetailsHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.SectionTitle {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--primary);
-}
-
-.CloseDetailsBtn {
-  display: none; // Only needed if we want a close button on the panel
-
-  @media (max-width: 900px) {
-    display: block;
-  }
-}
-
-// --- Run Details ---
-
-.RunDetails {
-  background: var(--bg-tertiary);
-  border-radius: 14px;
-  padding: 20px;
-  margin-top: 0;
-}
-
-.RunDetailsHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 14px;
-  border-bottom: none;
-}
-
-.SectionTitle {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--primary);
-}
-
-.SummaryBox {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-// Dayflow-style Activity Cards
-.ActivitiesList {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.ActivityCard {
-  background: var(--bg);
-  border-radius: 10px;
-  padding: 14px 16px;
-  border: none;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: var(--bg-secondary);
-  }
-}
-
-.ActivityCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 10px;
-  gap: 12px;
-}
-
-.ActivityCardTitle {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--primary);
-  line-height: 1.4;
-  flex: 1;
-}
-
-.ActivityCardMeta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.ActivityTimeRange {
-  font-size: 11px;
-  color: var(--secondary);
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  white-space: nowrap;
-  opacity: 0.8;
-}
-
-.CategoryBadge {
-  font-size: 9px;
-  padding: 3px 6px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-
-  &.categoryWork {
-    background: rgba(59, 130, 246, 0.15);
-    color: #3b82f6;
-  }
-
-  &.categoryPersonal {
-    background: rgba(16, 185, 129, 0.15);
-    color: #10b981;
-  }
-
-  &.categoryDistraction {
-    background: rgba(245, 158, 11, 0.15);
-    color: #f59e0b;
-  }
-
-  &.categoryIdle {
-    background: rgba(107, 114, 128, 0.15);
-    color: #6b7280;
-  }
-}
-
-.ActivityCardSection {
-  margin-top: 10px;
-}
-
-.ActivityCardLabel {
-  font-size: 9px;
-  text-transform: uppercase;
-  color: var(--secondary);
-  font-weight: 700;
-  margin-bottom: 6px;
-  letter-spacing: 0.5px;
-  opacity: 0.7;
-}
-
-.ActivityCardText {
-  font-size: 13px;
-  color: var(--primary);
-  line-height: 1.5;
-}
-
-.DetailedList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.DetailedItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  font-size: 12px;
-  padding: 6px 8px;
-  background: var(--bg-tertiary);
-  border-radius: 6px;
-}
-
-.DetailedTime {
-  color: var(--secondary);
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  flex-shrink: 0;
-  font-size: 10px;
-  opacity: 0.8;
-  white-space: nowrap;
-}
-
-.DetailedDesc {
-  color: var(--primary);
-  line-height: 1.4;
-  font-size: 12px;
-}
-
-.OverallSummary {
-  background: var(--bg);
-  padding: 14px 16px;
-  border-radius: 10px;
-  border: none;
-}
-
-.SummaryText {
-  font-size: 13px;
-  color: var(--primary);
-  line-height: 1.6;
-}
-
-.Diagnostics {
-  font-size: 11px;
-  color: var(--secondary);
-  background: var(--bg);
-  padding: 10px 12px;
-  border-radius: 8px;
-  margin-top: 12px;
-}
-
-.DiagnosticsRow {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-
-  span:last-child {
-    font-family: monospace;
-    opacity: 0.8;
-  }
-}
-
-// --- Settings Form (Matched to Settings.module.scss) ---
+// --- Form Elements (IGUAL Settings) ---
 
 .Fieldset {
   display: flex;
@@ -811,142 +226,16 @@
   font-family: monospace;
 }
 
-// Prompt Editor with Markdown Preview
-.PromptEditor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.EditPromptBtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  align-self: flex-end;
-  background: var(--bg-secondary);
-  border: none;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 12px;
-  color: var(--secondary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: var(--bg-tertiary);
-    color: var(--primary);
-  }
-}
-
-.MarkdownPreview {
-  background: var(--bg-tertiary);
-  border-radius: 10px;
-  padding: 16px;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--primary);
-  max-height: 300px;
-  overflow-y: auto;
-
-  h1, h2, h3, h4, h5, h6 {
-    color: var(--primary);
-    margin-top: 16px;
-    margin-bottom: 8px;
-    font-weight: 600;
-
-    &:first-child {
-      margin-top: 0;
-    }
-  }
-
-  h1 { font-size: 1.3em; }
-  h2 { font-size: 1.2em; }
-  h3 { font-size: 1.1em; }
-
-  p {
-    margin-bottom: 12px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-
-  ul, ol {
-    margin: 8px 0;
-    padding-left: 20px;
-  }
-
-  li {
-    margin-bottom: 4px;
-  }
-
-  code {
-    background: var(--bg-secondary);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 0.9em;
-  }
-
-  pre {
-    background: var(--bg-secondary);
-    padding: 12px;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 12px 0;
-
-    code {
-      background: none;
-      padding: 0;
-    }
-  }
-
-  strong {
-    font-weight: 600;
-    color: var(--primary);
-  }
-
-  em {
-    font-style: italic;
-    color: var(--secondary);
-  }
-
-  blockquote {
-    border-left: 3px solid var(--active);
-    padding-left: 12px;
-    margin: 12px 0;
-    color: var(--secondary);
-  }
-
-  hr {
-    border: none;
-    border-top: 1px solid var(--border);
-    margin: 16px 0;
-  }
-
-  // Scrollbar
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 3px;
-  }
-}
+// --- Switch (IGUAL Settings pattern) ---
 
 .SwitchRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px;
+  padding: 14px 16px;
   background: var(--bg-tertiary);
   border-radius: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .SwitchInfo {
@@ -986,6 +275,562 @@
   }
 }
 
-// --- Animations ---
+// --- Button (IGUAL Settings) ---
 
-// animations removed
+.ActionBtn {
+  padding: 5px 10px;
+  background: transparent;
+  color: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--primary);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// --- Runs Tab ---
+
+.RunsTabContent {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ContentShell {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.SplitPane {
+  display: flex;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
+}
+
+.LeftPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.SplitPaneWithSelection {
+  .LeftPanel {
+    max-width: 400px;
+  }
+}
+
+.RightPanel {
+  flex: 1.5;
+  border-left: 1px solid var(--border);
+  padding-left: 24px;
+  display: none;
+  overflow-y: auto;
+  max-height: 100%;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &.Visible {
+    display: block;
+  }
+}
+
+// --- Generate Card ---
+
+.GenerateCard {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.GenerateHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: var(--secondary);
+  font-size: 12px;
+  gap: 12px;
+
+  span {
+    font-weight: 400;
+  }
+}
+
+// --- Run List ---
+
+.RunList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.RunItem {
+  background: transparent;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  &.selected {
+    border-color: var(--active);
+  }
+}
+
+.RunHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.RunDate {
+  color: var(--primary);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.RunStatus {
+  font-size: 9px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+
+  &.success {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+  }
+
+  &.error {
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
+  }
+}
+
+.RunMeta {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--secondary);
+  margin-bottom: 8px;
+}
+
+.RunPreview {
+  font-size: 13px;
+  color: var(--secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.RunError {
+  font-size: 11px;
+  color: var(--secondary);
+  margin-top: 8px;
+  background: var(--bg);
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.DeleteBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--secondary);
+  opacity: 0;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+}
+
+.RunItem:hover .DeleteBtn {
+  opacity: 0.6;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.EmptyState {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--secondary);
+  font-size: 13px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+// --- Run Details ---
+
+.RunDetails {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.RunDetailsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.SectionTitle {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.SummaryBox {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ActivitiesList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ActivityCard {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.ActivityCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  gap: 12px;
+}
+
+.ActivityCardTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.ActivityCardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ActivityTimeRange {
+  font-size: 11px;
+  color: var(--secondary);
+  font-family: monospace;
+}
+
+.CategoryBadge {
+  font-size: 9px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 700;
+
+  &.categoryWork {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+  }
+
+  &.categoryPersonal {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+  }
+
+  &.categoryDistraction {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+  }
+
+  &.categoryIdle {
+    background: rgba(107, 114, 128, 0.15);
+    color: #6b7280;
+  }
+}
+
+.ActivityCardSection {
+  margin-top: 10px;
+}
+
+.ActivityCardLabel {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--secondary);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.ActivityCardText {
+  font-size: 13px;
+  color: var(--primary);
+  line-height: 1.5;
+}
+
+.DetailedList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.DetailedItem {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  padding: 6px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+}
+
+.DetailedTime {
+  color: var(--secondary);
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.DetailedDesc {
+  color: var(--primary);
+  font-size: 11px;
+}
+
+.OverallSummary {
+  background: var(--bg);
+  padding: 14px 16px;
+  border-radius: 10px;
+}
+
+.SummaryText {
+  font-size: 13px;
+  color: var(--primary);
+  line-height: 1.6;
+}
+
+.Diagnostics {
+  font-size: 11px;
+  color: var(--secondary);
+  background: var(--bg);
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.DiagnosticsRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+
+  span:last-child {
+    font-family: monospace;
+  }
+}
+
+// --- Prompt Editor ---
+
+.PromptEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.EditPromptBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-end;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--primary);
+  }
+}
+
+.MarkdownPreview {
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--primary);
+  max-height: 300px;
+  overflow-y: auto;
+
+  h1, h2, h3 {
+    color: var(--primary);
+    margin-top: 16px;
+    margin-bottom: 8px;
+    font-weight: 600;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  p {
+    margin-bottom: 12px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  ul, ol {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+
+  code {
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+  }
+
+  pre {
+    background: var(--bg);
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 12px 0;
+
+    code {
+      background: none;
+      padding: 0;
+    }
+  }
+}
+
+// --- Legacy ---
+
+.iconHolder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 36px;
+  border-radius: 8px;
+  transition: all ease-out 100ms;
+  background: transparent;
+
+  .autoJournalIcon {
+    color: var(--secondary);
+    height: 19px;
+    width: 19px;
+    opacity: 0.5;
+  }
+
+  &:hover {
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.08);
+
+    .autoJournalIcon {
+      opacity: 1;
+    }
+  }
+}
+
+.DialogOverlay {
+  background-color: rgba(0, 0, 0, 0.5);
+  position: fixed;
+  inset: 0;
+  left: 56px;
+  z-index: 1300;
+  backdrop-filter: blur(4px);
+}
+
+// --- Responsive ---
+
+@media (max-width: 900px) {
+  .SplitPane {
+    flex-direction: column;
+  }
+
+  .SplitPaneWithSelection .LeftPanel {
+    max-width: 100%;
+  }
+
+  .RightPanel {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding-left: 0;
+    padding-top: 20px;
+  }
+}
+
+@media (max-width: 500px) {
+  .header {
+    padding: 0 20px;
+  }
+
+  .GenerateCard {
+    flex-direction: column;
+  }
+}

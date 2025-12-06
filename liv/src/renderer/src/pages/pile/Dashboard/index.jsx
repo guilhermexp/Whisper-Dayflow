@@ -185,43 +185,37 @@ function Dashboard() {
                 />
               </button>
             </div>
-            <div
+            <button
               className={styles.close}
-              onClick={() => navigate("/")}
-              title={t("common.close")}
+              onClick={() => navigate(-1)}
+              aria-label="Close"
             >
               <CrossIcon style={{ height: 14, width: 14 }} />
-            </div>
+            </button>
           </div>
         </div>
 
         {/* Main Content */}
         <div className={styles.mainContent}>
-          <Tabs.Root
-            value={mainTab}
-            onValueChange={setMainTab}
-            className={styles.tabsRoot}
-          >
-            <Tabs.List className={styles.TabsList}>
-              <Tabs.Trigger value="dashboard" className={styles.TabTrigger}>
-                <GaugeIcon style={{ height: "16px", width: "16px" }} />
-                {t("dashboard.title")}
-              </Tabs.Trigger>
-              <Tabs.Trigger value="history" className={styles.TabTrigger}>
-                <ClockIcon style={{ height: "16px", width: "16px" }} />
-                {t("navigation.history")}
-              </Tabs.Trigger>
-            </Tabs.List>
-
-            {/* Dashboard Tab */}
-            <Tabs.Content
-              value="dashboard"
-              style={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "center",
-              }}
+          <div className={styles.Container}>
+            <Tabs.Root
+              value={mainTab}
+              onValueChange={setMainTab}
+              className={styles.tabsRoot}
             >
+              <Tabs.List className={styles.TabsList}>
+                <Tabs.Trigger value="dashboard" className={styles.TabTrigger}>
+                  <GaugeIcon style={{ height: "16px", width: "16px" }} />
+                  {t("dashboard.title")}
+                </Tabs.Trigger>
+                <Tabs.Trigger value="history" className={styles.TabTrigger}>
+                  <ClockIcon style={{ height: "16px", width: "16px" }} />
+                  {t("navigation.history")}
+                </Tabs.Trigger>
+              </Tabs.List>
+
+              {/* Dashboard Tab */}
+              <Tabs.Content value="dashboard">
               {!data ? (
                 <div className={styles.EmptyState}>
                   {analyticsQuery.isLoading
@@ -392,10 +386,7 @@ function Dashboard() {
             </Tabs.Content>
 
             {/* History Tab */}
-            <Tabs.Content
-              value="history"
-              style={{ width: "100%", display: "flex", justifyContent: "center", flex: 1, minHeight: 0 }}
-            >
+            <Tabs.Content value="history">
               <div className={styles.HistoryContainer}>
                 <div className={styles.HistoryListHeader}>
                   <span className={styles.HistoryCount}>
@@ -489,7 +480,8 @@ function Dashboard() {
                 </div>
               </div>
             </Tabs.Content>
-          </Tabs.Root>
+            </Tabs.Root>
+          </div>
         </div>
       </div>
 

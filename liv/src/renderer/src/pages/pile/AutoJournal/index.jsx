@@ -492,18 +492,18 @@ Bad examples:
                 <RefreshIcon style={{ height: "14px", width: "14px" }} />
               </button>
             </div>
-            <div
+            <button
               className={styles.close}
               onClick={() => navigate("/")}
               title={t("common.close")}
             >
               <CrossIcon style={{ height: 14, width: 14 }} />
-            </div>
+            </button>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className={`${styles.mainContent} ${styles.contentOffset}`}>
+        <div className={styles.mainContent}>
           <Tabs.Root
             value={mainTab}
             onValueChange={setMainTab}
@@ -593,12 +593,13 @@ Bad examples:
                                   {(savedRunIds.has(run.id) || run.autoSaved) && (
                                     <span
                                       style={{
-                                        fontSize: "0.65rem",
-                                        padding: "2px 6px",
+                                        fontSize: "9px",
+                                        padding: "3px 6px",
                                         borderRadius: "4px",
-                                        backgroundColor: "var(--base-green)",
-                                        color: "white",
+                                        backgroundColor: "rgba(74, 222, 128, 0.15)",
+                                        color: "#4ade80",
                                         fontWeight: "600",
+                                        letterSpacing: "0.3px",
                                       }}
                                     >
                                       {t("autoJournal.published")}
@@ -673,8 +674,9 @@ Bad examples:
                               style={
                                 savedRunIds.has(selectedRun.id) || selectedRun.autoSaved
                                   ? {
-                                      backgroundColor: "var(--base-green)",
-                                      color: "white",
+                                      backgroundColor: "rgba(74, 222, 128, 0.15)",
+                                      color: "#4ade80",
+                                      borderColor: "rgba(74, 222, 128, 0.3)",
                                     }
                                   : {}
                               }
@@ -827,6 +829,7 @@ Bad examples:
                                   borderRadius: "10px",
                                   overflow: "hidden",
                                   maxWidth: "520px",
+                                  margin: "0 auto",
                                   background: "var(--bg-secondary)",
                                 }}
                               >
