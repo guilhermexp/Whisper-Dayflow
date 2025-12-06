@@ -1,37 +1,18 @@
 import styles from "./Search.module.scss"
 import layoutStyles from "../PileLayout.module.scss"
 import {
-  SettingsIcon,
   CrossIcon,
-  ReflectIcon,
-  RefreshIcon,
-  DiscIcon,
-  DownloadIcon,
-  FlameIcon,
-  SearchIcon,
-  HomeIcon,
-  NotebookIcon,
-  ChatIcon,
 } from "renderer/icons"
 import { useEffect, useState, useMemo, useCallback } from "react"
-import * as Dialog from "@radix-ui/react-dialog"
-import { Link } from "react-router-dom"
-import { useAIContext } from "renderer/context/AIContext"
+import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { availableThemes, usePilesContext } from "renderer/context/PilesContext"
+import { usePilesContext } from "renderer/context/PilesContext"
 import { useIndexContext } from "renderer/context/IndexContext"
 import Post from "../Posts/Post"
-import TextareaAutosize from "react-textarea-autosize"
-import Waiting from "../Toasts/Toast/Loaders/Waiting"
-import Thinking from "../Toasts/Toast/Loaders/Thinking"
 import InputBar from "./InputBar"
 import { AnimatePresence, motion } from "framer-motion"
 import OptionsBar from "./OptionsBar"
-import VirtualList from "../Posts/VirtualList"
-import Chat from "../Chat"
-import Settings from "../Settings"
-import Dashboard from "../Dashboard"
-
+import Navigation from "../Navigation"
 const filterResults = (results, options) => {
   const filtered = results.filter((result) => {
     // Filter by highlight
@@ -57,19 +38,19 @@ const filterResults = (results, options) => {
   return filtered
 }
 
-export default function Search() {
+function Search() {
   const { t } = useTranslation()
-  const { currentTheme, setTheme } = usePilesContext()
+  const { currentTheme } = usePilesContext()
+  const navigate = useNavigate()
+
+  const themeStyles = useMemo(
+    () => (currentTheme ? `${currentTheme}Theme` : ""),
+    [currentTheme],
+  )
   const {
-    initVectorIndex,
-    rebuildVectorIndex,
-    query,
     search,
-    searchOpen,
-    setSearchOpen,
     vectorSearch,
   } = useIndexContext()
-  const [container, setContainer] = useState(null)
   const [ready, setReady] = useState(false)
   const [text, setText] = useState("")
   const [querying, setQuerying] = useState(false)
@@ -156,80 +137,85 @@ export default function Search() {
     })
   }
 
-  const osStyles = useMemo(
-    () => (window.electron.isMac ? styles.mac : styles.win),
-    [],
-  )
+  const handleClose = () => {
+    navigate(-1)
+  }
+
+  // Detect platform
+  const isMac = window.electron?.isMac
+  const osLayoutStyles = isMac ? layoutStyles.macOS : layoutStyles.windows
 
   return (
-    <>
-      <Dialog.Root>
-        <Dialog.Trigger asChild>
-          <div className={layoutStyles.iconHolder}>
-            <SearchIcon />
+    <div className={`${layoutStyles.frame} ${themeStyles} ${osLayoutStyles}`}>
+      <div className={layoutStyles.bg}></div>
+      <div className={styles.pageContainer}>
+        {/* Header */}
+        <div className={styles.header}>
+          <div className={styles.headerWrapper}>
+            <h1 className={styles.pageTitle}>
+              {t("search.title")}
+            </h1>
+            <button className={styles.close} aria-label="Close" onClick={handleClose}>
+              <CrossIcon style={{ height: 14, width: 14 }} />
+            </button>
           </div>
-        </Dialog.Trigger>
-        <Dialog.Portal container={document.getElementById("dialog")}>
-          <Dialog.Overlay className={styles.DialogOverlay} />
-          <Dialog.Content
-            className={styles.DialogContent}
-            aria-describedby={undefined}
-          >
-            <div className={styles.wrapper}>
-              <Dialog.Title className={styles.DialogTitle}>
-                <InputBar
-                  setReady={setReady}
-                  value={text}
-                  onChange={onChangeText}
-                  onSubmit={onSubmit}
-                  querying={querying}
-                />
-                <OptionsBar
-                  options={options}
-                  setOptions={setOptions}
-                  onSubmit={onSubmit}
-                />
-              </Dialog.Title>
-              {filtered && (
-                <div className={styles.meta}>
-                  {filtered?.length}{" "}
-                  {filtered?.length !== 1
-                    ? t("search.threads")
-                    : t("search.thread")}
-                  <div className={styles.sep}></div>
-                  {filtered.reduce(
-                    (a, i) => a + 1 + i?.replies?.length,
-                    0,
-                  )}{" "}
-                  {t("search.entries")}
-                  <div className={styles.sep}></div>
-                  {filtered.filter((post) => post.highlight).length}{" "}
-                  {t("search.highlighted")}
-                  <div className={styles.sep}></div>
-                  {filtered.reduce(
-                    (a, i) => a + i?.attachments?.length,
-                    0,
-                  )}{" "}
-                  {t("search.attachments")}
-                </div>
-              )}
-              <AnimatePresence mode="wait">
-                <motion.ul
-                  initial="hidden"
-                  animate="show"
-                  variants={containerVariants}
-                  className={styles.scroller}
-                >
-                  {renderResponse()}
-                </motion.ul>
-              </AnimatePresence>
+        </div>
+
+        {/* Main Content */}
+        <div className={styles.mainContent}>
+          <div className={styles.DialogTitle}>
+            <InputBar
+              setReady={setReady}
+              value={text}
+              onChange={onChangeText}
+              onSubmit={onSubmit}
+              querying={querying}
+            />
+            <OptionsBar
+              options={options}
+              setOptions={setOptions}
+              onSubmit={onSubmit}
+            />
+          </div>
+          {filtered && (
+            <div className={styles.meta}>
+              {filtered?.length}{" "}
+              {filtered?.length !== 1
+                ? t("search.threads")
+                : t("search.thread")}
+              <div className={styles.sep}></div>
+              {filtered.reduce(
+                (a, i) => a + 1 + i?.replies?.length,
+                0,
+              )}{" "}
+              {t("search.entries")}
+              <div className={styles.sep}></div>
+              {filtered.filter((post) => post.highlight).length}{" "}
+              {t("search.highlighted")}
+              <div className={styles.sep}></div>
+              {filtered.reduce(
+                (a, i) => a + i?.attachments?.length,
+                0,
+              )}{" "}
+              {t("search.attachments")}
             </div>
-            <div className={styles.gradient}></div>
-            <div className={styles.gradient2}></div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-      <div ref={setContainer} />
-    </>
+          )}
+          <AnimatePresence mode="wait">
+            <motion.ul
+              initial="hidden"
+              animate="show"
+              variants={containerVariants}
+              className={styles.scroller}
+            >
+              {renderResponse()}
+            </motion.ul>
+          </AnimatePresence>
+        </div>
+      </div>
+      <Navigation />
+    </div>
   )
 }
+
+export default Search
+export const Component = Search

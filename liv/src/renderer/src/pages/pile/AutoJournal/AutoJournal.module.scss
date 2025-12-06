@@ -39,60 +39,64 @@
 }
 
 .DialogOverlay {
-  background-color: var(--bg-secondary);
+  background-color: rgba(0, 0, 0, 0.5);
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 56px;
   animation: none;
-  opacity: 0.9;
-  z-index: 40;
-  backdrop-filter: none;
+  z-index: 1300;
+  backdrop-filter: blur(4px);
 }
 
 .pageContainer {
-  position: relative;
+  position: fixed;
+  top: 30px;
+  left: calc(56px + 8px);
+  right: 12px;
+  bottom: 12px;
   background-color: var(--bg);
-  min-height: 100vh;
-  height: 100vh;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  z-index: 1400;
 }
 
 // --- Header ---
 
 .header {
-  padding: 0 24px; // Match Settings
+  padding: 0 32px;
   flex-shrink: 0;
   background: transparent;
   z-index: 10;
+  -webkit-app-region: drag;
 
   .wrapper {
-    height: 50px;
+    height: 52px;
     display: flex;
     align-items: center;
-    justify-content: center;
     position: relative;
     width: 100%;
-    // Removed max-width to match Settings
 
     .DialogTitle {
-      font-size: 14px;
-      font-weight: 400;
+      font-size: 15px;
+      font-weight: 500;
       color: var(--primary);
       margin: 0;
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
       display: flex;
       align-items: center;
       gap: 12px;
+      opacity: 0.9;
+      -webkit-app-region: none;
     }
 
     .close {
       position: absolute;
       right: 0;
-      text-wrap: nowrap;
-      background: var(--bg);
+      background: transparent;
       color: var(--secondary);
       border-radius: 8px;
       height: 32px;
@@ -100,16 +104,19 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all ease-in-out 150ms;
+      transition: all ease-out 100ms;
       cursor: pointer;
+      border: none;
+      opacity: 0.6;
+      -webkit-app-region: none;
 
       &:hover {
-        background: var(--bg-secondary);
-        color: var(--primary);
+        background: rgba(255, 255, 255, 0.08);
+        opacity: 1;
       }
 
       &:active {
-        transform: scale(0.95);
+        transform: scale(0.94);
       }
     }
   }

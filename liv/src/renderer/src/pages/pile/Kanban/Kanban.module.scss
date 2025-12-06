@@ -1,52 +1,32 @@
-// Kanban.module.scss - Using theme CSS variables
+// Kanban.module.scss - Route-based page (no Dialog)
 
-// --- Dialog Styles ---
-
-.DialogOverlay {
-  background-color: var(--bg-tertiary);
+// Page Container (matches AutoJournal pattern)
+.pageContainer {
   position: fixed;
-  inset: 0;
-  animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  opacity: 0.9;
-  z-index: 40;
-  backdrop-filter: blur(2px);
-}
-
-.DialogContent {
-  z-index: 50;
+  top: 30px;
+  left: calc(56px + 8px);
+  right: 12px;
+  bottom: 12px;
   background-color: var(--bg);
-  position: fixed;
-  width: 100vw;
-  height: 100vh;
-  top: 0;
-  left: 0;
-  animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 1000;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: none;
-
-  &:focus {
-    outline: none;
-  }
+  z-index: 1400;
 }
 
 // --- Header ---
 
 .header {
-  padding: 0 24px;
+  padding: 0 32px;
   flex-shrink: 0;
-  background: linear-gradient(
-    180deg,
-    var(--bg-secondary) 0%,
-    rgba(0, 0, 0, 0) 100%
-  );
+  background: transparent;
   z-index: 10;
-  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
 
   .wrapper {
-    height: 56px;
+    height: 52px;
     display: flex;
     align-items: center;
     position: relative;
@@ -54,26 +34,28 @@
     gap: 16px;
 
     .DialogTitle {
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 500;
       color: var(--primary);
       margin: 0;
       flex-shrink: 0;
+      opacity: 0.9;
+      -webkit-app-region: none;
     }
 
     .headerActions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       margin-left: auto;
-      margin-right: 48px;
+      margin-right: 44px;
+      -webkit-app-region: none;
     }
 
     .close {
       position: absolute;
       right: 0;
-      text-wrap: nowrap;
-      background: var(--bg-secondary);
+      background: transparent;
       color: var(--secondary);
       border-radius: 8px;
       height: 32px;
@@ -81,17 +63,19 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all ease-in-out 150ms;
+      transition: all ease-out 100ms;
       cursor: pointer;
       border: none;
+      opacity: 0.6;
+      -webkit-app-region: none;
 
       &:hover {
-        background: var(--bg-tertiary);
-        color: var(--primary);
+        background: rgba(255, 255, 255, 0.08);
+        opacity: 1;
       }
 
       &:active {
-        transform: scale(0.95);
+        transform: scale(0.94);
       }
     }
   }

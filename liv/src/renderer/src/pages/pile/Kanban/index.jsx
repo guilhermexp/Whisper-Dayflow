@@ -1,10 +1,11 @@
 import styles from "./Kanban.module.scss"
 import layoutStyles from "../PileLayout.module.scss"
-import { KanbanIcon, CrossIcon, PlusIcon } from "renderer/icons"
+import { CrossIcon, PlusIcon } from "renderer/icons"
 import { useState, useMemo } from "react"
-import * as Dialog from "@radix-ui/react-dialog"
+import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { usePilesContext } from "renderer/context/PilesContext"
+import Navigation from "../Navigation"
 
 // Initial demo data - will be replaced with backend later
 const initialColumns = [
@@ -211,37 +212,52 @@ function KanbanColumn({ column }) {
   )
 }
 
-export default function Kanban() {
+function Kanban() {
   const { t } = useTranslation()
   const [columns, setColumns] = useState(initialColumns)
   const { currentTheme } = usePilesContext()
+  const navigate = useNavigate()
 
   const themeStyles = useMemo(
     () => (currentTheme ? `${currentTheme}Theme` : ""),
     [currentTheme]
   )
 
+  const handleClose = () => {
+    navigate(-1)
+  }
+
+  // Detect platform
+  const isMac = window.electron?.isMac
+  const osLayoutStyles = isMac ? layoutStyles.macOS : layoutStyles.windows
+
   return (
-    <Dialog.Root>
-      <Dialog.Trigger asChild>
-        <div className={layoutStyles.iconHolder}>
-          <KanbanIcon />
-        </div>
-      </Dialog.Trigger>
-      <Dialog.Portal container={document.getElementById("dialog")}>
-        <Dialog.Overlay className={styles.DialogOverlay} />
-        <Dialog.Content
-          className={`${styles.DialogContent} ${themeStyles}`}
-          aria-describedby={undefined}
-        >
-          <div className={styles.header}>
-            <div className={styles.wrapper}>
-              <Dialog.Title className={styles.DialogTitle}>
-                <span>Tarefas</span>
-              </Dialog.Title>
-              <div className={styles.headerActions}>
-                <button className={styles.headerBtn}>Share</button>
-                <button className={styles.headerBtnIcon}>
+    <div className={`${layoutStyles.frame} ${themeStyles} ${osLayoutStyles}`}>
+      <div className={layoutStyles.bg}></div>
+      <div className={styles.pageContainer}>
+        <div className={styles.header}>
+          <div className={styles.wrapper}>
+            <h1 className={styles.DialogTitle}>
+              <span>Tarefas</span>
+            </h1>
+            <div className={styles.headerActions}>
+              <button className={styles.headerBtn}>Share</button>
+              <button className={styles.headerBtnIcon}>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                </svg>
+                <span>Brand Voice</span>
+              </button>
+              <div className={styles.viewToggle}>
+                <button className={styles.viewBtn}>
                   <svg
                     width="16"
                     height="16"
@@ -250,113 +266,96 @@ export default function Kanban() {
                     stroke="currentColor"
                     strokeWidth="2"
                   >
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    <line x1="8" y1="6" x2="21" y2="6" />
+                    <line x1="8" y1="12" x2="21" y2="12" />
+                    <line x1="8" y1="18" x2="21" y2="18" />
+                    <line x1="3" y1="6" x2="3.01" y2="6" />
+                    <line x1="3" y1="12" x2="3.01" y2="12" />
+                    <line x1="3" y1="18" x2="3.01" y2="18" />
                   </svg>
-                  <span>Brand Voice</span>
                 </button>
-                <div className={styles.viewToggle}>
-                  <button className={styles.viewBtn}>
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <line x1="8" y1="6" x2="21" y2="6" />
-                      <line x1="8" y1="12" x2="21" y2="12" />
-                      <line x1="8" y1="18" x2="21" y2="18" />
-                      <line x1="3" y1="6" x2="3.01" y2="6" />
-                      <line x1="3" y1="12" x2="3.01" y2="12" />
-                      <line x1="3" y1="18" x2="3.01" y2="18" />
-                    </svg>
-                  </button>
-                  <button className={`${styles.viewBtn} ${styles.active}`}>
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <rect x="3" y="3" width="7" height="7" />
-                      <rect x="14" y="3" width="7" height="7" />
-                      <rect x="14" y="14" width="7" height="7" />
-                      <rect x="3" y="14" width="7" height="7" />
-                    </svg>
-                  </button>
-                  <button className={styles.viewBtn}>
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                      <line x1="8" y1="21" x2="16" y2="21" />
-                      <line x1="12" y1="17" x2="12" y2="21" />
-                    </svg>
-                  </button>
-                </div>
-                <button className={styles.headerBtnIcon}>
+                <button className={`${styles.viewBtn} ${styles.active}`}>
                   <svg
-                    width="18"
-                    height="18"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
                   >
-                    <circle cx="12" cy="12" r="1" />
-                    <circle cx="19" cy="12" r="1" />
-                    <circle cx="5" cy="12" r="1" />
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
                   </svg>
                 </button>
-                <div className={styles.headerDivider} />
-                <button className={styles.headerBtnIcon}>
-                  <PlusIcon style={{ width: 18, height: 18 }} />
+                <button className={styles.viewBtn}>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                  </svg>
                 </button>
               </div>
-              <Dialog.Close asChild>
-                <button className={styles.close} aria-label="Close">
-                  <CrossIcon style={{ height: 14, width: 14 }} />
-                </button>
-              </Dialog.Close>
+              <button className={styles.headerBtnIcon}>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="19" cy="12" r="1" />
+                  <circle cx="5" cy="12" r="1" />
+                </svg>
+              </button>
+              <div className={styles.headerDivider} />
+              <button className={styles.headerBtnIcon}>
+                <PlusIcon style={{ width: 18, height: 18 }} />
+              </button>
             </div>
+            <button className={styles.close} aria-label="Close" onClick={handleClose}>
+              <CrossIcon style={{ height: 14, width: 14 }} />
+            </button>
           </div>
+        </div>
 
-          <div className={styles.mainContent}>
-            <div className={styles.board}>
-              {columns.map((column) => (
-                <KanbanColumn key={column.id} column={column} />
-              ))}
-            </div>
+        <div className={styles.mainContent}>
+          <div className={styles.board}>
+            {columns.map((column) => (
+              <KanbanColumn key={column.id} column={column} />
+            ))}
           </div>
+        </div>
 
-          {/* Floating search button */}
-          <button className={styles.floatingSearch}>
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </button>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        {/* Floating search button */}
+        <button className={styles.floatingSearch}>
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </button>
+      </div>
+      <Navigation />
+    </div>
   )
 }
 
-// Lazy export for router
+export default Kanban
 export const Component = Kanban

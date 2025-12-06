@@ -3,18 +3,13 @@ import layoutStyles from "../PileLayout.module.scss"
 import {
   CrossIcon,
   RefreshIcon,
-  ChatIcon,
-  SettingsIcon,
   DownloadIcon,
   ColorsIcon,
   ChevronRightIcon,
   ChevronLeftIcon,
-  HomeIcon,
-  NotebookIcon,
 } from "renderer/icons"
 import { useEffect, useState, useMemo, useCallback, useRef } from "react"
-import * as Dialog from "@radix-ui/react-dialog"
-import { Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { useAIContext } from "renderer/context/AIContext"
 import { useTranslation } from "react-i18next"
 import { availableThemes, usePilesContext } from "renderer/context/PilesContext"
@@ -25,12 +20,10 @@ import VirtualList from "./VirtualList"
 import Blobs from "./Blobs"
 import useChat from "renderer/hooks/useChat"
 import { AnimatePresence, motion } from "framer-motion"
-import Search from "../Search"
-import Settings from "../Settings"
-import Dashboard from "../Dashboard"
 import { PENDING_MESSAGE_MARKER } from "@shared/constants"
+import Navigation from "../Navigation"
 
-export default function Chat() {
+function Chat() {
   const { t } = useTranslation()
   const { validKey, model, openrouterModel, pileAIProvider } = useAIContext()
   const { currentTheme, setTheme } = usePilesContext()
@@ -43,6 +36,7 @@ export default function Chat() {
   }, [pileAIProvider, model, openrouterModel])
   const { getAIResponse, addMessage, resetMessages, relevantEntries } =
     useChat()
+  const navigate = useNavigate()
   const [ready, setReady] = useState(false)
   const [text, setText] = useState("")
   const [querying, setQuerying] = useState(false)
@@ -179,6 +173,11 @@ export default function Chat() {
     [],
   )
 
+  const themeStyles = useMemo(
+    () => (currentTheme ? `${currentTheme}Theme` : ""),
+    [currentTheme],
+  )
+
   const themeColors = {
     light: "#ffffff",
     blue: "#3b82f6",
@@ -188,90 +187,87 @@ export default function Chat() {
     liquid: "#1f2937", // novo tema dark glass
   }
 
+  const handleClose = () => {
+    navigate(-1)
+  }
+
+  // Detect platform
+  const isMac = window.electron?.isMac
+  const osLayoutStyles = isMac ? layoutStyles.macOS : layoutStyles.windows
+
   return (
-    <>
-      <Dialog.Root>
-        <Dialog.Trigger asChild>
-          <div className={layoutStyles.iconHolder}>
-            <ChatIcon />
-          </div>
-        </Dialog.Trigger>
-        <Dialog.Portal container={document.getElementById("dialog")}>
-          <Dialog.Overlay className={styles.DialogOverlay} />
-          <Dialog.Content
-            className={styles.DialogContent}
-            aria-describedby={undefined}
-          >
-            <div className={styles.scroller}>
-              <div className={styles.header}>
-                <div className={styles.wrapper}>
-                  {/* Disable animated blobs during streaming to avoid GPU-heavy flicker */}
-                  <Blobs show={false} />
-                  <Dialog.Title className={styles.DialogTitle}>
-                    <Status setReady={setReady} />
-                  </Dialog.Title>
-                  <div className={styles.buttons}>
-                    {/* Theme Selector Button */}
-                    <div className={styles.buttonGroup}>
-                      <div
-                        className={styles.button}
-                        onClick={() => setShowThemeSelector(!showThemeSelector)}
-                        title={t("chat.changeTheme")}
-                      >
-                        <ColorsIcon className={styles.icon} />
-                      </div>
-                      <AnimatePresence>
-                        {showThemeSelector && (
-                          <motion.div
-                            className={styles.themeSelector}
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                          >
-                            {Object.keys(availableThemes).map((theme) => (
-                              <div
-                                key={theme}
-                                className={`${styles.themeOption} ${currentTheme === theme ? styles.active : ""}`}
-                                onClick={() => handleThemeChange(theme)}
-                                style={{ backgroundColor: themeColors[theme] }}
-                                title={theme}
-                              />
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-
-                    {/* Export Button */}
-                    <div
-                      className={`${styles.button} ${history.length === 0 ? styles.disabled : ""}`}
-                      onClick={exportChat}
-                      title={t("chat.exportChat")}
-                    >
-                      <DownloadIcon className={styles.icon} />
-                    </div>
-
-                    {/* Clear Chat Button */}
-                    <div
-                      className={styles.button}
-                      onClick={onResetConversation}
-                    >
-                      <RefreshIcon className={styles.icon} />
-                      {t("chat.clearChat")}
-                    </div>
-
-                    {/* Close Button */}
-                    <Dialog.Close asChild>
-                      <button
-                        className={`${styles.close} ${osStyles}`}
-                        aria-label="Close Chat"
-                      >
-                        <CrossIcon />
-                      </button>
-                    </Dialog.Close>
+    <div className={`${layoutStyles.frame} ${themeStyles} ${osLayoutStyles}`}>
+      <div className={layoutStyles.bg}></div>
+      <div className={styles.pageContainer}>
+        <div className={styles.scroller}>
+          <div className={styles.header}>
+            <div className={styles.wrapper}>
+              {/* Disable animated blobs during streaming to avoid GPU-heavy flicker */}
+              <Blobs show={false} />
+              <h1 className={styles.DialogTitle}>
+                <Status setReady={setReady} />
+              </h1>
+              <div className={styles.buttons}>
+                {/* Theme Selector Button */}
+                <div className={styles.buttonGroup}>
+                  <div
+                    className={styles.button}
+                    onClick={() => setShowThemeSelector(!showThemeSelector)}
+                    title={t("chat.changeTheme")}
+                  >
+                    <ColorsIcon className={styles.icon} />
                   </div>
+                  <AnimatePresence>
+                    {showThemeSelector && (
+                      <motion.div
+                        className={styles.themeSelector}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                      >
+                        {Object.keys(availableThemes).map((theme) => (
+                          <div
+                            key={theme}
+                            className={`${styles.themeOption} ${currentTheme === theme ? styles.active : ""}`}
+                            onClick={() => handleThemeChange(theme)}
+                            style={{ backgroundColor: themeColors[theme] }}
+                            title={theme}
+                          />
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
+
+                {/* Export Button */}
+                <div
+                  className={`${styles.button} ${history.length === 0 ? styles.disabled : ""}`}
+                  onClick={exportChat}
+                  title={t("chat.exportChat")}
+                >
+                  <DownloadIcon className={styles.icon} />
+                </div>
+
+                {/* Clear Chat Button */}
+                <div
+                  className={styles.button}
+                  onClick={onResetConversation}
+                >
+                  <RefreshIcon className={styles.icon} />
+                  {t("chat.clearChat")}
+                </div>
+
+                {/* Close Button */}
+                <button
+                  className={`${styles.close} ${osStyles}`}
+                  aria-label="Close Chat"
+                  onClick={handleClose}
+                >
+                  <CrossIcon />
+                </button>
               </div>
+            </div>
+          </div>
 
               <div className={styles.mainContent}>
                 {/* Context Panel Toggle */}
@@ -331,43 +327,45 @@ export default function Chat() {
                 </div>
               </div>
 
-              <div className={styles.inputBar}>
-                <div className={styles.holder}>
-                  <div className={styles.inputbaroverlay}></div>
-                  <div className={styles.bar}>
-                    <TextareaAutosize
-                      value={text}
-                      onChange={onChangeText}
-                      className={styles.textarea}
-                      onKeyDown={handleKeyPress}
-                      placeholder={t("chat.placeholder")}
-                      autoFocus
-                    />
+          <div className={styles.inputBar}>
+            <div className={styles.holder}>
+              <div className={styles.inputbaroverlay}></div>
+              <div className={styles.bar}>
+                <TextareaAutosize
+                  value={text}
+                  onChange={onChangeText}
+                  className={styles.textarea}
+                  onKeyDown={handleKeyPress}
+                  placeholder={t("chat.placeholder")}
+                  autoFocus
+                />
 
-                    <button
-                      className={`${styles.ask} ${
-                        querying && styles.processing
-                      }`}
-                      onClick={onSubmit}
-                      disabled={querying}
-                    >
-                      {querying ? (
-                        <Thinking className={styles.spinner} />
-                      ) : (
-                        t("chat.ask")
-                      )}
-                    </button>
-                  </div>
-                  <div className={styles.disclaimer}>
-                    {t("chat.disclaimer")} ·{" "}
-                    <span style={{ opacity: 0.6 }}>{currentModelDisplay}</span>
-                  </div>
-                </div>
+                <button
+                  className={`${styles.ask} ${
+                    querying && styles.processing
+                  }`}
+                  onClick={onSubmit}
+                  disabled={querying}
+                >
+                  {querying ? (
+                    <Thinking className={styles.spinner} />
+                  ) : (
+                    t("chat.ask")
+                  )}
+                </button>
+              </div>
+              <div className={styles.disclaimer}>
+                {t("chat.disclaimer")} ·{" "}
+                <span style={{ opacity: 0.6 }}>{currentModelDisplay}</span>
               </div>
             </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-    </>
+          </div>
+        </div>
+      </div>
+      <Navigation />
+    </div>
   )
 }
+
+export default Chat
+export const Component = Chat

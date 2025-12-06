@@ -1,16 +1,23 @@
 import styles from "./Analytics.module.scss"
 import { GaugeIcon, CrossIcon, ClockIcon } from "renderer/icons"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import * as Dialog from "@radix-ui/react-dialog"
 import * as Tabs from "@radix-ui/react-tabs"
 import { tipcClient } from "renderer/lib/tipc-client"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router-dom"
+import { usePilesContext } from "renderer/context/PilesContext"
 
 export default function Analytics() {
   const { t } = useTranslation()
+  const { currentTheme } = usePilesContext()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const themeStyles = useMemo(
+    () => (currentTheme ? `${currentTheme}Theme` : ""),
+    [currentTheme],
+  )
   const [open, setOpen] = useState(false)
   const [mainTab, setMainTab] = useState("analytics")
 
@@ -134,7 +141,7 @@ export default function Analytics() {
       <Dialog.Portal container={document.getElementById("dialog")}>
         <Dialog.Overlay className={styles.DialogOverlay} />
         <Dialog.Content
-          className={styles.DialogContent}
+          className={`${styles.DialogContent} ${themeStyles}`}
           aria-describedby={undefined}
         >
           {/* Header */}

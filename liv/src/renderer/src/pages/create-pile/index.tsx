@@ -1,19 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import styles from './CreatePile.module.scss';
-import { TrashIcon } from 'renderer/icons';
-import { Link } from 'react-router-dom';
+import layoutStyles from '../pile/PileLayout.module.scss';
+import { TrashIcon, CrossIcon } from 'renderer/icons';
+import { Link, useNavigate } from 'react-router-dom';
 import { usePilesContext } from 'renderer/context/PilesContext';
-import { useNavigate } from 'react-router-dom';
-import icon from '../../../../assets/logo.png';
-import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
+import Navigation from '../pile/Navigation';
 const pilesList = ['Users/uj/Personal', 'Users/uj/Startup', 'Users/uj/School'];
 
 export function Component() {
   const navigate = useNavigate();
-  const { createPile } = usePilesContext();
+  const { t } = useTranslation();
+  const { createPile, piles, currentTheme, currentPile } = usePilesContext();
   const [folderExists, setFolderExists] = useState(false);
   const [name, setName] = useState('');
   const [path, setPath] = useState('');
+
+  const themeStyles = useMemo(
+    () => (currentTheme ? `${currentTheme}Theme` : ""),
+    [currentTheme]
+  );
+  const osStyles = useMemo(
+    () => (window.electron.isMac ? layoutStyles.mac : layoutStyles.win),
+    []
+  );
+
+  const homePath = useMemo(() => {
+    if (currentPile?.name) return `/pile/${currentPile.name}`;
+    if (piles && piles.length > 0) return `/pile/${piles[0].name}`;
+    return "/create-pile";
+  }, [currentPile?.name, piles]);
 
   useEffect(() => {
     // @ts-expect-error - Pile-specific IPC channel not in base type definitions
@@ -64,45 +80,70 @@ export function Component() {
   };
 
   return (
-    <div className={styles.frame}>
-      <div className={styles.card}>
+    <div className={`${layoutStyles.frame} ${themeStyles} ${osStyles}`}>
+      <div className={layoutStyles.bg}></div>
+
+      <div className={styles.pageContainer}>
+        {/* Header */}
         <div className={styles.header}>
-          <div className={styles.name}>Create a new pile</div>
-        </div>
-
-        <div className={styles.form}>
-          <div className={styles.input}>
-            <div className={styles.des}>
-              <label>Pile name</label>
-              Pick a name for your new pile
+          <div className={styles.wrapper}>
+            <div className={styles.DialogTitle}>
+              <span>{t("createPile.title")}</span>
             </div>
-            <input
-              type="text"
-              placeholder="eg. Personal, School, Work"
-              value={name}
-              onChange={handleNameChange}
-            />
-          </div>
-          <div className={styles.input}>
-            <div className={styles.des}>
-              <label>Location</label>
-              Pick a place to store this pile
+            <div
+              className={styles.close}
+              onClick={() => navigate("/")}
+              title={t("common.close")}
+            >
+              <CrossIcon style={{ height: 14, width: 14 }} />
             </div>
-
-            <button onClick={handleClick}>
-              {path ? path : 'Choose a location'}
-            </button>
           </div>
         </div>
-        <div className={styles.buttons}>
-          <Link to="/" className={styles.back}>
-            ← Back
-          </Link>
-          <div className={styles.button} onClick={handleSubmit}>
-            Create
+
+        {/* Main Content */}
+        <div className={styles.mainContent}>
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <div className={styles.name}>{t("createPile.header")}</div>
+            </div>
+
+            <div className={styles.form}>
+              <div className={styles.input}>
+                <div className={styles.des}>
+                  <label>{t("createPile.pileName")}</label>
+                  {t("createPile.pileNameDesc")}
+                </div>
+                <input
+                  type="text"
+                  placeholder={t("createPile.pileNamePlaceholder")}
+                  value={name}
+                  onChange={handleNameChange}
+                />
+              </div>
+              <div className={styles.input}>
+                <div className={styles.des}>
+                  <label>{t("createPile.location")}</label>
+                  {t("createPile.locationDesc")}
+                </div>
+
+                <button onClick={handleClick}>
+                  {path ? path : t("createPile.chooseLocation")}
+                </button>
+              </div>
+            </div>
+            <div className={styles.buttons}>
+              <Link to={homePath} className={styles.back}>
+                ← {t("common.back")}
+              </Link>
+              <div className={styles.button} onClick={handleSubmit}>
+                {t("createPile.create")}
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      <Navigation />
     </div>
   );
 }

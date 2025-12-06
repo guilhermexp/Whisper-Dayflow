@@ -1,8 +1,79 @@
-.container {
+// Page Container (matches AutoJournal pattern)
+.pageContainer {
+  position: fixed;
+  top: 30px;
+  left: calc(56px + 8px);
+  right: 12px;
+  bottom: 12px;
+  background-color: var(--bg);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   display: flex;
-  height: 100vh;
-  width: 100%;
-  background: var(--bg);
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1400;
+}
+
+// Header (matches AutoJournal pattern)
+.header {
+  padding: 0 32px;
+  flex-shrink: 0;
+  background: transparent;
+  z-index: 10;
+  -webkit-app-region: drag;
+
+  .wrapper {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: 100%;
+
+    .DialogTitle {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--primary);
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0.9;
+      -webkit-app-region: none;
+    }
+
+    .close {
+      position: absolute;
+      right: 0;
+      background: transparent;
+      color: var(--secondary);
+      border-radius: 8px;
+      height: 32px;
+      width: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all ease-out 100ms;
+      cursor: pointer;
+      border: none;
+      opacity: 0.6;
+      -webkit-app-region: none;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        opacity: 1;
+      }
+
+      &:active {
+        transform: scale(0.94);
+      }
+    }
+  }
+}
+
+// Main Content Area
+.mainContent {
+  flex: 1;
+  display: flex;
   overflow: hidden;
 }
 
@@ -18,7 +89,7 @@
   background: var(--bg);
 }
 
-.header {
+.timelineHeader {
   margin-bottom: 24px;
 }
 

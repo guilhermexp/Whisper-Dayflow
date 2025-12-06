@@ -1,49 +1,24 @@
-import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { usePilesContext } from 'renderer/context/PilesContext';
 
 export function Component() {
-  const [redirect, setRedirect] = useState<string | null>(null);
+  const { piles, isPilesLoaded } = usePilesContext();
 
-  useEffect(() => {
-    const loadPiles = async () => {
-      const configFilePath = window.electron.getConfigPath();
+  console.log(`[NAV DEBUG] pile-redirect RENDER - isPilesLoaded: ${isPilesLoaded}, piles: ${piles?.length ?? 0}`);
 
-      // Check if piles config exists
-      if (!window.electron.existsSync(configFilePath)) {
-        // No config file, redirect to create pile
-        setRedirect('/create-pile');
-        return;
-      }
-
-      // Read piles from config
-      await window.electron.readFile(configFilePath, (err: any, data: string) => {
-        if (err) {
-          setRedirect('/create-pile');
-          return;
-        }
-
-        try {
-          const piles = JSON.parse(data);
-
-          if (!piles || piles.length === 0) {
-            // No piles exist, redirect to create pile
-            setRedirect('/create-pile');
-          } else {
-            // Redirect to first pile
-            setRedirect(`/pile/${piles[0].name}`);
-          }
-        } catch (e) {
-          setRedirect('/create-pile');
-        }
-      });
-    };
-
-    loadPiles();
-  }, []);
-
-  if (!redirect) {
-    return <div>Loading...</div>;
+  // Wait for piles to load - render nothing
+  if (!isPilesLoaded) {
+    console.log('[NAV DEBUG] pile-redirect: waiting for piles to load...');
+    return null;
   }
 
-  return <Navigate to={redirect} replace />;
+  // No piles exist - redirect to create
+  if (!piles || piles.length === 0) {
+    console.log('[NAV DEBUG] pile-redirect: no piles, redirecting to /create-pile');
+    return <Navigate to="/create-pile" replace />;
+  }
+
+  // Redirect to first pile
+  console.log(`[NAV DEBUG] pile-redirect: redirecting to /pile/${piles[0].name}`);
+  return <Navigate to={`/pile/${piles[0].name}`} replace />;
 }

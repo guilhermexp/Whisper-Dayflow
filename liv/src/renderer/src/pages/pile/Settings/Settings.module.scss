@@ -1,105 +1,52 @@
-// Settings.module.scss - Aligned with Chat/AutoJournal
+// Settings.module.scss - Route-based page (no Dialog)
 
-// --- Shared Styles ---
-
-.iconHolder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 32px;
-  min-width: 36px;
-  border-radius: 8px;
-  transition: all ease-in-out 120ms;
-  -webkit-app-region: none;
-  background: transparent;
-  margin-right: -2px;
-
-  .settingsIcon {
-    color: var(--secondary);
-    height: 23px;
-    width: 23px;
-    transition: all ease-in-out 220ms;
-    transition-delay: 40ms;
-    opacity: 0.5;
-  }
-
-  &:hover {
-    cursor: pointer;
-    background: var(--bg-secondary);
-    color: var(--primary);
-
-    .settingsIcon {
-      opacity: 1;
-    }
-  }
-
-  &:active {
-    background: var(--bg-tertiary);
-  }
-}
-
-.DialogOverlay {
-  background-color: var(--bg-secondary);
+// Page Container (matches AutoJournal pattern)
+.pageContainer {
   position: fixed;
-  inset: 0;
-  animation: none;
-  opacity: 0.9;
-  z-index: 40;
-  backdrop-filter: none;
-}
-
-.DialogContent {
-  z-index: 1000;
+  top: 30px;
+  left: calc(56px + 8px);
+  right: 12px;
+  bottom: 12px;
   background-color: var(--bg);
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  border-radius: 0;
-  animation: none;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: none;
-
-  &:focus {
-    outline: none;
-  }
+  z-index: 1400;
 }
 
 // --- Header ---
 
 .header {
-  padding: 0 24px;
+  padding: 0 32px;
   flex-shrink: 0;
   background: transparent;
   z-index: 10;
+  -webkit-app-region: drag;
 
   .wrapper {
-    height: 50px;
+    height: 52px;
     display: flex;
     align-items: center;
-    justify-content: center; // Center the title
     position: relative;
 
     .DialogTitle {
-      font-size: 14px;
-      font-weight: 400;
+      font-size: 15px;
+      font-weight: 500;
       color: var(--primary);
       margin: 0;
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
       display: flex;
       align-items: center;
       gap: 8px;
+      opacity: 0.9;
+      -webkit-app-region: none;
     }
 
     .close {
       position: absolute;
       right: 0;
-      text-wrap: nowrap;
-      background: var(--bg);
+      background: transparent;
       color: var(--secondary);
       border-radius: 8px;
       height: 32px;
@@ -107,16 +54,19 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all ease-in-out 150ms;
+      transition: all ease-out 100ms;
       cursor: pointer;
+      border: none;
+      opacity: 0.6;
+      -webkit-app-region: none;
 
       &:hover {
-        background: var(--bg-secondary);
-        color: var(--primary);
+        background: rgba(255, 255, 255, 0.08);
+        opacity: 1;
       }
 
       &:active {
-        transform: scale(0.95);
+        transform: scale(0.94);
       }
     }
   }
