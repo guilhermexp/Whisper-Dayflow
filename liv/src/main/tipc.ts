@@ -1181,6 +1181,18 @@ export const router = {
       }
       updateTrayIcon()
     }),
+
+  // Logging utilities
+  getLogFilePath: t.procedure.action(async () => {
+    const { getLogFilePath } = await import("./logger")
+    return getLogFilePath()
+  }),
+
+  openLogFile: t.procedure.action(async () => {
+    const { getLogFilePath } = await import("./logger")
+    const logPath = getLogFilePath()
+    shell.showItemInFolder(logPath)
+  }),
 }
 
 export type Router = typeof router

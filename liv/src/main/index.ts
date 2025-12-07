@@ -1,3 +1,6 @@
+// IMPORTANT: Logger must be imported first to catch early crashes
+import { logger, getLogFilePath } from "./logger"
+
 import { app, Menu } from "electron"
 import path from "path"
 import { electronApp, optimizer } from "@electron-toolkit/utils"
@@ -75,25 +78,25 @@ const configureSherpaLibraryPaths = () => {
         process.env.DYLD_LIBRARY_PATH = current
           ? `${sherpaLibPath}:${current}`
           : sherpaLibPath
-        console.log(`[sherpa] Set DYLD_LIBRARY_PATH: ${sherpaLibPath}`)
+        logger.info(`[sherpa] Set DYLD_LIBRARY_PATH: ${sherpaLibPath}`)
       } else if (platform === "linux") {
         const current = process.env.LD_LIBRARY_PATH || ""
         process.env.LD_LIBRARY_PATH = current
           ? `${sherpaLibPath}:${current}`
           : sherpaLibPath
-        console.log(`[sherpa] Set LD_LIBRARY_PATH: ${sherpaLibPath}`)
+        logger.info(`[sherpa] Set LD_LIBRARY_PATH: ${sherpaLibPath}`)
       } else if (platform === "win32") {
         const current = process.env.PATH || ""
         process.env.PATH = `${sherpaLibPath};${current}`
-        console.log(`[sherpa] Added to PATH: ${sherpaLibPath}`)
+        logger.info(`[sherpa] Added to PATH: ${sherpaLibPath}`)
       }
     } else {
-      console.warn(
+      logger.warn(
         `[sherpa] Could not find sherpa-onnx-${platformArch} library path`,
       )
     }
   } catch (error) {
-    console.warn("[sherpa] Failed to configure library paths:", error)
+    logger.warn("[sherpa] Failed to configure library paths:", error)
   }
 }
 
@@ -128,24 +131,24 @@ app.whenReady().then(() => {
 
   createPanelWindow()
 
-  console.log("[App] About to start keyboard listener...")
+  logger.info("[App] About to start keyboard listener...")
   listenToKeyboardEvents()
-  console.log("[App] Keyboard listener started")
+  logger.info("[App] Keyboard listener started")
 
   initTray()
 
   // Initialize global shortcuts
   const shortcutSuccess = globalShortcutManager.registerPasteLastTranscription()
   if (shortcutSuccess) {
-    console.log("Global shortcuts initialized successfully")
+    logger.info("Global shortcuts initialized successfully")
   } else {
-    console.error("Failed to initialize global shortcuts")
+    logger.error("Failed to initialize global shortcuts")
   }
 
   // Initialize media controller
   const config = configStore.get()
   mediaController.setEnabled(config.isPauseMediaEnabled ?? false)
-  console.log(
+  logger.info(
     "[MediaController] Initialized, enabled:",
     mediaController.isEnabled(),
   )
@@ -163,17 +166,17 @@ app.whenReady().then(() => {
   import("./services/auto-journal-service").then(({ checkFfmpegAvailability }) => {
     checkFfmpegAvailability().then((available) => {
       if (!available) {
-        console.error(
+        logger.error(
           "[ffmpeg] Bundled binary verification failed!",
           "Auto-journal GIF previews will be unavailable."
         )
       } else {
-        console.log("[ffmpeg] Bundled binary verified - GIF previews enabled for auto-journal")
+        logger.info("[ffmpeg] Bundled binary verified - GIF previews enabled for auto-journal")
       }
-    }).catch((err) => console.error("[ffmpeg] Verification failed:", err))
-  }).catch(console.error)
+    }).catch((err) => logger.error("[ffmpeg] Verification failed:", err))
+  }).catch((err) => logger.error("[ffmpeg] Import failed:", err))
 
-  import("./updater").then((res) => res.init()).catch(console.error)
+  import("./updater").then((res) => res.init()).catch((err) => logger.error("[updater] Init failed:", err))
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
