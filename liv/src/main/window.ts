@@ -15,6 +15,9 @@ import {
 import { RendererHandlers } from "./renderer-handlers"
 import { configStore } from "./config"
 import { mediaController } from "./services/media-controller"
+import { logger } from "./logger"
+
+const isMacOS = process.platform === "darwin"
 
 type WINDOW_ID = "main" | "panel" | "setup"
 
@@ -54,7 +57,7 @@ function createBaseWindow({
   }
 
   win.on("close", () => {
-    console.log("close", id)
+    logger.info(`[Window] Window "${id}" closed`)
     WINDOWS.delete(id)
   })
 
@@ -81,16 +84,23 @@ export function createMainWindow({ url }: { url?: string } = {}) {
     },
   })
 
-  if (process.env.IS_MAC && app.dock) {
+  if (isMacOS && app.dock) {
     win.on("close", () => {
-      if (configStore.get().hideDockIcon) {
+      const hideDockIcon = configStore.get().hideDockIcon
+      logger.info(`[Window] Main window closed. hideDockIcon=${hideDockIcon}`)
+      if (hideDockIcon) {
+        logger.info("[Window] Hiding dock icon (setActivationPolicy: accessory)")
         app.setActivationPolicy("accessory")
         app.dock?.hide()
       }
     })
 
     win.on("show", () => {
-      if (configStore.get().hideDockIcon && !app.dock?.isVisible()) {
+      const hideDockIcon = configStore.get().hideDockIcon
+      const dockVisible = app.dock?.isVisible()
+      logger.info(`[Window] Main window shown. hideDockIcon=${hideDockIcon}, dockVisible=${dockVisible}`)
+      if (hideDockIcon && !dockVisible) {
+        logger.info("[Window] Showing dock icon temporarily")
         app.dock?.show()
       }
     })
