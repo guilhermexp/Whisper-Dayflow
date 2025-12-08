@@ -15,6 +15,8 @@ import {
 import { DateTime } from 'luxon';
 import { useTimelineContext } from 'renderer/context/TimelineContext';
 import { useIndexContext } from 'renderer/context/IndexContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 function isToday(date) {
   const today = new Date();
@@ -58,31 +60,54 @@ const renderCount = (count) => {
   );
 };
 
-const DayComponent = memo(({ date, scrollToDate }) => {
+const DayComponent = memo(({ date, scrollToDate, isExpanded, summaries }) => {
   const { index } = useIndexContext();
   const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const dayName = dayNames[date.getDay()];
   const dayNumber = date.getDate();
   const count = countEntriesByDate(index, date);
+  const daySummaries = summaries || [];
 
   return (
-    <div
-      onClick={() => {
-        scrollToDate(date);
-      }}
-      className={`${styles.day} ${isToday(date) && styles.today} ${
-        dayName == 'S' && styles.monday
-      }`}
-    >
-      {renderCount(count)}
-      <div className={styles.dayLine}></div>
-      <div className={styles.dayName}>{dayName}</div>
-      <div className={styles.dayNumber}>{dayNumber}</div>
+    <div className={styles.dayContainer}>
+      <div
+        onClick={() => {
+          scrollToDate(date);
+        }}
+        className={`${styles.day} ${isToday(date) && styles.today} ${
+          dayName == 'S' && styles.monday
+        }`}
+      >
+        {renderCount(count)}
+        <div className={styles.dayLine}></div>
+        <div className={styles.dayName}>{dayName}</div>
+        <div className={styles.dayNumber}>{dayNumber}</div>
+      </div>
+      <AnimatePresence>
+        {isExpanded && daySummaries.length > 0 && (
+          <motion.div
+            className={styles.summaries}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {daySummaries.map((item, idx) => (
+              <div key={idx} className={styles.summaryItem}>
+                <span className={styles.summaryTime}>
+                  {String(item.hour).padStart(2, '0')}h
+                </span>
+                <span className={styles.summaryText}>{item.summary}</span>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });
 
-const WeekComponent = memo(({ startDate, endDate, scrollToDate }) => {
+const WeekComponent = memo(({ startDate, endDate, scrollToDate, isExpanded, daySummaries }) => {
   const weekOfMonth = Math.floor(startDate.getDate() / 7) + 1;
   const monthNames = [
     'January',
@@ -106,11 +131,14 @@ const WeekComponent = memo(({ startDate, endDate, scrollToDate }) => {
     date <= endDate;
     date.setDate(date.getDate() + 1)
   ) {
+    const dateString = date.toISOString().substring(0, 10);
     days.push(
       <DayComponent
         key={date.toString()}
         date={new Date(date)}
         scrollToDate={scrollToDate}
+        isExpanded={isExpanded}
+        summaries={daySummaries[dateString]}
       />
     );
   }
@@ -148,11 +176,22 @@ const WeekComponent = memo(({ startDate, endDate, scrollToDate }) => {
 const Timeline = memo(() => {
   const scrollRef = useRef(null);
   const scrubRef = useRef(null);
-  const { index } = useIndexContext();
+  const { index, refreshIndex } = useIndexContext();
   const { visibleIndex, scrollToIndex, closestDate, setClosestDate } =
     useTimelineContext();
   const [parentEntries, setParentEntries] = useState([]);
   const [oldestDate, setOldestDate] = useState(new Date());
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [daySummaries, setDaySummaries] = useState({});
+
+  // Load preference from config on mount
+  useEffect(() => {
+    tipcClient.getConfig().then((config) => {
+      if (config?.timelineExpanded !== undefined) {
+        setIsExpanded(config.timelineExpanded);
+      }
+    });
+  }, []);
 
   //  Extract parent entries
   useEffect(() => {
@@ -235,6 +274,61 @@ const Timeline = memo(() => {
     return weeks;
   }, [oldestDate]);
 
+  // Build summaries from index metadata (already generated when entries are created)
+  useEffect(() => {
+    const summaries = {};
+    let summaryCount = 0;
+
+    for (const [filePath, metadata] of index) {
+      if (metadata.isReply) continue;
+      if (!metadata.timelineSummary) continue;
+
+      summaryCount++;
+
+      try {
+        const createdAt = new Date(metadata.createdAt);
+        const dateString = createdAt.toISOString().substring(0, 10);
+
+        if (!summaries[dateString]) {
+          summaries[dateString] = [];
+        }
+
+        summaries[dateString].push({
+          hour: createdAt.getHours(),
+          minute: createdAt.getMinutes(),
+          summary: metadata.timelineSummary,
+          filePath
+        });
+      } catch (error) {}
+    }
+
+    // Sort each day's summaries by time
+    for (const dateString in summaries) {
+      summaries[dateString].sort((a, b) => {
+        if (a.hour !== b.hour) return a.hour - b.hour;
+        return a.minute - b.minute;
+      });
+    }
+
+    console.log('[Timeline] Found summaries:', summaryCount, 'entries with timelineSummary');
+    setDaySummaries(summaries);
+  }, [index]);
+
+  // Handle scrubber click to toggle expansion and save preference
+  const handleScrubberClick = useCallback(async () => {
+    const newExpanded = !isExpanded;
+    setIsExpanded(newExpanded);
+
+    // If expanding, refresh the index to get latest summaries
+    if (newExpanded) {
+      refreshIndex();
+    }
+
+    // Save preference to config
+    const config = await tipcClient.getConfig();
+    tipcClient.saveConfig({ config: { ...config, timelineExpanded: newExpanded } });
+  }, [isExpanded, refreshIndex]);
+
   const createWeeks = () =>
     getWeeks().map((week, index) => (
       <WeekComponent
@@ -242,10 +336,12 @@ const Timeline = memo(() => {
         startDate={week.start}
         endDate={week.end}
         scrollToDate={scrollToDate}
+        isExpanded={isExpanded}
+        daySummaries={daySummaries}
       />
     ));
 
-  let weeks = useMemo(createWeeks, [parentEntries.length]);
+  let weeks = useMemo(createWeeks, [parentEntries.length, isExpanded, daySummaries]);
 
   useEffect(() => {
     if (!scrubRef.current) return;
@@ -276,7 +372,11 @@ const Timeline = memo(() => {
   return (
     <div ref={scrollRef} className={styles.timeline}>
       {weeks}
-      <div ref={scrubRef} className={styles.scrubber}></div>
+      <div
+        ref={scrubRef}
+        className={`${styles.scrubber} ${isExpanded ? styles.expanded : ''}`}
+        onClick={handleScrubberClick}
+      ></div>
     </div>
   );
 });

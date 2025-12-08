@@ -262,17 +262,21 @@
     "stt": "STT"
   },
   "chat": {
-    "clearChat": "Clear chat",
-    "placeholder": "Start chatting...",
-    "ask": "Ask",
-    "disclaimer": "*AI can make mistakes. Consider checking important information.",
+    "clearChat": "Clear",
+    "placeholder": "Reflect, ask, explore...",
+    "ask": "Send",
+    "disclaimer": "AI can make mistakes",
     "changeTheme": "Change theme",
     "exportChat": "Export chat",
-    "relevantEntries": "relevant entries",
+    "relevantEntries": "entries",
     "contextUsed": "Context used",
     "intro": {
-      "title": "Start a conversation with your journal",
-      "description": "The AI will use your journal entries as context for the conversation. It's not perfect yet, but we will improve it with time."
+      "titlePart1": "Your thoughts",
+      "titlePart2": "come alive",
+      "description": "Chat with AI using your journal as context. It knows your story.",
+      "suggestion1": "What motivated me this week?",
+      "suggestion2": "Summarize my recent days",
+      "suggestion3": "Patterns in my thoughts"
     }
   },
   "search": {
@@ -476,7 +480,7 @@
     "record": "Record"
   },
   "autoJournal": {
-    "title": "Auto Journal (beta)",
+    "title": "Vision Assistant",
     "description": "Generate a summary of what you've been doing based on recent recordings.",
     "last15min": "Last 15 min",
     "last30min": "Last 30 min",

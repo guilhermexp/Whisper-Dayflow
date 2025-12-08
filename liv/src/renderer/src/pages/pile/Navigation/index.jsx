@@ -4,10 +4,11 @@ import {
   HomeIcon,
   ChatIcon,
   SearchIcon,
-  NotebookIcon,
+  EyeIcon,
   CardIcon,
   SettingsIcon,
   KanbanIcon,
+  PersonIcon,
 } from "renderer/icons"
 import { usePilesContext } from "renderer/context/PilesContext"
 import layoutStyles from "../PileLayout.module.scss"
@@ -51,7 +52,7 @@ export default function Navigation() {
           to="/auto-journal"
           className={`${layoutStyles.iconHolder} ${isActive("/auto-journal") ? layoutStyles.active : ""}`}
         >
-          <NotebookIcon />
+          <EyeIcon />
         </Link>
         <Link
           to="/kanban"
@@ -66,6 +67,12 @@ export default function Navigation() {
           <CardIcon />
         </Link>
         <div className={layoutStyles.divider} />
+        <Link
+          to="/profile"
+          className={`${layoutStyles.iconHolder} ${isActive("/profile") ? layoutStyles.active : ""}`}
+        >
+          <PersonIcon />
+        </Link>
         <Link
           to="/settings"
           className={`${layoutStyles.iconHolder} ${isActive("/settings") ? layoutStyles.active : ""}`}

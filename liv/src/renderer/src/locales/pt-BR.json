@@ -262,17 +262,21 @@
     "stt": "STT"
   },
   "chat": {
-    "clearChat": "Limpar chat",
-    "placeholder": "Comece a conversar...",
+    "clearChat": "Limpar",
+    "placeholder": "Reflita, pergunte, explore...",
     "ask": "Enviar",
-    "disclaimer": "*A IA pode cometer erros. Considere verificar informações importantes.",
+    "disclaimer": "IA pode cometer erros",
     "changeTheme": "Alterar tema",
     "exportChat": "Exportar conversa",
-    "relevantEntries": "entradas relevantes",
+    "relevantEntries": "entradas",
     "contextUsed": "Contexto utilizado",
     "intro": {
-      "title": "Inicie uma conversa com seu diário",
-      "description": "A IA usará suas entradas do diário como contexto para a conversa. Ainda não é perfeito, mas vamos melhorar com o tempo."
+      "titlePart1": "Seus pensamentos",
+      "titlePart2": "ganham vida",
+      "description": "Converse com a IA usando seu diário como contexto. Ela conhece sua história.",
+      "suggestion1": "O que me motivou essa semana?",
+      "suggestion2": "Resuma meus últimos dias",
+      "suggestion3": "Padrões nos meus pensamentos"
     }
   },
   "search": {
@@ -476,7 +480,7 @@
     "record": "Gravar"
   },
   "autoJournal": {
-    "title": "Auto Diário (beta)",
+    "title": "Vision Assistant",
     "description": "Gere um resumo do que você tem feito com base nas gravações recentes.",
     "last15min": "Últimos 15 min",
     "last30min": "Últimos 30 min",

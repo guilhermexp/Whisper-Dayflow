@@ -316,4 +316,7 @@ export type Config = {
   autoJournalTitlePrompt?: string
   autoJournalSummaryPromptEnabled?: boolean
   autoJournalSummaryPrompt?: string
+
+  // Timeline UI preferences
+  timelineExpanded?: boolean
 }
