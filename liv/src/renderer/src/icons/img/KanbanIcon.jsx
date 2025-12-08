@@ -6,17 +6,15 @@ export const KanbanIcon = (props) => {
       width="24"
       height="24"
       viewBox="0 0 24 24"
-      fill="currentColor"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
     >
-      {/* Trello-style kanban icon */}
-      <rect x="2" y="2" width="20" height="20" rx="3" opacity="0.15" />
-      {/* Left column - 3 cards */}
-      <rect x="4" y="5" width="6" height="3" rx="1" />
-      <rect x="4" y="10" width="6" height="3" rx="1" />
-      <rect x="4" y="15" width="6" height="3" rx="1" />
-      {/* Right column - 2 cards */}
-      <rect x="14" y="5" width="6" height="3" rx="1" />
-      <rect x="14" y="10" width="6" height="3" rx="1" />
+      {/* Grid icon - 4 squares */}
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
     </svg>
   );
 };

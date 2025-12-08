@@ -139,8 +139,10 @@
   left: 10px;
   width: calc(100% - 85px);
   height: 1px;
-  background: var(--base-red);
+  background: rgba(255, 255, 255, 0.3);
   transition: all cubic-bezier(0.075, 0.82, 0.165, 1) 500ms;
+  cursor: pointer;
+  z-index: 10;
 
   &:before {
     position: absolute;
@@ -152,12 +154,51 @@
   }
 
   &:hover {
-    height: 6px;
-    cursor: grab;
+    height: 4px;
   }
 
   &:active {
     height: 2px;
     filter: brightness(0.8);
   }
+
+  &.expanded {
+    height: 3px;
+    background: var(--active);
+  }
+}
+
+.dayContainer {
+  display: flex;
+  flex-direction: column;
+}
+
+.summaries {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px 8px 20px;
+  overflow: hidden;
+}
+
+.summaryItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--secondary);
+  opacity: 0.8;
+}
+
+.summaryTime {
+  font-weight: 500;
+  color: var(--active);
+  min-width: 24px;
+  opacity: 0.7;
+}
+
+.summaryText {
+  flex: 1;
+  word-break: break-word;
 }

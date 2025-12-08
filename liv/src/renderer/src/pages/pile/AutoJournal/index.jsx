@@ -40,6 +40,8 @@ function AutoJournal() {
   const [savedRunIds, setSavedRunIds] = useState(new Set())
   const [editingTitlePrompt, setEditingTitlePrompt] = useState(false)
   const [editingSummaryPrompt, setEditingSummaryPrompt] = useState(false)
+  const [titlePromptExpanded, setTitlePromptExpanded] = useState(false)
+  const [summaryPromptExpanded, setSummaryPromptExpanded] = useState(false)
   const themeStyles = useMemo(
     () => (currentTheme ? `${currentTheme}Theme` : ""),
     [currentTheme],
@@ -544,7 +546,7 @@ Bad examples:
                       </div>
                     </div>
 
-                    {/* Run List */}
+                    {/* Run List - Timeline/Calendar style */}
                     <div className={styles.RunList}>
                       {runs.length === 0 ? (
                         <div className={styles.EmptyState}>
@@ -561,90 +563,65 @@ Bad examples:
                               "No recordings found in the selected time window",
                             )
 
+                          const runDate = new Date(run.startedAt)
+                          const dayNames = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
+                          const dayName = dayNames[runDate.getDay()]
+                          const dayNumber = runDate.getDate()
+
                           return (
                             <div
                               key={run.id}
-                              className={`${styles.RunItem} ${selectedRunId === run.id ? styles.selected : ""}`}
+                              className={`${styles.dayRow} ${selectedRunId === run.id ? styles.selected : ""}`}
                               onClick={() =>
                                 setSelectedRunId(
                                   selectedRunId === run.id ? null : run.id,
                                 )
                               }
                             >
-                              <div className={styles.RunHeader}>
-                                <span className={styles.RunDate}>
-                                  {formatDate(run.startedAt)}
-                                </span>
-                                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                                  {!runHasContent && run.status === "success" && (
-                                    <span
-                                      style={{
-                                        fontSize: "0.65rem",
-                                        padding: "2px 6px",
-                                        borderRadius: "4px",
-                                        backgroundColor: "var(--bg-secondary)",
-                                        color: "var(--secondary)",
-                                        fontWeight: "600",
-                                      }}
-                                    >
-                                      {t("autoJournal.empty")}
-                                    </span>
-                                  )}
-                                  {(savedRunIds.has(run.id) || run.autoSaved) && (
-                                    <span
-                                      style={{
-                                        fontSize: "9px",
-                                        padding: "3px 6px",
-                                        borderRadius: "4px",
-                                        backgroundColor: "rgba(74, 222, 128, 0.15)",
-                                        color: "#4ade80",
-                                        fontWeight: "600",
-                                        letterSpacing: "0.3px",
-                                      }}
-                                    >
-                                      {t("autoJournal.published")}
-                                    </span>
-                                  )}
-                                  <span
-                                    className={`${styles.RunStatus} ${styles[run.status]}`}
-                                  >
-                                    {run.status === "success"
-                                      ? t("autoJournal.statusSuccess")
-                                      : t("autoJournal.statusError")}
+                              {/* Activities Column (left) */}
+                              <div className={styles.activitiesColumn}>
+                                {runHasContent && run.summary?.activities ? (
+                                  run.summary.activities.map((activity, idx) => (
+                                    <div key={idx} className={styles.activityItem}>
+                                      <span className={styles.activityTime}>
+                                        {new Date(activity.startTs).getHours().toString().padStart(2, '0')}h
+                                      </span>
+                                      <span className={styles.activityTitle}>{activity.title}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span className={styles.emptyIndicator}>
+                                    {run.error ? run.error : t("autoJournal.empty")}
                                   </span>
-                                  <button
-                                    className={styles.DeleteBtn}
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      deleteRunMutation.mutate(run.id)
-                                    }}
-                                    disabled={deleteRunMutation.isPending}
-                                    title={t("common.delete")}
-                                  >
-                                    <TrashIcon style={{ height: 12, width: 12 }} />
-                                  </button>
+                                )}
+                              </div>
+
+                              {/* Date Column (right) - Timeline style */}
+                              <div className={styles.dateColumn}>
+                                <div className={styles.dots}>
+                                  {runHasContent && run.summary?.activities?.slice(0, 5).map((_, idx) => (
+                                    <span key={idx} className={`${styles.dot} ${styles[run.status]}`} />
+                                  ))}
                                 </div>
+                                <div className={styles.dateLine} />
+                                <span className={styles.dayLabel}>{dayName}</span>
+                                <span className={styles.dayNumber}>{dayNumber}</span>
+                                <span className={`${styles.statusDot} ${styles[run.status]}`} />
                               </div>
-                            <div className={styles.RunMeta}>
-                              <span>
-                                {t("autoJournal.window")}: {run.windowMinutes}{" "}
-                                min
-                              </span>
-                              <span>•</span>
-                              <span>
-                                {t("autoJournal.duration")}:{" "}
-                                {formatDuration(run.startedAt, run.finishedAt)}
-                              </span>
+
+                              {/* Delete button */}
+                              <button
+                                className={styles.deleteBtn}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  deleteRunMutation.mutate(run.id)
+                                }}
+                                disabled={deleteRunMutation.isPending}
+                                title={t("common.delete")}
+                              >
+                                <TrashIcon style={{ height: 12, width: 12 }} />
+                              </button>
                             </div>
-                            {run.summary && (
-                              <div className={styles.RunPreview}>
-                                {run.summary.summary}
-                              </div>
-                            )}
-                            {run.error && (
-                              <div className={styles.RunError}>{run.error}</div>
-                            )}
-                          </div>
                           )
                         })
                       )}
@@ -1153,7 +1130,11 @@ Bad examples:
                           placeholder="Enter custom prompt for titles..."
                         />
                       ) : (
-                        <div className={styles.MarkdownPreview}>
+                        <div
+                          className={`${styles.MarkdownPreview} ${titlePromptExpanded ? styles.expanded : ''}`}
+                          onClick={() => setTitlePromptExpanded(!titlePromptExpanded)}
+                          style={{ cursor: 'pointer' }}
+                        >
                           <Markdown>
                             {settings.autoJournalTitlePrompt || defaultTitlePrompt}
                           </Markdown>
@@ -1210,7 +1191,11 @@ Bad examples:
                           placeholder="Enter custom prompt for summaries..."
                         />
                       ) : (
-                        <div className={styles.MarkdownPreview}>
+                        <div
+                          className={`${styles.MarkdownPreview} ${summaryPromptExpanded ? styles.expanded : ''}`}
+                          onClick={() => setSummaryPromptExpanded(!summaryPromptExpanded)}
+                          style={{ cursor: 'pointer' }}
+                        >
                           <Markdown>
                             {settings.autoJournalSummaryPrompt || defaultSummaryPrompt}
                           </Markdown>

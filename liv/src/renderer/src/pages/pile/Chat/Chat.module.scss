@@ -1,6 +1,6 @@
-// Chat.module.scss - Route-based page (no Dialog)
+// Chat.module.scss - Clean, minimal design inspired by reference
 
-// Page Container (matches AutoJournal pattern)
+// Page Container
 .pageContainer {
   position: fixed;
   top: 30px;
@@ -30,31 +30,34 @@
   flex-direction: column;
 }
 
+// Minimal header
 .header {
-  padding: 0 32px;
+  padding: 0 24px;
   z-index: 1000;
   background: transparent;
   -webkit-app-region: drag;
+  flex-shrink: 0;
 
   .wrapper {
     position: relative;
     max-width: 800px;
     margin: 0 auto;
-    height: 52px;
+    height: 48px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     z-index: 5;
 
     .DialogTitle {
       display: flex;
       align-items: center;
-      color: var(--primary);
-      font-weight: 500;
-      font-size: 15px;
+      color: var(--secondary);
+      font-weight: 400;
+      font-size: 13px;
       position: relative;
       z-index: 10 !important;
       user-select: none;
-      opacity: 0.9;
+      opacity: 0.7;
       -webkit-app-region: none;
     }
 
@@ -63,17 +66,15 @@
       align-items: center;
       position: relative;
       z-index: 6;
-      gap: 6px;
-      margin-left: auto;
-      margin-right: 44px;
+      gap: 4px;
       -webkit-app-region: none;
 
       .button {
         text-wrap: nowrap;
-        background: rgba(255, 255, 255, 0.06);
+        background: transparent;
         color: var(--secondary);
         font-size: 12px;
-        padding: 6px 14px 6px 10px;
+        padding: 8px 12px;
         transition: all ease-out 100ms;
         -webkit-app-region: none;
         user-select: none;
@@ -82,10 +83,12 @@
         align-items: center;
         height: 32px;
         border-radius: 8px;
+        opacity: 0.6;
 
         &:hover {
           cursor: pointer;
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.06);
+          opacity: 1;
         }
 
         &:active {
@@ -93,14 +96,14 @@
         }
 
         &.disabled {
-          opacity: 0.4;
+          opacity: 0.3;
           pointer-events: none;
         }
 
         .icon {
           height: 16px;
           width: 16px;
-          margin-right: 6px;
+          margin-right: 4px;
           opacity: 0.7;
         }
       }
@@ -144,6 +147,7 @@
   }
 }
 
+// Main content area
 .mainContent {
   position: relative;
   display: flex;
@@ -151,30 +155,32 @@
   overflow: hidden;
 }
 
+// Context toggle (minimal)
 .contextToggle {
   position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 16px;
+  top: 16px;
   z-index: 10;
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-tertiary);
-  padding: 8px 12px;
-  border-radius: 8px;
+  background: var(--bg-secondary);
+  padding: 6px 12px;
+  border-radius: 16px;
   cursor: pointer;
   transition: all ease-in-out 150ms;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--secondary);
+  opacity: 0.8;
 
   &:hover {
-    background: var(--bg-secondary);
+    opacity: 1;
+    background: var(--bg-tertiary);
   }
 
   .chevron {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
   }
 
   .contextCount {
@@ -182,6 +188,7 @@
   }
 }
 
+// Context panel
 .contextPanel {
   position: absolute;
   left: 0;
@@ -194,10 +201,11 @@
 
   .contextHeader {
     padding: 16px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     color: var(--primary);
     border-bottom: 1px solid var(--border);
+    opacity: 0.8;
   }
 
   .contextList {
@@ -220,15 +228,15 @@
       }
 
       .contextIndex {
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
         border-radius: 50%;
         background: var(--active);
         color: var(--active-text);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 10px;
+        font-size: 9px;
         font-weight: 600;
         flex-shrink: 0;
       }
@@ -246,35 +254,35 @@
         font-size: 10px;
         color: var(--secondary);
         flex-shrink: 0;
+        opacity: 0.6;
       }
     }
   }
 }
 
-
-
+// Close button
 .close {
   text-wrap: nowrap;
-  background: var(--bg);
+  background: transparent;
   color: var(--secondary);
   border-radius: 8px;
-  height: 36px;
+  height: 32px;
+  width: 32px;
   font-size: 13px;
-  padding: 0 10px;
+  padding: 0;
   transition: all ease-in-out 150ms;
   -webkit-app-region: none;
   user-select: none;
-  font-weight: 450;
   display: flex;
   align-items: center;
   justify-content: center;
-  stroke-width: 2px;
   cursor: pointer;
   pointer-events: auto !important;
   position: relative;
   z-index: 10;
   border: none;
   outline: none;
+  opacity: 0.5;
 
   svg {
     width: 14px;
@@ -283,7 +291,8 @@
   }
 
   &:hover {
-    background: var(--bg-secondary);
+    background: rgba(255, 255, 255, 0.08);
+    opacity: 1;
   }
 
   &:active {
@@ -291,85 +300,116 @@
   }
 }
 
+// Input bar - professional pill style
 .inputBar {
   width: 100%;
   flex-shrink: 0;
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding-bottom: 10px;
+  align-items: flex-end;
+  padding: 16px 32px 28px;
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
 
   .holder {
     display: flex;
     flex-direction: column;
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(10px);
-    padding: 4px 4px 4px 4px;
-    border-radius: 17px 17px 0 0;
-  }
-
-  .disclaimer {
-    margin: 7px 0 3px 7px;
-    color: var(--secondary);
-    position: relative;
+    width: 100%;
+    max-width: 680px;
   }
 
   .bar {
     position: relative;
-    width: 700px;
-    max-width: 700px;
+    width: 100%;
     display: flex;
-    border-radius: 13px;
-    transition: all cubic-bezier(0.215, 0.61, 0.355, 1) 120ms;
+    align-items: flex-end;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 28px;
+    padding: 8px 8px 8px 24px;
+    transition: all cubic-bezier(0.215, 0.61, 0.355, 1) 200ms;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    &:focus-within {
+      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  // Context badge (like "3 files" in reference)
+  .contextBadge {
+    display: flex;
+    align-items: center;
     gap: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 6px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    color: var(--secondary);
+    margin-right: 12px;
+    flex-shrink: 0;
+    font-weight: 500;
+
+    .badgeIcon {
+      width: 12px;
+      height: 12px;
+      opacity: 0.6;
+    }
   }
 
   .textarea {
     display: block;
     background: none;
     border: none;
-    font-size: 1.2em;
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.9);
+    font-size: 15px;
+    color: var(--primary);
     resize: none;
     width: 100%;
     outline: none;
-    padding: 11px 14px;
-    font-family: 'Inter', sans-serif;
+    padding: 12px 0;
+    font-family: 'Inter', -apple-system, sans-serif;
     overflow: hidden;
-    min-height: 40px;
-    border-radius: 13px 7px 7px 7px;
+    min-height: 24px;
+    max-height: 200px;
+    line-height: 1.5;
 
     &::placeholder {
-      color: rgba(255, 255, 255, 0.5);
+      color: var(--secondary);
+      opacity: 0.4;
     }
 
     &:focus {
-      color: #ffffff;
+      color: var(--primary);
     }
   }
 
+  // Circular send button - high contrast
   .ask {
     display: flex;
     justify-content: center;
-    text-align: center;
     align-items: center;
-    background: var(--active);
-    border-radius: 8px;
-    transition: all ease-in-out 120ms;
-    padding: 0 12px;
-    color: var(--active-text);
-    border-radius: 90px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 50%;
+    transition: all ease-in-out 150ms;
+    padding: 0;
+    color: #111;
     user-select: none;
-    font-size: 1.2em;
+    font-size: 14px;
     font-weight: 500;
-    width: 60px;
-    height: 40px;
-    transition: all cubic-bezier(0.075, 0.82, 0.165, 1) 300ms;
-    border-radius: 7px 13px 7px 7px;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 
     &.processing {
-      width: 75px;
+      background: rgba(255, 255, 255, 0.3);
+      color: var(--primary);
+      width: 52px;
+      border-radius: 22px;
     }
 
     .icon {
@@ -378,26 +418,36 @@
     }
 
     .spinner {
-      height: 22px;
-      width: 22px;
-      align-self: center;
+      height: 20px;
+      width: 20px;
     }
 
-    &.active {
-      background: var(--bg-secondary);
-    }
-
-    &:hover {
-      cursor: pointer;
-      background: var(--active-hover);
+    &:hover:not(.processing) {
+      transform: scale(1.05);
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     }
 
     &:active {
-      background: var(--base);
+      transform: scale(0.95);
     }
+  }
+
+  // Arrow icon for send button
+  .sendIcon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .disclaimer {
+    margin: 12px 0 0 24px;
+    color: var(--secondary);
+    font-size: 11px;
+    opacity: 0.4;
   }
 }
 
+// Message area
 .answer {
   flex: 1;
   width: 100%;
@@ -422,8 +472,6 @@
   pointer-events: none;
   margin-bottom: 30px;
 }
-
-// animations removed
 
 .floatingNav {
   // unused

@@ -4,6 +4,8 @@ import matter from "gray-matter"
 import pileSearchIndex from "./pileSearchIndex"
 import pileEmbeddings from "./pileEmbeddings"
 import { walk, convertHTMLToPlainText } from "../pile-util"
+import { configStore } from "../config"
+import { GoogleGenerativeAI } from "@google/generative-ai"
 
 class PileIndex {
   constructor() {
@@ -58,7 +60,54 @@ class PileIndex {
     await pileEmbeddings.initialize(this.pilePath, this.index)
     console.log("📍 VECTOR INDEX LOADED")
 
+    // Generate summaries for entries that don't have them (background, non-blocking)
+    this.generateMissingSummaries().catch(err => {
+      console.error("[pileIndex] Failed to generate missing summaries:", err.message)
+    })
+
     return this.index
+  }
+
+  async generateMissingSummaries() {
+    const entriesWithoutSummary = []
+
+    for (const [filePath, metadata] of this.index) {
+      if (metadata.isReply) continue
+      if (metadata.timelineSummary) continue
+
+      entriesWithoutSummary.push(filePath)
+    }
+
+    if (entriesWithoutSummary.length === 0) {
+      console.log("[pileIndex] All entries have summaries")
+      return
+    }
+
+    console.log(`[pileIndex] Generating summaries for ${entriesWithoutSummary.length} entries...`)
+
+    // Process in batches to avoid overwhelming the API
+    const BATCH_SIZE = 5
+    for (let i = 0; i < entriesWithoutSummary.length; i += BATCH_SIZE) {
+      const batch = entriesWithoutSummary.slice(i, i + BATCH_SIZE)
+
+      await Promise.all(batch.map(async (filePath) => {
+        try {
+          const fullPath = path.join(this.pilePath, filePath)
+          const fileContent = fs.readFileSync(fullPath, "utf8")
+          const { content } = matter(fileContent)
+          await this.generateEntrySummary(filePath, content)
+        } catch (error) {
+          console.error(`[pileIndex] Failed to generate summary for ${filePath}:`, error.message)
+        }
+      }))
+
+      // Small delay between batches to avoid rate limiting
+      if (i + BATCH_SIZE < entriesWithoutSummary.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+    }
+
+    console.log("[pileIndex] Finished generating missing summaries")
   }
 
   cleanupOrphanedEntries() {
@@ -148,7 +197,106 @@ class PileIndex {
     pileSearchIndex.initialize(this.pilePath, this.index)
     pileEmbeddings.addDocument(relativeFilePath, data)
     this.save()
+
+    // Generate timeline summary in background (non-blocking)
+    if (!data.isReply && !data.timelineSummary) {
+      this.generateEntrySummary(relativeFilePath, content).catch(err => {
+        console.error("[pileIndex] Failed to generate entry summary:", err.message)
+      })
+    }
+
     return this.index
+  }
+
+  async generateEntrySummary(relativeFilePath, content) {
+    const config = configStore.get()
+    const provider = config.enhancementProvider ?? "openai"
+
+    const plainContent = convertHTMLToPlainText(content).slice(0, 500)
+    if (!plainContent || plainContent.trim().length < 10) return
+
+    const prompt = `Resuma esta entrada de diário em NO MÁXIMO 8 palavras.
+Formato: "Verbo no passado + o que foi feito + contexto"
+
+Exemplos:
+- "Corrigiu CSS e UUID no Supermemory"
+- "Integrou OpenRouter como provider"
+- "Debugou bordas do WebContentsView"
+
+Entrada:
+${plainContent}
+
+Responda APENAS com o resumo, sem aspas nem explicações.`
+
+    try {
+      let summary
+
+      if (provider === "gemini") {
+        if (!config.geminiApiKey) return
+        const gai = new GoogleGenerativeAI(config.geminiApiKey)
+        const model = gai.getGenerativeModel({
+          model: config.geminiModel || "gemini-1.5-flash-002"
+        })
+        const result = await model.generateContent([prompt], {
+          baseUrl: config.geminiBaseUrl,
+        })
+        summary = result.response.text().trim()
+      } else {
+        const apiKey = provider === "custom" ? config.customEnhancementApiKey
+          : provider === "openrouter" ? config.openrouterApiKey
+          : provider === "groq" ? config.groqApiKey
+          : config.openaiApiKey
+
+        const baseUrl = provider === "custom" ? (config.customEnhancementBaseUrl || "https://api.example.com/v1")
+          : provider === "openrouter" ? (config.openrouterBaseUrl || "https://openrouter.ai/api/v1")
+          : provider === "groq" ? (config.groqBaseUrl || "https://api.groq.com/openai/v1")
+          : (config.openaiBaseUrl || "https://api.openai.com/v1")
+
+        const model = provider === "custom" ? (config.customEnhancementModel || "gpt-4o-mini")
+          : provider === "openrouter" ? (config.openrouterModel || "openai/gpt-4o-mini")
+          : provider === "groq" ? (config.groqModel || "llama-3.1-70b-versatile")
+          : (config.openaiModel || "gpt-4o-mini")
+
+        if (!apiKey) return
+
+        const fetchResponse = await fetch(`${baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            temperature: 0.3,
+            max_tokens: 50,
+            messages: [{ role: "user", content: prompt }],
+          }),
+        })
+
+        if (!fetchResponse.ok) return
+
+        const data = await fetchResponse.json()
+        summary = data.choices[0].message.content.trim()
+      }
+
+      if (summary) {
+        // Update the entry with the summary
+        const filePath = path.join(this.pilePath, relativeFilePath)
+        const fileContent = fs.readFileSync(filePath, "utf8")
+        const { data: metadata, content: fileBody } = matter(fileContent)
+
+        metadata.timelineSummary = summary
+        const newContent = matter.stringify(fileBody, metadata)
+        fs.writeFileSync(filePath, newContent)
+
+        // Update index
+        this.index.set(relativeFilePath, metadata)
+        this.save()
+        console.log("[pileIndex] Generated summary for:", relativeFilePath, "->", summary)
+      }
+    } catch (error) {
+      console.error("[pileIndex] Summary generation failed:", error.message)
+    }
   }
 
   getThreadAsText(filePath) {

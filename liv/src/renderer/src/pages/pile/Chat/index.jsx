@@ -7,6 +7,7 @@ import {
   ColorsIcon,
   ChevronRightIcon,
   ChevronLeftIcon,
+  ArrowRightIcon,
 } from "renderer/icons"
 import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
@@ -17,7 +18,7 @@ import TextareaAutosize from "react-textarea-autosize"
 import Thinking from "../Toasts/Toast/Loaders/Thinking"
 import Status from "./Status"
 import VirtualList from "./VirtualList"
-import Blobs from "./Blobs"
+import Intro from "./Intro"
 import useChat from "renderer/hooks/useChat"
 import { AnimatePresence, motion } from "framer-motion"
 import { PENDING_MESSAGE_MARKER } from "@shared/constants"
@@ -32,8 +33,9 @@ function Chat() {
   const currentModelDisplay = useMemo(() => {
     if (pileAIProvider === "openrouter") return openrouterModel || "openrouter"
     if (pileAIProvider === "ollama") return model || "ollama"
-    return model || "gpt-5.1"
+    return model || "gpt-4"
   }, [pileAIProvider, model, openrouterModel])
+
   const { getAIResponse, addMessage, resetMessages, relevantEntries } =
     useChat()
   const navigate = useNavigate()
@@ -83,7 +85,6 @@ function Chat() {
         if (!history || history.length === 0) return []
         const last = history[history.length - 1]
         if (last?.role === "system") {
-          // Replace pending marker or append to existing content
           const currentContent = last.content === PENDING_MESSAGE_MARKER ? "" : last.content
           return [
             ...history.slice(0, -1),
@@ -96,7 +97,7 @@ function Chat() {
     flushTimeoutRef.current = null
   }, [])
 
-  // Batched token appending - collects tokens and flushes ~8 fps to reduce re-render flicker
+  // Batched token appending
   const appendToLastSystemMessage = useCallback(
     (token) => {
       tokenBufferRef.current += token ?? ""
@@ -129,9 +130,16 @@ function Chat() {
       { role: "system", content: PENDING_MESSAGE_MARKER },
     ])
     await getAIResponse(messages, appendToLastSystemMessage)
-    // Flush any remaining tokens after streaming completes
     flushTokenBuffer()
     setQuerying(false)
+  }
+
+  const handleSuggestionClick = (suggestion) => {
+    setText(suggestion)
+    // Auto-submit after a brief delay
+    setTimeout(() => {
+      onSubmit()
+    }, 100)
   }
 
   const handleKeyPress = (event) => {
@@ -146,7 +154,7 @@ function Chat() {
     if (history.length === 0) return
 
     const chatContent = history
-      .map((msg, index) => {
+      .map((msg) => {
         const role = msg.role === "user" ? "You" : "AI"
         return `[${role}]\n${msg.content}\n`
       })
@@ -184,7 +192,7 @@ function Chat() {
     purple: "#8b5cf6",
     yellow: "#eab308",
     green: "#22c55e",
-    liquid: "#1f2937", // novo tema dark glass
+    liquid: "#1f2937",
   }
 
   const handleClose = () => {
@@ -195,20 +203,22 @@ function Chat() {
   const isMac = window.electron?.isMac
   const osLayoutStyles = isMac ? layoutStyles.macOS : layoutStyles.windows
 
+  // Show intro when no history
+  const showIntro = history.length === 0
+
   return (
     <div className={`${layoutStyles.frame} ${themeStyles} ${osLayoutStyles}`}>
       <div className={layoutStyles.bg}></div>
       <div className={styles.pageContainer}>
         <div className={styles.scroller}>
+          {/* Minimal header */}
           <div className={styles.header}>
             <div className={styles.wrapper}>
-              {/* Disable animated blobs during streaming to avoid GPU-heavy flicker */}
-              <Blobs show={false} />
               <h1 className={styles.DialogTitle}>
                 <Status setReady={setReady} />
               </h1>
               <div className={styles.buttons}>
-                {/* Theme Selector Button */}
+                {/* Theme Selector */}
                 <div className={styles.buttonGroup}>
                   <div
                     className={styles.button}
@@ -239,7 +249,7 @@ function Chat() {
                   </AnimatePresence>
                 </div>
 
-                {/* Export Button */}
+                {/* Export */}
                 <div
                   className={`${styles.button} ${history.length === 0 ? styles.disabled : ""}`}
                   onClick={exportChat}
@@ -248,16 +258,16 @@ function Chat() {
                   <DownloadIcon className={styles.icon} />
                 </div>
 
-                {/* Clear Chat Button */}
+                {/* Clear */}
                 <div
-                  className={styles.button}
+                  className={`${styles.button} ${history.length === 0 ? styles.disabled : ""}`}
                   onClick={onResetConversation}
+                  title={t("chat.clearChat")}
                 >
                   <RefreshIcon className={styles.icon} />
-                  {t("chat.clearChat")}
                 </div>
 
-                {/* Close Button */}
+                {/* Close */}
                 <button
                   className={`${styles.close} ${osStyles}`}
                   aria-label="Close Chat"
@@ -269,68 +279,79 @@ function Chat() {
             </div>
           </div>
 
-              <div className={styles.mainContent}>
-                {/* Context Panel Toggle */}
-                {relevantEntries.length > 0 && (
-                  <motion.div
-                    className={styles.contextToggle}
-                    onClick={() => setShowContext(!showContext)}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
-                    {showContext ? (
-                      <ChevronLeftIcon className={styles.chevron} />
-                    ) : (
-                      <ChevronRightIcon className={styles.chevron} />
-                    )}
-                    <span className={styles.contextCount}>
-                      {relevantEntries.length} {t("chat.relevantEntries")}
-                    </span>
-                  </motion.div>
+          <div className={styles.mainContent}>
+            {/* Context toggle */}
+            {relevantEntries.length > 0 && !showIntro && (
+              <motion.div
+                className={styles.contextToggle}
+                onClick={() => setShowContext(!showContext)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                {showContext ? (
+                  <ChevronLeftIcon className={styles.chevron} />
+                ) : (
+                  <ChevronRightIcon className={styles.chevron} />
                 )}
+                <span className={styles.contextCount}>
+                  {relevantEntries.length} {t("chat.relevantEntries")}
+                </span>
+              </motion.div>
+            )}
 
-                {/* Context Panel */}
-                <AnimatePresence>
-                  {showContext && relevantEntries.length > 0 && (
-                    <motion.div
-                      className={styles.contextPanel}
-                      initial={{ width: 0, opacity: 0 }}
-                      animate={{ width: 250, opacity: 1 }}
-                      exit={{ width: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div className={styles.contextHeader}>
-                        {t("chat.contextUsed")}
+            {/* Context Panel */}
+            <AnimatePresence>
+              {showContext && relevantEntries.length > 0 && (
+                <motion.div
+                  className={styles.contextPanel}
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: 250, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className={styles.contextHeader}>
+                    {t("chat.contextUsed")}
+                  </div>
+                  <div className={styles.contextList}>
+                    {relevantEntries.map((entry, index) => (
+                      <div key={entry.path} className={styles.contextItem}>
+                        <div className={styles.contextIndex}>
+                          {index + 1}
+                        </div>
+                        <div className={styles.contextPath}>
+                          {entry.path.split("/").pop().replace(".md", "")}
+                        </div>
+                        <div className={styles.contextScore}>
+                          {Math.round(entry.score * 100)}%
+                        </div>
                       </div>
-                      <div className={styles.contextList}>
-                        {relevantEntries.map((entry, index) => (
-                          <div key={entry.path} className={styles.contextItem}>
-                            <div className={styles.contextIndex}>
-                              {index + 1}
-                            </div>
-                            <div className={styles.contextPath}>
-                              {entry.path.split("/").pop().replace(".md", "")}
-                            </div>
-                            <div className={styles.contextScore}>
-                              {Math.round(entry.score * 100)}%
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-                {/* Chat Messages */}
-                <div className={styles.answer}>
-                  <VirtualList data={history} isStreaming={querying} />
-                </div>
-              </div>
+            {/* Chat Messages or Intro */}
+            <div className={styles.answer}>
+              {showIntro ? (
+                <Intro onSuggestionClick={handleSuggestionClick} />
+              ) : (
+                <VirtualList data={history} isStreaming={querying} />
+              )}
+            </div>
+          </div>
 
+          {/* Input bar - pill style */}
           <div className={styles.inputBar}>
             <div className={styles.holder}>
-              <div className={styles.inputbaroverlay}></div>
               <div className={styles.bar}>
+                {/* Context badge */}
+                {relevantEntries.length > 0 && (
+                  <div className={styles.contextBadge}>
+                    {relevantEntries.length} {t("chat.relevantEntries")}
+                  </div>
+                )}
+
                 <TextareaAutosize
                   value={text}
                   onChange={onChangeText}
@@ -341,22 +362,19 @@ function Chat() {
                 />
 
                 <button
-                  className={`${styles.ask} ${
-                    querying && styles.processing
-                  }`}
+                  className={`${styles.ask} ${querying ? styles.processing : ""}`}
                   onClick={onSubmit}
                   disabled={querying}
                 >
                   {querying ? (
                     <Thinking className={styles.spinner} />
                   ) : (
-                    t("chat.ask")
+                    <ArrowRightIcon className={styles.sendIcon} />
                   )}
                 </button>
               </div>
               <div className={styles.disclaimer}>
-                {t("chat.disclaimer")} ·{" "}
-                <span style={{ opacity: 0.6 }}>{currentModelDisplay}</span>
+                {t("chat.disclaimer")} · {currentModelDisplay}
               </div>
             </div>
           </div>

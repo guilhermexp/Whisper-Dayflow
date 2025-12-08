@@ -24,6 +24,7 @@ export * from './img/ClockIcon';
 export * from './img/DiscIcon';
 export * from './img/HomeIcon';
 export * from './img/ArrowLeftIcon';
+export * from './img/ArrowRightIcon';
 export * from './img/SlashIcon';
 export * from './img/DiscordIcon';
 export * from './img/SmileIcon';
@@ -52,6 +53,7 @@ export * from './img/CoinIcon';
 export * from './img/BoxOpenIcon';
 export * from './img/CopyIcon';
 export * from './img/KanbanIcon';
+export * from './img/EyeIcon';
 
 // logos
 export * from './logos/OllamaIcon';

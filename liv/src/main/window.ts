@@ -34,10 +34,26 @@ function createBaseWindow({
   showWhenReady?: boolean
   windowOptions?: BrowserWindowConstructorOptions
 }) {
+  // Get screen dimensions for centering
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize
+
+  // Default window size - larger for better UX
+  const defaultWidth = Math.min(1200, Math.floor(screenWidth * 0.8))
+  const defaultHeight = Math.min(800, Math.floor(screenHeight * 0.85))
+
+  // Center position
+  const defaultX = Math.floor((screenWidth - defaultWidth) / 2)
+  const defaultY = Math.floor((screenHeight - defaultHeight) / 2)
+
   // Create the browser window.
   const win = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: defaultWidth,
+    height: defaultHeight,
+    x: defaultX,
+    y: defaultY,
+    minWidth: 800,
+    minHeight: 600,
     show: false,
     autoHideMenuBar: true,
     ...windowOptions,

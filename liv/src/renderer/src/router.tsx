@@ -61,6 +61,11 @@ export const router: ReturnType<typeof createBrowserRouter> =
           lazy: () => import("./pages/pile/Kanban"),
           HydrateFallback,
         },
+        {
+          path: "profile",
+          lazy: () => import("./pages/pile/Profile"),
+          HydrateFallback,
+        },
       ],
     },
 

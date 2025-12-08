@@ -1,43 +1,136 @@
+// Intro.module.scss - Professional, clean design
+
 .intro {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-content: center;
-  align-self: center;
-  justify-self: center;
-  height: calc(100vh - 200px);
-  width: 500px;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  max-width: 600px;
   margin: 0 auto;
-  margin-top: 40px;
+  padding: 40px 20px 120px;
   text-align: center;
+}
 
-  .icon {
-    height: 55px;
-    width: 60px;
-    margin: 22px auto;
+// Document preview stack (professional look)
+.contextPreview {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 48px;
+  position: relative;
+  height: 100px;
+  width: 180px;
+}
+
+.contextCard {
+  position: absolute;
+  width: 120px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 6px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+
+  &:nth-child(1) {
+    transform: rotate(-12deg) translate(-30px, 10px);
+    z-index: 1;
   }
 
-  .line {
-    height: 80px;
-    width: 1px;
-    margin: 20px auto;
-    border-right: 2px dotted var(--border);
+  &:nth-child(2) {
+    transform: rotate(-3deg) translate(0, 0);
+    z-index: 2;
   }
 
-  .title {
-    font-family: 'Porpora';
-    font-size: 2.4em;
-    margin: 0 auto;
-    max-width: 300px;
-    line-height: 1.1;
+  &:nth-child(3) {
+    transform: rotate(8deg) translate(30px, 8px);
+    z-index: 3;
+  }
+}
+
+.cardLine {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+
+  &:nth-child(1) { width: 70%; }
+  &:nth-child(2) { width: 90%; }
+  &:nth-child(3) { width: 50%; }
+  &:nth-child(4) { width: 75%; }
+}
+
+// Headline
+.headline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 20px;
+}
+
+.title {
+  font-family: 'Porpora', Georgia, 'Times New Roman', serif;
+  font-size: 2.6rem;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--primary);
+  letter-spacing: -0.01em;
+}
+
+.titleAccent {
+  font-family: 'Porpora', Georgia, 'Times New Roman', serif;
+  font-size: 2.6rem;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.2;
+  color: var(--primary);
+  opacity: 0.5;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--secondary);
+  max-width: 340px;
+  opacity: 0.6;
+}
+
+// Quick suggestions - professional pills
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 32px;
+  max-width: 520px;
+}
+
+.suggestion {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 20px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
     color: var(--primary);
-    text-shadow: 0 0 50px var(--base), 20px -230px 100px var(--base-hover);
+    transform: translateY(-2px);
   }
 
-  .des {
-    font-size: 1.2em;
-    line-height: 1.4;
-    margin: 0 auto;
-    max-width: 240px;
+  &:active {
+    transform: translateY(0);
   }
 }
