@@ -1,8 +1,8 @@
 # CLAUDE.md - AI Agent Development Guide
 
-**Last Updated:** November 24, 2024
+**Last Updated:** December 8, 2025
 **Project:** Liv - AI-powered dictation tool with integrated journaling
-**Version:** 0.1.7
+**Version:** 0.1.8
 
 ---
 
@@ -84,6 +84,7 @@ liv/
 │   │   ├── index.ts      # Bootstrap & window creation
 │   │   ├── tipc.ts       # IPC router & procedures
 │   │   ├── config.ts     # Settings persistence
+│   │   ├── logger.ts     # Centralized logging (electron-log)
 │   │   ├── llm.ts        # LLM post-processing
 │   │   ├── keyboard.ts   # Global hotkey handling
 │   │   ├── window.ts     # Window management
@@ -99,13 +100,19 @@ liv/
 │   │       │   └── pile/             # Main application (Pile)
 │   │       │       ├── index.tsx     # Pile main entry
 │   │       │       ├── Layout.jsx    # Pile layout wrapper
-│   │       │       ├── Analytics/    # Analytics & History dialog
-│   │       │       ├── Dashboard/    # Dashboard with charts
-│   │       │       ├── Settings/     # Unified settings dialog
-│   │       │       ├── Sidebar/      # Navigation sidebar
-│   │       │       ├── Posts/        # Journal posts list
-│   │       │       ├── Editor/       # Post editor
+│   │       │       ├── Analytics/    # Analytics & History
+│   │       │       ├── AutoJournal/  # Vision Assistant (timeline summaries)
 │   │       │       ├── Chat/         # AI chat interface
+│   │       │       ├── Dashboard/    # Dashboard with charts
+│   │       │       ├── Editor/       # Post editor
+│   │       │       ├── Kanban/       # Task management board
+│   │       │       ├── Navigation/   # Bottom navigation bar
+│   │       │       ├── Posts/        # Journal posts list
+│   │       │       ├── Profile/      # User profile (in development)
+│   │       │       ├── Search/       # Semantic search
+│   │       │       ├── Settings/     # Unified settings
+│   │       │       ├── Sidebar/      # Sidebar with timeline
+│   │       │       ├── Timeline/     # Activity timeline
 │   │       │       └── ...
 │   │       └── lib/
 │   │           ├── recorder.ts       # WebM audio recording
@@ -123,77 +130,143 @@ liv/
 
 **Key Files for Development:**
 - **IPC Router:** `src/main/tipc.ts` - All backend procedures
+- **Logger:** `src/main/logger.ts` - Centralized logging with electron-log
 - **Data Model:** `src/shared/data-model.ts` - API inventory
 - **Type Definitions:** `src/shared/types.ts` - Shared types
 - **Recording Logic:** `src/renderer/src/lib/recorder.ts`
 - **Post-Processing:** `src/main/llm.ts`
-- **Screen Capture:** `src/main/services/screen-capture-service.ts` - Production-ready OCR & screenshot (see [docs/screen-capture-robustness.md](docs/screen-capture-robustness.md))
-- **Auto Journal:** `src/main/services/auto-journal-service.ts` - Auto-journaling & GIF generation
+- **Screen Capture:** `src/main/services/screen-capture-service.ts` - Production-ready OCR & screenshot
+- **Vision Assistant:** `src/main/services/auto-journal-service.ts` - Auto-journaling & GIF generation
+- **Pile Index:** `src/main/pile-utils/pileIndex.js` - Timeline summary generation
 - **Analytics:** `src/renderer/src/pages/pile/Analytics/index.jsx` - Stats & history
 - **Dashboard:** `src/renderer/src/pages/pile/Dashboard/index.jsx` - Charts & metrics
+- **Vision Assistant UI:** `src/renderer/src/pages/pile/AutoJournal/index.jsx` - Calendar-style timeline
+- **Kanban:** `src/renderer/src/pages/pile/Kanban/index.jsx` - Task management board
+- **Navigation:** `src/renderer/src/pages/pile/Navigation/index.jsx` - Bottom nav bar
 - **Settings:** `src/renderer/src/pages/pile/Settings/index.jsx` - All configuration
 - **Tray Menu:** `src/main/tray.ts` - System tray with Enhancement submenu
 
 ### Routes Structure
 
-The application uses a simplified routing structure:
-- `/` - Pile main application (journal + dictation)
-  - `/pile/:pileName` - Specific pile view
-  - `/create-pile` - Create new pile
-  - `/liv-config` - Liv configuration
+The application uses a simplified flat routing structure (changed from nested `/pile/:pileName/...`):
+
+**Main Routes (under `/`):**
+- `/` - Redirects to default pile
+- `/pile/:pileName` - Specific pile view (journal editor)
+- `/create-pile` - Create new pile
+- `/timeline` - Activity timeline with summaries
+- `/auto-journal` - Vision Assistant (formerly Auto Journal)
+- `/dashboard` - Dashboard with charts and analytics
+- `/settings` - Unified settings
+- `/chat` - AI chat interface
+- `/search` - Semantic search
+- `/kanban` - Task management board
+- `/profile` - User profile (in development)
+
+**Special Windows:**
 - `/setup` - Initial setup wizard
 - `/panel` - Recording overlay window
 
-**Note:** The old `/whisper` routes have been removed. All Whisper/dictation functionality is now integrated into the Pile frontend.
+**Note:** Routes were simplified from `/pile/:pileName/settings` to just `/settings`. Navigation uses a bottom nav bar.
 
 ---
 
 ## 🎛️ Core UI Components
 
-### Analytics Dialog
+### Navigation Bar
+**Location:** `src/renderer/src/pages/pile/Navigation/index.jsx`
+
+Bottom navigation bar with pill-style design:
+- **Home** - Journal editor (HomeIcon)
+- **Chat** - AI chat (ChatIcon)
+- **Search** - Semantic search (SearchIcon)
+- **Vision Assistant** - Timeline summaries (EyeIcon)
+- **Kanban** - Task board (KanbanIcon - 4 squares grid)
+- **Dashboard** - Analytics (CardIcon)
+- **Profile** - User profile (PersonIcon)
+- **Settings** - Configuration (SettingsIcon)
+
+### Vision Assistant (formerly Auto Journal)
+**Location:** `src/renderer/src/pages/pile/AutoJournal/index.jsx`
+**Route:** `/auto-journal`
+
+Redesigned from card-based to calendar-style fluent layout:
+- **Fluent Timeline:** Activities with hourly timestamps and semantic descriptions
+- **Collapsible Prompts:** Default 2 lines with fade gradient, expand on click
+- **Auto-Summary Generation:** Uses LLM (OpenAI, Gemini, Groq, OpenRouter) to generate summaries
+- **Two Tabs:** Runs (execution history), Settings (configuration)
+- **Icon:** EyeIcon (changed from notebook icon)
+
+### Kanban Board
+**Location:** `src/renderer/src/pages/pile/Kanban/index.jsx`
+**Route:** `/kanban`
+
+Visual task management with drag-and-drop:
+- **Three Columns:** Ideas, Research, Outline (customizable)
+- **Draggable Cards:** Title, bullets, description, tags
+- **Column Headers:** Icons and task counts
+- **Icon:** KanbanIcon (4 squares grid style)
+
+### Profile (In Development)
+**Location:** `src/renderer/src/pages/pile/Profile/index.jsx`
+**Route:** `/profile`
+
+Placeholder page showing "Em Desenvolvimento" message.
+
+### Analytics
 **Location:** `src/renderer/src/pages/pile/Analytics/index.jsx`
 
-Dialog-based component with two main tabs:
+Two main tabs:
 - **Analytics Tab:** Total recordings, duration, storage usage, STT model performance metrics
-- **History Tab:** List of all transcriptions with timestamps, ability to delete individual recordings
+- **History Tab:** List of all transcriptions with timestamps and thumbnails
 
-Uses Radix UI Dialog/Tabs components and TanStack Query for data fetching.
+Uses Radix UI Tabs and TanStack Query for data fetching.
 
-### Dashboard Dialog
+### Dashboard
 **Location:** `src/renderer/src/pages/pile/Dashboard/index.jsx`
+**Route:** `/dashboard`
 
 Visual analytics dashboard with Recharts graphs:
 - **Timeline Chart (LineChart):** Recordings over time
 - **Provider Breakdown (PieChart):** Usage by STT provider
 - **Stats Cards:** Total recordings, duration, accuracy, WPM
 
-### Settings Dialog
+### Settings
 **Location:** `src/renderer/src/pages/pile/Settings/index.jsx`
+**Route:** `/settings`
 
 Unified settings with three main tabs:
 - **Diário (Journal):** Pile/journaling settings (theme, AI integration)
 - **IA (AI):** LLM provider configuration (OpenAI, Groq, Gemini, OpenRouter, Ollama)
 - **Transcrição (Transcription):** Whisper/STT settings, enhancement options
 
-Contains TranscriptionSettingsTabs and AISettingsTabs sub-components.
+**Prompt Editor:** Modal for viewing/editing enhancement prompts (AI personality).
 
-**Prompt Editor:** Modal for viewing/editing enhancement prompts (AI personality). Z-index is handled by rendering inside Dialog.Content.
-
-### Chat Dialog
+### Chat
 **Location:** `src/renderer/src/pages/pile/Chat/index.jsx`
+**Route:** `/chat`
 
 AI chat interface with journal context:
-- **Context Panel:** Toggle lateral showing relevant journal entries used as context (with similarity scores)
+- **Context Panel:** Toggle lateral showing relevant journal entries (with similarity scores)
 - **Theme Selector:** Dropdown with 5 color themes (light, blue, purple, yellow, green)
 - **Export Chat:** Save conversation as .txt file
 - **Animations:** Smooth transitions with Framer Motion AnimatePresence
 
 **Hook:** `src/renderer/src/hooks/useChat.jsx` (returns `relevantEntries` for context display)
 
-### Search Dialog
+### Search
 **Location:** `src/renderer/src/pages/pile/Search/index.jsx`
+**Route:** `/search`
 
 Semantic search in journal using vector search with AI embeddings.
+
+### Timeline
+**Location:** `src/renderer/src/pages/pile/Timeline/index.jsx`
+**Route:** `/timeline`
+
+Activity timeline with auto-generated summaries:
+- **Expandable entries** with summary display
+- **Summary generation** via multiple LLM providers
 
 ### System Tray
 **Location:** `src/main/tray.ts`
@@ -309,10 +382,12 @@ Auto-Journal Run triggered
    - Styling: SCSS modules (`.module.scss`) for component-specific styles
 
 3. **Pile Components**
-   - All major UI components are dialog-based (Radix UI Dialog)
-   - Analytics and Dashboard are accessed via sidebar icons
+   - All major UI components are route-based (not dialogs anymore)
+   - Navigation via bottom nav bar with pill-style design
+   - Pages accessed via flat routes (`/settings`, `/dashboard`, etc.)
    - Settings consolidates all configuration in tabbed interface
    - Charts use Recharts library
+   - Scrollbars are hidden throughout for cleaner UI
 
 4. **Shared Types**
    - Define all interfaces in `src/shared/types.ts`
@@ -328,13 +403,40 @@ Auto-Journal Run triggered
 
 ### Logging Strategy
 
+**Centralized Logging with electron-log:**
+- **Location:** `src/main/logger.ts`
+- **Log Files:**
+  - macOS: `~/Library/Logs/Liv/main.log`
+  - Windows: `%USERPROFILE%\AppData\Roaming\Liv\logs\main.log`
+  - Linux: `~/.config/Liv/logs/main.log`
+- **Features:**
+  - File rotation (10MB max per file)
+  - Uncaught exception handling
+  - Unhandled rejection capture
+  - App lifecycle logging (quit, crash events)
+  - Context-based logging via `logWithContext()`
+
 ```typescript
-// Development only
+// Use centralized logger in main process
+import { logger, logInfo, logError, logWithContext } from './logger';
+
+// Simple logging
+logInfo('Message here');
+logError('Error message', error);
+
+// Context-based logging
+const log = logWithContext('ScreenCapture');
+log.info('Capturing screen...');
+log.error('Capture failed', error);
+
+// Development only (renderer)
 if (import.meta.env.DEV) {
   console.log('Debug message');
 }
+```
 
-// Never log secrets
+**Never log secrets:**
+```typescript
 // ❌ BAD: console.log(apiKey)
 // ✅ GOOD: console.log('API configured:', provider)
 ```
@@ -420,8 +522,10 @@ Before submitting changes, verify:
 ### For UI Changes
 - [ ] Route defined in `renderer/src/router.tsx` (if new route needed)
 - [ ] Component created in appropriate `renderer/src/pages/pile/` folder
-- [ ] Dialog-based components use Radix UI Dialog pattern
+- [ ] Use `.pageContainer` pattern for route-based pages
 - [ ] Styling uses SCSS modules (`.module.scss`) in component folder
+- [ ] Navigation link added to `Navigation/index.jsx` (if needed)
+- [ ] Use hidden scrollbars (`::-webkit-scrollbar { display: none; }`)
 - [ ] Accessibility tested (keyboard navigation, screen readers)
 
 ### For IPC Changes
@@ -518,11 +622,12 @@ All configured via Settings UI with custom base URLs supported.
 
 ```
 ├── CLAUDE.md              # This file - agent development guide
+├── quickstart.md          # Quick onboarding guide for agents
 ├── AGENTS.md              # Agent-specific protocols
 ├── README.md              # User-facing project overview
 ├── ai_docs/               # Technical documentation
 │   ├── README.md          # Index
-│   ├── quickstart.md      # Onboarding guide
+│   ├── design-system-analysis.md  # UI design patterns
 │   └── liv-analysis.md    # Deep technical analysis
 ├── ai_specs/              # Feature specifications
 ├── ai_issues/             # Bug tracking
@@ -583,7 +688,8 @@ All configured via Settings UI with custom base URLs supported.
 
 ## 📞 Quick Links
 
-- **Quick Start:** `ai_docs/quickstart.md`
+- **Quick Start:** `quickstart.md`
+- **Design System:** `liv/ai_docs/design-system-analysis.md`
 - **Technical Analysis:** `ai_docs/liv-analysis.md`
 - **Known Issues:** `ai_issues/README.md`
 - **Specifications:** `ai_specs/README.md`
