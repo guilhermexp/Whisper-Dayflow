@@ -7,8 +7,9 @@ Este guia orienta qualquer agente a entender a aplicação, executar localmente,
 - Função principal: ditar → transcrever (OpenAI/Groq) → pós-processar (OpenAI/Groq/Gemini/OpenRouter) → salvar áudio e texto → copiar/"digitar".
 - **Interface integrada**: Pile (journaling) + Whispo (transcrição) em uma única aplicação.
 - **Contexto opcional**: Captura de clipboard, texto selecionado (placeholder) e OCR da janela ativa.
-- **Auto-diário**: resume gravações recentes e pode anexar OCR da janela ativa (flag opcional).
+- **Vision Assistant** (ex-Auto Journal): resume gravações com UI de calendário fluido e sumários auto-gerados via LLM.
 - **Kanban**: board para gerenciamento de tarefas integrado.
+- **Logging centralizado**: electron-log com logs persistentes em arquivos.
 - Dados locais: `config.json` e gravações em `recordings/` dentro `appData/<APP_ID>`.
 
 ## Setup
@@ -30,20 +31,24 @@ Este guia orienta qualquer agente a entender a aplicação, executar localmente,
   - Protocolo: `liv/src/main/serve.ts:53`
   - Tray: `liv/src/main/tray.ts` (com Enhancement submenu)
   - Config: `liv/src/main/config.ts:20`
+  - Logger: `liv/src/main/logger.ts` (electron-log centralizado)
   - LLM: `liv/src/main/llm.ts:5`
+  - Pile Index: `liv/src/main/pile-utils/pileIndex.js` (geração de sumários)
   - Toast de ESC/hint overlay: `liv/src/main/hint-window.ts:1`
   - Estado/cancelamentos: `liv/src/main/state.ts:1`
 - Renderer (React): rotas, páginas, UI do painel, cliente IPC.
   - Router: `liv/src/renderer/src/router.tsx`
   - **Pile UI** (interface principal): `liv/src/renderer/src/pages/pile/`
+    - Navigation: `liv/src/renderer/src/pages/pile/Navigation/index.jsx` (bottom nav bar)
     - Settings: `liv/src/renderer/src/pages/pile/Settings/index.jsx`
     - Analytics: `liv/src/renderer/src/pages/pile/Analytics/index.jsx`
     - Dashboard: `liv/src/renderer/src/pages/pile/Dashboard/index.jsx`
-    - AutoJournal: `liv/src/renderer/src/pages/pile/AutoJournal/index.jsx`
-    - Timeline: `liv/src/renderer/src/pages/pile/Timeline/index.jsx`
+    - Vision Assistant: `liv/src/renderer/src/pages/pile/AutoJournal/index.jsx` (calendário fluido)
+    - Timeline: `liv/src/renderer/src/pages/pile/Timeline/index.jsx` (com sumários)
     - Search: `liv/src/renderer/src/pages/pile/Search/index.jsx`
     - Kanban: `liv/src/renderer/src/pages/pile/Kanban/index.jsx`
     - Chat: `liv/src/renderer/src/pages/pile/Chat/index.jsx`
+    - Profile: `liv/src/renderer/src/pages/pile/Profile/index.jsx` (em desenvolvimento)
   - Painel de gravação: `liv/src/renderer/src/pages/panel.tsx:14`
   - Gravador: `liv/src/renderer/src/lib/recorder.ts:35`
   - IPC client: `liv/src/renderer/src/lib/tipc-client.ts:5`
@@ -51,21 +56,25 @@ Este guia orienta qualquer agente a entender a aplicação, executar localmente,
 - Design System: `liv/ai_docs/design-system-analysis.md`
 
 ## Rotas da Aplicação
-- `/` - Pile (interface principal com journaling + transcrição integrada)
-- `/pile/:pileName` - Visualização de pile específico
-- `/pile/:pileName/settings` - Configurações (route-based)
-- `/pile/:pileName/dashboard` - Dashboard com analytics (route-based)
-- `/pile/:pileName/auto-journal` - Auto Journal (route-based)
-- `/pile/:pileName/timeline` - Timeline de atividades (route-based)
-- `/pile/:pileName/search` - Busca semântica (route-based)
-- `/pile/:pileName/kanban` - Kanban board (route-based)
-- `/pile/:pileName/chat` - Chat com AI (route-based)
+
+**Rotas principais (flat, não mais nested):**
+- `/` - Redireciona para pile padrão
+- `/pile/:pileName` - Visualização de pile específico (editor de jornal)
 - `/create-pile` - Criar novo pile
-- `/liv-config` - Configuração do Liv
+- `/timeline` - Timeline de atividades com sumários
+- `/auto-journal` - Vision Assistant (ex-Auto Journal)
+- `/dashboard` - Dashboard com charts e analytics
+- `/settings` - Configurações unificadas
+- `/chat` - Chat com AI
+- `/search` - Busca semântica
+- `/kanban` - Kanban board
+- `/profile` - Perfil do usuário (em desenvolvimento)
+
+**Janelas especiais:**
 - `/setup` - Wizard de setup inicial
 - `/panel` - Painel de gravação (overlay)
 
-**Nota**: Páginas foram migradas de Dialog-based para route-based. Cada página agora é uma rota separada com seu próprio `.pageContainer`.
+**Nota**: Rotas simplificadas de `/pile/:pileName/settings` para `/settings`. Navegação via bottom nav bar.
 
 ## Design System (v2.0)
 
@@ -141,52 +150,65 @@ scrollbar-width: none;
 
 ## UI Components (Pile)
 
-### Settings (Route-based)
-- Rota: `/pile/:pileName/settings`
+### Navigation (Bottom Nav Bar)
+- Arquivo: `liv/src/renderer/src/pages/pile/Navigation/index.jsx`
+- Design: pill-style com ícones
+- Links: Home, Chat, Search, Vision Assistant (EyeIcon), Kanban (grid 4 squares), Dashboard, Profile, Settings
+
+### Settings
+- Rota: `/settings`
 - Tabs: Diário, IA, Transcrição
 - Arquivo: `liv/src/renderer/src/pages/pile/Settings/index.jsx`
 - **Prompt Editor**: Modal para visualizar/editar prompts de enhancement
 
-### Analytics (Dialog)
-- Acesso: ícone de gauge no nav bar
-- Tabs: Analytics (stats, performance), History (todas transcrições)
+### Analytics
+- Acesso: via Dashboard ou navegação
+- Tabs: Analytics (stats, performance), History (transcrições com thumbnails)
 - Arquivo: `liv/src/renderer/src/pages/pile/Analytics/index.jsx`
 
-### Dashboard (Route-based)
-- Rota: `/pile/:pileName/dashboard`
-- Tabs: Overview (charts Recharts), Histórico (transcrições com thumbnails)
+### Dashboard
+- Rota: `/dashboard`
+- Charts Recharts: LineChart, PieChart
 - Arquivo: `liv/src/renderer/src/pages/pile/Dashboard/index.jsx`
 
-### Auto Journal (Route-based)
-- Rota: `/pile/:pileName/auto-journal`
-- Tabs: Execuções, Configurações
-- GIF preview centralizado com screenshots do período
+### Vision Assistant (ex-Auto Journal)
+- Rota: `/auto-journal`
+- Layout: calendário fluido (não mais cards)
+- **Features**: timestamps por hora, prompts colapsáveis com fade, sumários auto-gerados via LLM
+- Ícone: EyeIcon (não mais notebook)
 - Arquivo: `liv/src/renderer/src/pages/pile/AutoJournal/index.jsx`
 
-### Timeline (Route-based)
-- Rota: `/pile/:pileName/timeline`
-- Split pane: Timeline visual à esquerda, detalhes à direita
+### Timeline
+- Rota: `/timeline`
+- Entradas expansíveis com sumários
+- Geração de sumários via múltiplos providers LLM
 - Arquivo: `liv/src/renderer/src/pages/pile/Timeline/index.jsx`
 
-### Search (Route-based)
-- Rota: `/pile/:pileName/search`
+### Search
+- Rota: `/search`
 - Busca semântica no jornal usando vector search
 - Arquivo: `liv/src/renderer/src/pages/pile/Search/index.jsx`
 
-### Kanban (Route-based)
-- Rota: `/pile/:pileName/kanban`
-- 3 colunas: Backlog, Em Progresso, Concluído
-- Cards com tags e drag-and-drop
+### Kanban
+- Rota: `/kanban`
+- 3 colunas: Ideas, Research, Outline (customizável)
+- Cards com drag-and-drop, tags, bullets
+- Ícone: KanbanIcon (grid 4 squares)
 - Arquivo: `liv/src/renderer/src/pages/pile/Kanban/index.jsx`
 
-### Chat (Route-based)
-- Rota: `/pile/:pileName/chat`
+### Chat
+- Rota: `/chat`
 - **Funcionalidades**:
   - Painel de contexto (toggle lateral; usa entradas do jornal)
   - Seletor de tema (dropdown com 5 cores)
   - Exportar conversa (salva como .txt)
   - Animações suaves com AnimatePresence
 - Arquivo: `liv/src/renderer/src/pages/pile/Chat/index.jsx`
+
+### Profile (Em Desenvolvimento)
+- Rota: `/profile`
+- Placeholder "Em Desenvolvimento"
+- Arquivo: `liv/src/renderer/src/pages/pile/Profile/index.jsx`
 
 ### Tray Menu
 - Start/Cancel Recording
@@ -235,8 +257,10 @@ scrollbar-width: none;
 - UI/Rotas:
   - Crie páginas em `liv/src/renderer/src/pages/pile/` seguindo padrão route-based.
   - Use `.pageContainer` pattern para layout consistente.
+  - Adicione link na Navigation se necessário (`liv/src/renderer/src/pages/pile/Navigation/index.jsx`).
   - Siga design system em `liv/ai_docs/design-system-analysis.md`.
-  - Registre rotas em `liv/src/renderer/src/router.tsx`.
+  - Use scrollbars invisíveis (`::-webkit-scrollbar { display: none; }`).
+  - Registre rotas em `liv/src/renderer/src/router.tsx` (formato flat, não nested).
 - APIs IPC:
   - Adicione `t.procedure` no `router` (`liv/src/main/tipc.ts:44`).
   - Consuma via `tipcClient` (`liv/src/renderer/src/lib/tipc-client.ts:5`).
@@ -247,19 +271,23 @@ scrollbar-width: none;
   - Servir gravações via `assets://recording/<id>` (`liv/src/main/serve.ts:68`).
 
 ## Padrões de UI (v2.0)
-- **Route-based pages**: Todas páginas principais são rotas, não dialogs.
+- **Route-based pages**: Todas páginas principais são rotas flat (ex: `/settings` não `/pile/:name/settings`).
+- **Navigation**: Bottom nav bar pill-style com ícones (HomeIcon, ChatIcon, SearchIcon, EyeIcon, KanbanIcon, CardIcon, PersonIcon, SettingsIcon).
 - **Page container**: Usar `.pageContainer` com position fixed e border-radius 16px.
 - **Cards minimalistas**: Background transparente + border 1px solid var(--border).
 - **Scrollbars invisíveis**: display: none em ::-webkit-scrollbar.
 - **Styling**: SCSS modules para cada página (`.module.scss`).
 - **Data fetching**: React Query (`useQuery`, `useMutation`) via `tipcClient`.
 - **Charts**: Recharts para gráficos (LineChart, PieChart).
+- **Logging**: Use `logger` centralizado em main process (electron-log).
 
 ## Convenções & Boas Práticas
 - TypeScript, React, Electron; siga padrões existentes de imports e módulos.
 - Não logue segredos; configure chaves via UI de Settings ou `config.json`.
 - Mantenha arquivos abaixo de ~500 linhas; prefira módulos auxiliares.
-- Evite `console.log` em produção; use condicional `import.meta.env.DEV` quando necessário.
+- **Main process**: Use `logger` de `src/main/logger.ts` (arquivos em `~/Library/Logs/Liv/`).
+- **Renderer**: Use `console.log` apenas com `import.meta.env.DEV`.
+- Para logging contextualizado: `const log = logWithContext('ModuleName')`.
 
 ## Problemas Conhecidos
 - Sem bloqueios conhecidos no fork atual; valide sempre o fluxo de cancelamento duplo ESC.
@@ -268,10 +296,13 @@ scrollbar-width: none;
 - Criar/editar API IPC → atualizar cliente no Renderer.
 - Persistência → garantir criação de pastas (`fs.mkdirSync(recordingsFolder, { recursive: true })`).
 - UI → validar eventos renderer handlers (`liv/src/main/renderer-handlers.ts`).
-- Novas páginas → seguir design system e padrão route-based.
+- Novas páginas → seguir design system, padrão route-based flat, e Navigation.
+- Novos ícones → adicionar em `liv/src/renderer/src/icons/`.
+- Logging → usar `logger` de `src/main/logger.ts` no main process.
 - Testar: fluxo completo atalho → painel → gravação → transcrição → histórico.
 
 ## Troubleshooting
+- **Logs**: Consulte arquivos em `~/Library/Logs/Liv/main.log` (macOS) para debug.
 - Acessibilidade (macOS): conceder em Sistema; checado via `isAccessibilityGranted` (`liv/src/main/utils.ts:3`).
 - Permissão de microfone: `requestMicrophoneAccess` (`liv/src/main/tipc.ts:135`).
 - Cancelamento não reage: invoque `cancelTranscription` manualmente e confira `state.transcriptionAbortController` (`liv/src/main/state.ts:1`).
