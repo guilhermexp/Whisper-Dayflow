@@ -46,6 +46,16 @@ import {
   GIF_DIR,
 } from "./services/auto-journal-service"
 import { saveAutoJournalEntry } from "./services/auto-journal-entry"
+import {
+  startPeriodicScreenshotScheduler,
+  stopPeriodicScreenshotScheduler,
+  restartPeriodicScreenshotScheduler,
+  getPeriodicScreenshotStatus,
+  capturePeriodicScreenshotNow,
+  listPeriodicScreenshots,
+  deletePeriodicScreenshot,
+  getPeriodicScreenshotsDir,
+} from "./services/periodic-screenshot-service"
 
 const t = tipc.create()
 
@@ -982,6 +992,88 @@ export const router = {
         console.error("[auto-journal] Failed to save entry", error)
         throw error
       }
+    }),
+
+  // =========================================================================
+  // PERIODIC SCREENSHOT CAPTURE
+  // =========================================================================
+
+  /**
+   * Get the current status of the periodic screenshot scheduler.
+   */
+  getPeriodicScreenshotStatus: t.procedure.action(async () => {
+    return getPeriodicScreenshotStatus()
+  }),
+
+  /**
+   * Manually capture a screenshot now (outside of schedule).
+   */
+  capturePeriodicScreenshotNow: t.procedure.action(async () => {
+    return capturePeriodicScreenshotNow()
+  }),
+
+  /**
+   * List periodic screenshots (newest first).
+   */
+  listPeriodicScreenshots: t.procedure
+    .input<{ limit?: number } | undefined>()
+    .action(async ({ input }) => {
+      return listPeriodicScreenshots(input?.limit)
+    }),
+
+  /**
+   * Delete a periodic screenshot by ID.
+   */
+  deletePeriodicScreenshot: t.procedure
+    .input<{ id: string }>()
+    .action(async ({ input }) => {
+      return deletePeriodicScreenshot(input.id)
+    }),
+
+  /**
+   * Get periodic screenshot settings.
+   */
+  getPeriodicScreenshotSettings: t.procedure.action(async () => {
+    const cfg = configStore.get()
+    return {
+      periodicScreenshotEnabled: cfg.periodicScreenshotEnabled ?? false,
+      periodicScreenshotIntervalMinutes:
+        cfg.periodicScreenshotIntervalMinutes ?? 60,
+      periodicScreenshotsDir: getPeriodicScreenshotsDir(),
+    }
+  }),
+
+  /**
+   * Save periodic screenshot settings (restarts scheduler if needed).
+   */
+  savePeriodicScreenshotSettings: t.procedure
+    .input<{
+      periodicScreenshotEnabled?: boolean
+      periodicScreenshotIntervalMinutes?: number
+    }>()
+    .action(async ({ input }) => {
+      const cfg = configStore.get()
+      const wasEnabled = cfg.periodicScreenshotEnabled ?? false
+      const willBeEnabled =
+        input.periodicScreenshotEnabled ?? cfg.periodicScreenshotEnabled ?? false
+
+      configStore.save({
+        ...cfg,
+        periodicScreenshotEnabled: willBeEnabled,
+        periodicScreenshotIntervalMinutes:
+          input.periodicScreenshotIntervalMinutes ??
+          cfg.periodicScreenshotIntervalMinutes ??
+          60,
+      })
+
+      // Restart scheduler with new settings
+      if (willBeEnabled) {
+        restartPeriodicScreenshotScheduler()
+      } else if (wasEnabled && !willBeEnabled) {
+        stopPeriodicScreenshotScheduler()
+      }
+
+      return getPeriodicScreenshotStatus()
     }),
 
   listModels: t.procedure.action(async () => {

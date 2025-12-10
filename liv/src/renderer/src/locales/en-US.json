@@ -542,7 +542,20 @@
     "empty": "Empty",
     "runDeleted": "Run deleted successfully.",
     "deleteError": "Failed to delete run.",
-    "noContentToSave": "No content to save."
+    "noContentToSave": "No content to save.",
+    "periodicScreenshots": "Periodic Screenshots",
+    "periodicScreenshotsDesc": "Capture the screen at regular intervals, independent of audio recordings. Feeds the auto-journal with visual context.",
+    "periodicActive": "Periodic Capture Active",
+    "periodicInactive": "Periodic Capture Inactive",
+    "nextCapture": "Next capture",
+    "lastCapture": "Last capture",
+    "totalScreenshots": "Total screenshots",
+    "periodicInterval": "Capture Interval",
+    "periodicIntervalDesc": "How often to automatically capture screenshots.",
+    "every15min": "Every 15 minutes",
+    "every30min": "Every 30 minutes",
+    "every60min": "Every 60 minutes",
+    "every2hours": "Every 2 hours"
   },
   "highlights": {
     "title": "Highlights",

@@ -82,6 +82,11 @@ const withDefaults = (config?: Config): Config => {
     useSelectedTextContext: config?.useSelectedTextContext ?? false,
     useScreenCaptureContext: config?.useScreenCaptureContext ?? false,
 
+    // Periodic screenshot capture defaults
+    periodicScreenshotEnabled: config?.periodicScreenshotEnabled ?? false,
+    periodicScreenshotIntervalMinutes:
+      config?.periodicScreenshotIntervalMinutes ?? 60,
+
     ...config,
   }
 }

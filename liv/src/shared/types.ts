@@ -319,4 +319,18 @@ export type Config = {
 
   // Timeline UI preferences
   timelineExpanded?: boolean
+
+  // Periodic Screenshot Capture (independent of recordings)
+  periodicScreenshotEnabled?: boolean
+  periodicScreenshotIntervalMinutes?: number // 15, 30, 60, 120
+}
+
+// Periodic screenshot captured independently of recordings
+export type PeriodicScreenshot = {
+  id: string
+  capturedAt: number
+  imagePath: string
+  windowTitle: string
+  appName: string
+  ocrText: string
 }

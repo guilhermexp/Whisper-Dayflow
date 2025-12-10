@@ -22,6 +22,7 @@ import { globalShortcutManager } from "./global-shortcut"
 import { mediaController } from "./services/media-controller"
 import { configStore } from "./config"
 import { startAutoJournalScheduler } from "./services/auto-journal-service"
+import { startPeriodicScreenshotScheduler } from "./services/periodic-screenshot-service"
 import { warmupParakeetModel } from "./local-transcriber"
 
 // Configure library paths for sherpa-onnx native bindings
@@ -161,6 +162,9 @@ app.whenReady().then(() => {
 
   // Auto-journal scheduler (manual runs still available via IPC)
   startAutoJournalScheduler()
+
+  // Periodic screenshot scheduler (independent of recordings)
+  startPeriodicScreenshotScheduler()
 
   // Verify bundled ffmpeg for auto-journal GIF generation
   import("./services/auto-journal-service").then(({ checkFfmpegAvailability }) => {

@@ -62,6 +62,12 @@ function AutoJournal() {
     queryFn: async () => tipcClient.getAutoJournalSettings(),
   })
 
+  const periodicScreenshotQuery = useQuery({
+    queryKey: ["periodic-screenshot-status"],
+    queryFn: async () => tipcClient.getPeriodicScreenshotStatus(),
+    refetchInterval: 10000, // Refresh every 10 seconds
+  })
+
   const gifDir = settingsQuery.data?.autoJournalGifDir
 
   const schedulerStatusQuery = useQuery({
@@ -138,6 +144,17 @@ function AutoJournal() {
         id: Date.now(),
         type: "error",
         message: `${t("autoJournal.deleteError")} ${error.message}`,
+      })
+    },
+  })
+
+  const savePeriodicScreenshotMutation = useMutation({
+    mutationFn: (settings) => tipcClient.savePeriodicScreenshotSettings(settings),
+    onSuccess() {
+      queryClient.invalidateQueries({ queryKey: ["periodic-screenshot-status"] })
+      addNotification({
+        id: Date.now(),
+        message: t("autoJournal.settingsSaved"),
       })
     },
   })
@@ -1063,6 +1080,153 @@ Bad examples:
                     <Switch.Thumb className={styles.SwitchThumb} />
                   </Switch.Root>
                 </div>
+
+                {/* Periodic Screenshots */}
+                <div
+                  className={styles.SwitchRow}
+                  style={{ marginBottom: "10px" }}
+                >
+                  <div className={styles.SwitchInfo}>
+                    <span className={styles.Label}>
+                      {t("autoJournal.periodicScreenshots")}
+                    </span>
+                    <span className={styles.Desc}>
+                      {t("autoJournal.periodicScreenshotsDesc")}
+                    </span>
+                  </div>
+                  <Switch.Root
+                    className={styles.SwitchRoot}
+                    checked={periodicScreenshotQuery.data?.enabled ?? false}
+                    onCheckedChange={(enabled) =>
+                      savePeriodicScreenshotMutation.mutate({
+                        periodicScreenshotEnabled: enabled,
+                      })
+                    }
+                  >
+                    <Switch.Thumb className={styles.SwitchThumb} />
+                  </Switch.Root>
+                </div>
+
+                {/* Periodic Screenshot Status */}
+                {periodicScreenshotQuery.data?.enabled && (
+                  <>
+                    <div
+                      style={{
+                        padding: "12px 16px",
+                        backgroundColor: periodicScreenshotQuery.data.running
+                          ? "var(--base-blue-transparent, rgba(59, 130, 246, 0.1))"
+                          : "var(--bg-tertiary)",
+                        borderRadius: "8px",
+                        marginBottom: "16px",
+                        border: periodicScreenshotQuery.data.running
+                          ? "1px solid var(--base-blue, #3b82f6)"
+                          : "1px solid var(--border)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "8px",
+                            height: "8px",
+                            borderRadius: "50%",
+                            backgroundColor: periodicScreenshotQuery.data.running
+                              ? "var(--base-blue, #3b82f6)"
+                              : "var(--text-tertiary)",
+                            animation: periodicScreenshotQuery.data.running
+                              ? "pulse 2s infinite"
+                              : "none",
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: "0.85rem",
+                            fontWeight: "600",
+                            color: periodicScreenshotQuery.data.running
+                              ? "var(--base-blue, #3b82f6)"
+                              : "var(--text-secondary)",
+                          }}
+                        >
+                          {periodicScreenshotQuery.data.running
+                            ? t("autoJournal.periodicActive")
+                            : t("autoJournal.periodicInactive")}
+                        </span>
+                      </div>
+                      {periodicScreenshotQuery.data.running &&
+                        periodicScreenshotQuery.data.nextCaptureAt && (
+                          <div
+                            style={{
+                              fontSize: "0.75rem",
+                              color: "var(--text-secondary)",
+                            }}
+                          >
+                            {t("autoJournal.nextCapture")}:{" "}
+                            {dayjs(periodicScreenshotQuery.data.nextCaptureAt).format(
+                              "HH:mm",
+                            )}
+                            {" ("}
+                            {dayjs(periodicScreenshotQuery.data.nextCaptureAt).fromNow()}
+                            {")"}
+                          </div>
+                        )}
+                      {periodicScreenshotQuery.data.lastCaptureAt && (
+                        <div
+                          style={{
+                            fontSize: "0.75rem",
+                            color: "var(--text-tertiary)",
+                            marginTop: "2px",
+                          }}
+                        >
+                          {t("autoJournal.lastCapture")}:{" "}
+                          {dayjs(periodicScreenshotQuery.data.lastCaptureAt).format(
+                            "HH:mm",
+                          )}
+                        </div>
+                      )}
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--text-tertiary)",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {t("autoJournal.totalScreenshots")}:{" "}
+                        {periodicScreenshotQuery.data.totalScreenshots ?? 0}
+                      </div>
+                    </div>
+
+                    {/* Periodic Screenshot Interval */}
+                    <fieldset className={styles.Fieldset}>
+                      <label className={styles.Label}>
+                        {t("autoJournal.periodicInterval")}
+                      </label>
+                      <div className={styles.Desc}>
+                        {t("autoJournal.periodicIntervalDesc")}
+                      </div>
+                      <select
+                        value={periodicScreenshotQuery.data?.intervalMinutes ?? 60}
+                        onChange={(e) =>
+                          savePeriodicScreenshotMutation.mutate({
+                            periodicScreenshotEnabled: true,
+                            periodicScreenshotIntervalMinutes: Number(e.target.value),
+                          })
+                        }
+                        className={styles.Select}
+                      >
+                        <option value={15}>{t("autoJournal.every15min")}</option>
+                        <option value={30}>{t("autoJournal.every30min")}</option>
+                        <option value={60}>{t("autoJournal.every60min")}</option>
+                        <option value={120}>{t("autoJournal.every2hours")}</option>
+                      </select>
+                    </fieldset>
+                  </>
+                )}
 
                 {/* Auto-save to journal */}
                 <div

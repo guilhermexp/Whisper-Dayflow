@@ -10,6 +10,7 @@ import { useTimelineContext } from "renderer/context/TimelineContext"
 import { motion } from "framer-motion"
 import InstallUpdate from "./InstallUpdate"
 import Navigation from "./Navigation"
+import TimerChip from "renderer/components/TimerChip"
 
 export default function PileLayout({ children }) {
   const { pileName } = useParams()
@@ -73,6 +74,7 @@ export default function PileLayout({ children }) {
               </motion.span>
             </div>
             <div className={styles.headerRight}>
+              <TimerChip />
               <Toasts />
               <InstallUpdate />
             </div>
