@@ -1,0 +1,247 @@
+// TimerChip - Glass morphism Pomodoro timer
+
+.container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  font-size: 12px;
+  -webkit-app-region: none;
+}
+
+// Icon buttons (+, X)
+.iconButton {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(55, 55, 55, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--secondary);
+  cursor: pointer;
+  transition: all 120ms ease-in-out;
+
+  &:hover {
+    background: rgba(87, 87, 87, 0.6);
+    color: var(--primary);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// Progress ring wrapper
+.progressRingWrapper {
+  position: relative;
+}
+
+.progressRing {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.ringSvg {
+  width: 28px;
+  height: 28px;
+  transform: rotate(-90deg);
+}
+
+.ringContent {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+// Reset button on ring
+.ringReset {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.8);
+  }
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+// Main pill chip
+.chip {
+  height: 28px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 14px;
+  background: rgba(55, 55, 55, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--secondary);
+  font-size: 12px;
+  transition: all 120ms ease-in-out;
+
+  .clockIcon {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+  }
+}
+
+// Duration button (clickable to edit)
+.durationButton {
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  transition: background 120ms;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// Time display
+.timeDisplay {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+// Divider
+.divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 2px;
+}
+
+// Play/Pause button
+.playButton {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+// Edit inline styles
+.editInline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editInput {
+  width: 48px;
+  height: 24px;
+  font-size: 12px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--primary);
+  border: none;
+  outline: none;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  &:focus {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  // Hide number spinners
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  -moz-appearance: textfield;
+}
+
+.editInputLabel {
+  width: 100px;
+  height: 24px;
+  font-size: 12px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--primary);
+  border: none;
+  outline: none;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  &:focus {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+.editOk {
+  background: transparent;
+  border: none;
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+
+  &:hover {
+    color: var(--primary);
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// Idle state label
+.idleLabel {
+  opacity: 0.7;
+}

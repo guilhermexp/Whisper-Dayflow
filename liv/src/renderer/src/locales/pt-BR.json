@@ -542,7 +542,20 @@
     "lastRun": "Última execução",
     "empty": "Vazio",
     "runDeleted": "Execução excluída com sucesso.",
-    "deleteError": "Falha ao excluir execução."
+    "deleteError": "Falha ao excluir execução.",
+    "periodicScreenshots": "Screenshots Periódicos",
+    "periodicScreenshotsDesc": "Captura a tela em intervalos regulares, independente das gravações de áudio. Alimenta o auto diário com contexto visual.",
+    "periodicActive": "Captura Periódica Ativa",
+    "periodicInactive": "Captura Periódica Inativa",
+    "nextCapture": "Próxima captura",
+    "lastCapture": "Última captura",
+    "totalScreenshots": "Total de screenshots",
+    "periodicInterval": "Intervalo de Captura",
+    "periodicIntervalDesc": "Com que frequência capturar screenshots automaticamente.",
+    "every15min": "A cada 15 minutos",
+    "every30min": "A cada 30 minutos",
+    "every60min": "A cada 60 minutos",
+    "every2hours": "A cada 2 horas"
   },
   "highlights": {
     "title": "Destaques",

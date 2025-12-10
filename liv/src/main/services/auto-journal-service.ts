@@ -8,6 +8,7 @@ import { generateAutoJournalSummaryFromHistory } from "../llm"
 import type { AutoJournalRun, RecordingHistoryItem } from "../../shared/types"
 import { saveAutoJournalEntry } from "./auto-journal-entry"
 import pileIndex from "../pile-utils/pileIndex"
+import { listPeriodicScreenshotsInRange } from "./periodic-screenshot-service"
 
 const RUNS_DIR = path.join(recordingsFolder, "auto-journal", "runs")
 export const GIF_DIR = path.join(recordingsFolder, "auto-journal", "gifs")
@@ -300,6 +301,26 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
       promptOverride: cfg.autoJournalPrompt,
     })
 
+    // Collect screenshots from recordings
+    const recordingScreenshots = windowItems
+      .filter((i) => i.contextScreenshotPath && fs.existsSync(i.contextScreenshotPath))
+      .map((i) => ({
+        path: i.contextScreenshotPath!,
+        timestamp: i.createdAt,
+      }))
+
+    // Collect periodic screenshots (independent of recordings)
+    const periodicScreenshots = listPeriodicScreenshotsInRange(windowStartTs, windowEndTs)
+      .filter((s) => fs.existsSync(s.imagePath))
+      .map((s) => ({
+        path: s.imagePath,
+        timestamp: s.capturedAt,
+      }))
+
+    // Combine and sort all screenshots by timestamp
+    const allScreenshots = [...recordingScreenshots, ...periodicScreenshots]
+      .sort((a, b) => a.timestamp - b.timestamp)
+
     const run: AutoJournalRun = {
       id,
       startedAt,
@@ -307,17 +328,12 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
       status: "success",
       windowMinutes: wm,
       summary,
-      screenshotCount: windowItems.filter(
-        (i) =>
-          i.contextScreenshotPath && fs.existsSync(i.contextScreenshotPath),
-      ).length,
+      screenshotCount: allScreenshots.length,
       autoSaved: false,
     }
 
-    // Build animated GIF from screenshots in window (best-effort, non-blocking)
-    const framePaths = windowItems
-      .map((i) => i.contextScreenshotPath)
-      .filter((p): p is string => Boolean(p && fs.existsSync(p)))
+    // Build animated GIF from all screenshots in window (best-effort, non-blocking)
+    const framePaths = allScreenshots.map((s) => s.path)
     if (framePaths.length > 0) {
       try {
         const gifPath = path.join(GIF_DIR, `${id}.gif`)
@@ -431,7 +447,8 @@ export async function listAutoJournalRuns(
           fs.statSync(data.previewGifPath).size === 0)
       ) {
         const history = historyStore.readAll()
-        const frames = history
+        // Collect recording screenshots
+        const recordingFrames = history
           .filter(
             (h) =>
               typeof h.createdAt === "number" &&
@@ -440,8 +457,26 @@ export async function listAutoJournalRuns(
               h.contextScreenshotPath &&
               fs.existsSync(h.contextScreenshotPath),
           )
-          .sort((a, b) => a.createdAt - b.createdAt)
-          .map((h) => h.contextScreenshotPath as string)
+          .map((h) => ({
+            path: h.contextScreenshotPath as string,
+            timestamp: h.createdAt,
+          }))
+
+        // Collect periodic screenshots
+        const periodicFrames = listPeriodicScreenshotsInRange(
+          data.summary!.windowStartTs,
+          data.summary!.windowEndTs,
+        )
+          .filter((s) => fs.existsSync(s.imagePath))
+          .map((s) => ({
+            path: s.imagePath,
+            timestamp: s.capturedAt,
+          }))
+
+        // Combine and sort all frames
+        const frames = [...recordingFrames, ...periodicFrames]
+          .sort((a, b) => a.timestamp - b.timestamp)
+          .map((f) => f.path)
 
         if (frames.length > 0) {
           const gifPath = path.join(GIF_DIR, `${data.id}.gif`)
