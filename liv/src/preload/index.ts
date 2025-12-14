@@ -5,6 +5,48 @@ import path from "path"
 
 export type Channels = 'ipc-example';
 
+// Restrict filesystem access to the Piles roots (config location + pile paths)
+const ALLOWED_ROOTS = (() => {
+  const roots = new Set<string>()
+  try {
+    const configPath = ipcRenderer.sendSync("get-config-file-path")
+    const configRoot = path.dirname(configPath)
+    roots.add(path.resolve(configRoot))
+
+    if (fs.existsSync(configPath)) {
+      const raw = fs.readFileSync(configPath, "utf-8")
+      const piles = JSON.parse(raw)
+      if (Array.isArray(piles)) {
+        for (const pile of piles) {
+          if (pile?.path) {
+            roots.add(path.resolve(String(pile.path)))
+          }
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return roots
+})()
+
+const isPathAllowed = (candidatePath: string) => {
+  if (!candidatePath) return false
+  const resolved = path.resolve(candidatePath)
+  for (const root of ALLOWED_ROOTS) {
+    if (resolved === root || resolved.startsWith(root + path.sep)) {
+      return true
+    }
+  }
+  return false
+}
+
+const assertAllowedPath = (candidatePath: string) => {
+  if (!isPathAllowed(candidatePath)) {
+    throw new Error("[preload] Path outside allowed root")
+  }
+}
+
 // Pile-specific APIs for file system, path operations, and settings
 const pileAPI = {
   ipc: {
@@ -32,6 +74,7 @@ const pileAPI = {
     },
   },
   setupPilesFolder: (path: string) => {
+    assertAllowedPath(path);
     fs.existsSync(path);
   },
   getConfigPath: () => {
@@ -39,30 +82,47 @@ const pileAPI = {
   },
   openFolder: (folderPath: string) => {
     try {
+      assertAllowedPath(folderPath);
       if (fs.existsSync(folderPath)) {
         shell.openPath(folderPath);
       }
     } catch (_err) {}
   },
-  existsSync: (path: string) => fs.existsSync(path),
-  readDir: (path: string, callback: any) => fs.readdir(path, callback),
+  existsSync: (path: string) => {
+    assertAllowedPath(path);
+    return fs.existsSync(path)
+  },
+  readDir: (path: string, callback: any) => {
+    assertAllowedPath(path);
+    fs.readdir(path, callback)
+  },
   isDirEmpty: (dirPath: string) => {
     try {
+      assertAllowedPath(dirPath);
       const files = fs.readdirSync(dirPath);
       return files.length === 0;
     } catch (_err) {
       return true;
     }
   },
-  readFile: (path: string, callback: any) =>
-    fs.readFile(path, 'utf-8', callback),
-  deleteFile: (path: string, callback: any) => fs.unlink(path, callback),
-  writeFile: (path: string, data: any, callback: any) =>
-    fs.writeFile(path, data, 'utf-8', callback),
-  mkdir: (path: string) =>
-    fs.promises.mkdir(path, {
+  readFile: (path: string, callback: any) => {
+    assertAllowedPath(path);
+    fs.readFile(path, 'utf-8', callback)
+  },
+  deleteFile: (path: string, callback: any) => {
+    assertAllowedPath(path);
+    fs.unlink(path, callback)
+  },
+  writeFile: (path: string, data: any, callback: any) => {
+    assertAllowedPath(path);
+    fs.writeFile(path, data, 'utf-8', callback)
+  },
+  mkdir: (path: string) => {
+    assertAllowedPath(path);
+    return fs.promises.mkdir(path, {
       recursive: true,
-    }),
+    })
+  },
   joinPath: (...args: any) => path.join(...args),
   isMac: process.platform === 'darwin',
   isWindows: process.platform === 'win32',

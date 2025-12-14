@@ -258,6 +258,7 @@ export class Recorder extends EventEmitter<{
     if (this.pendingStopTimeout !== null) return
 
     if (this.mediaRecorder) {
+      const mediaRecorder = this.mediaRecorder
       const now = Date.now()
       const elapsed = this.recordStartTime ? now - this.recordStartTime : null
 
@@ -265,10 +266,10 @@ export class Recorder extends EventEmitter<{
         const remaining = MIN_RECORDING_MS - elapsed
         this.pendingStopTimeout = window.setTimeout(() => {
           this.pendingStopTimeout = null
-          this.mediaRecorder?.stop()
+          mediaRecorder.stop()
         }, remaining)
       } else {
-        this.mediaRecorder.stop()
+        mediaRecorder.stop()
       }
 
       this.mediaRecorder = null
