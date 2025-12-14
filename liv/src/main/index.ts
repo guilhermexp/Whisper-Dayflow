@@ -23,6 +23,7 @@ import { mediaController } from "./services/media-controller"
 import { configStore } from "./config"
 import { startAutoJournalScheduler } from "./services/auto-journal-service"
 import { startPeriodicScreenshotScheduler } from "./services/periodic-screenshot-service"
+import { ipcMain } from "electron"
 import { warmupParakeetModel } from "./local-transcriber"
 
 // Configure library paths for sherpa-onnx native bindings
@@ -121,6 +122,19 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(createAppMenu())
 
   registerIpcMain(router)
+
+  // Timer window IPC handlers
+  ipcMain.on("hide-timer-window", () => {
+    import("./window").then(({ hideTimerWindow }) => {
+      hideTimerWindow()
+    })
+  })
+
+  ipcMain.on("timer-finished", () => {
+    import("./window").then(({ hideTimerWindow }) => {
+      hideTimerWindow()
+    })
+  })
 
   registerServeProtocol()
 

@@ -80,4 +80,9 @@ export const router: ReturnType<typeof createBrowserRouter> =
       lazy: () => import("./pages/panel"),
       HydrateFallback,
     },
+    {
+      path: "/timer-float",
+      lazy: () => import("./pages/timer-float"),
+      HydrateFallback,
+    },
   ])

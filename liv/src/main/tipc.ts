@@ -1285,6 +1285,22 @@ export const router = {
     const logPath = getLogFilePath()
     shell.showItemInFolder(logPath)
   }),
+
+  // Timer floating window
+  showTimerWindow: t.procedure.action(async () => {
+    const { showTimerWindow } = await import("./window")
+    showTimerWindow()
+  }),
+
+  hideTimerWindow: t.procedure.action(async () => {
+    const { hideTimerWindow } = await import("./window")
+    hideTimerWindow()
+  }),
+
+  isTimerWindowVisible: t.procedure.action(async () => {
+    const { isTimerWindowVisible } = await import("./window")
+    return isTimerWindowVisible()
+  }),
 }
 
 export type Router = typeof router

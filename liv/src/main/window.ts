@@ -19,7 +19,7 @@ import { logger } from "./logger"
 
 const isMacOS = process.platform === "darwin"
 
-type WINDOW_ID = "main" | "panel" | "setup"
+type WINDOW_ID = "main" | "panel" | "setup" | "timer"
 
 export const WINDOWS = new Map<WINDOW_ID, BrowserWindow>()
 
@@ -269,4 +269,93 @@ export const stopRecordingAndHidePanelWindow = async () => {
   console.log("[Window] Calling mediaController.unmuteSystemAudio()")
   await mediaController.unmuteSystemAudio()
   console.log("[Window] mediaController.unmuteSystemAudio() completed")
+}
+
+// Timer floating window
+const timerWindowSize = {
+  width: 280,
+  height: 44,
+}
+
+const getTimerWindowPosition = () => {
+  // Position near the notch (top center of screen)
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width: screenWidth } = primaryDisplay.workAreaSize
+  const { y: workAreaY } = primaryDisplay.workArea
+
+  return {
+    x: Math.floor((screenWidth - timerWindowSize.width) / 2),
+    y: workAreaY + 8, // 8px from top of work area (below menu bar/notch)
+  }
+}
+
+export function createTimerWindow() {
+  const existing = WINDOWS.get("timer")
+  if (existing && !existing.isDestroyed()) {
+    return existing
+  }
+
+  const position = getTimerWindowPosition()
+
+  const win = createBaseWindow({
+    id: "timer",
+    url: "/timer-float",
+    showWhenReady: false,
+    windowOptions: {
+      hiddenInMissionControl: true,
+      skipTaskbar: true,
+      closable: true,
+      maximizable: false,
+      minimizable: false,
+      resizable: false,
+      frame: false,
+      transparent: true,
+      hasShadow: false,
+      paintWhenInitiallyHidden: true,
+      alwaysOnTop: true,
+      width: timerWindowSize.width,
+      height: timerWindowSize.height,
+      maxWidth: timerWindowSize.width,
+      maxHeight: timerWindowSize.height,
+      minWidth: timerWindowSize.width,
+      minHeight: timerWindowSize.height,
+      x: position.x,
+      y: position.y,
+      roundedCorners: false,
+    },
+  })
+
+  // Make visible on all workspaces/spaces on macOS
+  if (isMacOS) {
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  }
+
+  return win
+}
+
+export function showTimerWindow() {
+  let win = WINDOWS.get("timer")
+
+  if (!win || win.isDestroyed()) {
+    win = createTimerWindow()
+  }
+
+  const position = getTimerWindowPosition()
+  win.setPosition(position.x, position.y)
+  win.showInactive()
+
+  logger.info("[Window] Timer window shown")
+}
+
+export function hideTimerWindow() {
+  const win = WINDOWS.get("timer")
+  if (win && !win.isDestroyed() && win.isVisible()) {
+    win.hide()
+    logger.info("[Window] Timer window hidden")
+  }
+}
+
+export function isTimerWindowVisible(): boolean {
+  const win = WINDOWS.get("timer")
+  return win ? !win.isDestroyed() && win.isVisible() : false
 }

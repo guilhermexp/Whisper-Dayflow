@@ -3,6 +3,7 @@ import { Play, Pause, Clock3, Plus, X } from 'lucide-react'
 import { useLocalStorage } from 'renderer/hooks/useLocalStorage'
 import { useToastsContext } from 'renderer/context/ToastsContext'
 import { addSession } from 'renderer/utils/timer-history'
+import { tipcClient } from 'renderer/lib/tipc-client'
 import ProgressRing from './ProgressRing'
 import EditInline from './EditInline'
 import styles from './TimerChip.module.scss'
@@ -117,6 +118,17 @@ export default function TimerChip() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
   }, [state.mode, setState, addNotification])
+
+  // Show/hide floating window based on timer state
+  useEffect(() => {
+    if (state.mode === 'running') {
+      // Show floating window when timer starts
+      tipcClient.showTimerWindow().catch(() => {})
+    } else if (state.mode !== 'paused') {
+      // Hide floating window when timer stops (but not when paused)
+      tipcClient.hideTimerWindow().catch(() => {})
+    }
+  }, [state.mode])
 
   // Calculate progress (0 to 1)
   const progress = useMemo(() => {
