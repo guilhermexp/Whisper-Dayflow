@@ -36,6 +36,77 @@ const highlightTerms = (text, term) => {
   );
 };
 
+// Basic HTML sanitizer to avoid XSS when rendering stored content
+const sanitizeHtml = (html) => {
+  if (!html) return '';
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const allowedTags = new Set([
+    'p',
+    'br',
+    'strong',
+    'em',
+    'u',
+    's',
+    'span',
+    'div',
+    'ul',
+    'ol',
+    'li',
+    'code',
+    'pre',
+    'blockquote',
+    'a',
+    'table',
+    'thead',
+    'tbody',
+    'tr',
+    'td',
+    'th',
+  ]);
+
+  doc.querySelectorAll('script,style,iframe,object,embed').forEach((el) =>
+    el.remove()
+  );
+
+  const sanitizeElement = (el) => {
+    if (!allowedTags.has(el.tagName.toLowerCase())) {
+      el.replaceWith(...Array.from(el.childNodes));
+      return;
+    }
+
+    for (const attr of Array.from(el.attributes)) {
+      const name = attr.name.toLowerCase();
+      const value = attr.value;
+
+      if (name.startsWith('on')) {
+        el.removeAttribute(attr.name);
+        continue;
+      }
+
+      if (name === 'href') {
+        const safeHref =
+          value.startsWith('http://') ||
+          value.startsWith('https://') ||
+          value.startsWith('mailto:') ||
+          value.startsWith('#');
+        if (!safeHref) {
+          el.removeAttribute(attr.name);
+        }
+        continue;
+      }
+
+      if (name !== 'class') {
+        el.removeAttribute(attr.name);
+      }
+    }
+  };
+
+  doc.body.querySelectorAll('*').forEach(sanitizeElement);
+  return doc.body.innerHTML;
+};
+
 const Editor = memo(
   ({
     postPath = null,
@@ -330,6 +401,7 @@ const Editor = memo(
     if (searchTerm && !editable) {
       previewContent = highlightTerms(post.content, searchTerm);
     }
+    const sanitizedPreview = sanitizeHtml(previewContent);
 
     return (
       <div className={`${styles.frame} ${isNew && styles.isNew}`}>
@@ -346,7 +418,7 @@ const Editor = memo(
             <div
               key="uneditable"
               className={`${styles.editor} ${isBig() && styles.editorBig}`}
-              dangerouslySetInnerHTML={{ __html: previewContent }}
+              dangerouslySetInnerHTML={{ __html: sanitizedPreview }}
             />
           </div>
         )}

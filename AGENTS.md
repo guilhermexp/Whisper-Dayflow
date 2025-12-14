@@ -1,14 +1,15 @@
 # AGENTS.md - AI Agent Communication Protocol
 
-**Last Updated:** November 14, 2024
-**Project:** Whisper-Dayflow (Whispo)
+**Last Updated:** December 2024
+**Project:** Liv
+**Version:** 0.1.8
 **Status:** Active Development
 
 ---
 
-## 🤖 Agent-to-Codebase Communication
+## Agent-to-Codebase Communication
 
-This document defines how AI agents should interface with the Whisper-Dayflow project, including conventions, workflows, and best practices for collaborative development.
+This document defines how AI agents should interface with the Liv project, including conventions, workflows, and best practices for collaborative development.
 
 ---
 
@@ -392,11 +393,11 @@ Keep documentation synchronized:
 
 ---
 
-## 🎓 Onboarding Checklist for New Agents
+## Onboarding Checklist for New Agents
 
 Use this to verify you have sufficient context:
 
-- [ ] Understand what Whispo does and why
+- [ ] Understand what Liv does and why
 - [ ] Know the architecture (Main ↔ Renderer ↔ Rust)
 - [ ] Can locate files for different change types
 - [ ] Aware of known issues and workarounds
@@ -416,13 +417,9 @@ Use this to verify you have sufficient context:
 | Resource | Purpose | Location |
 |----------|---------|----------|
 | **CLAUDE.md** | Dev guide & patterns | This repo root |
-| **Quick Start** | Onboarding guide | `ai_docs/quickstart.md` |
-| **Analysis** | Technical deep dive | `ai_docs/whispo-analysis.md` |
-| **Issues** | Bug tracking | `ai_issues/README.md` |
-| **Specs** | Feature requirements | `ai_specs/README.md` |
-| **Research** | Experiments & findings | `ai_research/README.md` |
-| **Changelog** | Version history | `ai_changelog/README.md` |
-| **GitHub** | Source & discussions | github.com/egoist/whispo |
+| **Quick Start** | Onboarding guide | `quickstart.md` |
+| **Docs** | Technical documentation | `liv/docs/README.md` |
+| **Specs** | Feature requirements | `liv/specs/README.md` |
 
 ---
 
@@ -432,22 +429,20 @@ Use this to verify you have sufficient context:
 
 1. **Check CLAUDE.md** - Likely answered there
 2. **Review quickstart.md** - Specific guidance
-3. **Search whispo-analysis.md** - Technical details
-4. **Look at ai_issues/** - Might be known problem
+3. **Check liv/docs/** - Technical documentation
+4. **Check liv/specs/** - Feature specifications
 5. **Inspect the code** - Source of truth
 6. **Document your findings** - Help future agents
 
 ---
 
-## ✅ Final Readiness
+## Final Readiness
 
 Before starting work:
 
 - [ ] Read CLAUDE.md (entire document)
-- [ ] Read ai_docs/quickstart.md
+- [ ] Read quickstart.md
 - [ ] Understand your specific task domain
 - [ ] Know where to find relevant code
 - [ ] Have questions answered
 - [ ] Ready to implement
-
-**Go build something great! 🚀**

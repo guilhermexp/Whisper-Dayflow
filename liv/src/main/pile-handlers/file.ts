@@ -4,12 +4,56 @@ import path from 'path';
 import pileHelper from '../pile-utils/pileHelper';
 import matter from 'gray-matter';
 
+const pilesConfigPath = path.join(app.getPath('home'), 'Piles', 'piles.json');
+
+const loadAllowedRoots = () => {
+  const roots = new Set<string>([path.resolve(path.dirname(pilesConfigPath))]);
+  try {
+    if (fs.existsSync(pilesConfigPath)) {
+      const raw = fs.readFileSync(pilesConfigPath, 'utf-8');
+      const piles = JSON.parse(raw);
+      if (Array.isArray(piles)) {
+        for (const pile of piles) {
+          if (pile?.path) {
+            roots.add(path.resolve(String(pile.path)));
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[pile-handlers] Failed to read piles.json for allowed roots', err);
+  }
+  return roots;
+};
+
+const allowedRoots = loadAllowedRoots();
+
+const assertAllowedPath = (targetPath: string) => {
+  const resolved = path.resolve(targetPath);
+  for (const root of allowedRoots) {
+    if (resolved === root || resolved.startsWith(root + path.sep)) {
+      return;
+    }
+  }
+  throw new Error(`[pile-handlers] Path outside allowed roots: ${targetPath}`);
+};
+
 ipcMain.on('update-file', (_event, { path, content }) => {
-  pileHelper.updateFile(path, content);
+  try {
+    assertAllowedPath(path);
+    pileHelper.updateFile(path, content);
+  } catch (err) {
+    console.warn('[pile-handlers] Blocked update-file for path', path, err);
+  }
 });
 
 ipcMain.on('change-folder', (_event, newPath) => {
-  pileHelper.changeWatchFolder(newPath);
+  try {
+    assertAllowedPath(newPath);
+    pileHelper.changeWatchFolder(newPath);
+  } catch (err) {
+    console.warn('[pile-handlers] Blocked change-folder for path', newPath, err);
+  }
 });
 
 ipcMain.handle('matter-parse', async (_event, file) => {
@@ -27,13 +71,25 @@ ipcMain.handle('matter-stringify', async (_event, { content, data }) => {
 });
 
 ipcMain.handle('get-files', async (_event, dirPath) => {
-  const files = await pileHelper.getFilesInFolder(dirPath);
-  return files;
+  try {
+    assertAllowedPath(dirPath);
+    const files = await pileHelper.getFilesInFolder(dirPath);
+    return files;
+  } catch (err) {
+    console.warn('[pile-handlers] Blocked get-files for path', dirPath, err);
+    return [];
+  }
 });
 
 ipcMain.handle('get-file', async (_event, filePath) => {
-  const content = await pileHelper.getFile(filePath).catch(() => null);
-  return content;
+  try {
+    assertAllowedPath(filePath);
+    const content = await pileHelper.getFile(filePath).catch(() => null);
+    return content;
+  } catch (err) {
+    console.warn('[pile-handlers] Blocked get-file for path', filePath, err);
+    return null;
+  }
 });
 
 ipcMain.on('get-config-file-path', (_event) => {
@@ -55,6 +111,7 @@ ipcMain.handle(
   'save-file',
   async (_event, { fileData, fileExtension, storePath }) => {
     try {
+      assertAllowedPath(storePath);
       const currentDate = new Date();
       const year = String(currentDate.getFullYear()).slice(-2);
       const month = String(currentDate.getMonth() + 1).padStart(2, '0');
@@ -92,6 +149,12 @@ ipcMain.handle(
 ipcMain.handle('open-file', async (_event, data) => {
   let attachments: string[] = [];
   const storePath = data.storePath;
+  try {
+    assertAllowedPath(storePath);
+  } catch (err) {
+    console.warn('[pile-handlers] Blocked open-file for path', storePath, err);
+    return attachments;
+  }
   const selected = await dialog.showOpenDialog({
     properties: ['openFile', 'multiSelections'],
     filters: [

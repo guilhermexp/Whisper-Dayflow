@@ -320,18 +320,36 @@ export function listenToKeyboardEvents() {
     console.error("[Keyboard] Binary stderr:", String(data))
   })
 
-  child.stdout.on("data", (data) => {
-    const event = parseEvent(data)
-    if (!event) return
+  // Buffer stdout to tolerate partial/merged JSON events from liv-rs
+  let stdoutBuffer = ""
+  child.stdout.on("data", (chunk) => {
+    stdoutBuffer += String(chunk)
 
-    // Log only relevant shortcut keys in dev mode
-    if (import.meta.env.DEV) {
-      const relevantKeys = ["ControlLeft", "Function", "Escape", "Slash"]
-      if (relevantKeys.includes(event.data.key)) {
-        console.log(`[Keyboard] ${event.event_type}: ${event.data.key}`)
+    let newlineIndex = stdoutBuffer.indexOf("\n")
+    while (newlineIndex !== -1) {
+      const line = stdoutBuffer.slice(0, newlineIndex).trim()
+      stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1)
+
+      if (line.length === 0) {
+        newlineIndex = stdoutBuffer.indexOf("\n")
+        continue
       }
-    }
 
-    handleEvent(event)
+      const event = parseEvent(line)
+      if (!event) {
+        newlineIndex = stdoutBuffer.indexOf("\n")
+        continue
+      }
+
+      if (import.meta.env.DEV) {
+        const relevantKeys = ["ControlLeft", "Function", "Escape", "Slash"]
+        if (relevantKeys.includes(event.data.key)) {
+          console.log(`[Keyboard] ${event.event_type}: ${event.data.key}`)
+        }
+      }
+
+      handleEvent(event)
+      newlineIndex = stdoutBuffer.indexOf("\n")
+    }
   })
 }

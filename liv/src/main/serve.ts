@@ -1,12 +1,23 @@
 import { protocol, ProtocolRequest, ProtocolResponse } from "electron"
 import path from "path"
 import fs from "fs"
-import { recordingsFolder } from "./config"
+import { dataFolder, recordingsFolder } from "./config"
 
 const rendererDir = path.join(__dirname, "../renderer")
 
 // See https://cs.chromium.org/chromium/src/net/base/net_error_list.h
 const FILE_NOT_FOUND = -6
+
+const isValidId = (id: string) => /^[A-Za-z0-9_-]+$/.test(id)
+
+const isPathInside = (targetPath: string, basePath: string) => {
+  const resolvedTarget = path.resolve(targetPath)
+  const resolvedBase = path.resolve(basePath)
+  return (
+    resolvedTarget === resolvedBase ||
+    resolvedTarget.startsWith(resolvedBase + path.sep)
+  )
+}
 
 const getPath = async (path_: string) => {
   try {
@@ -73,6 +84,9 @@ export function registerServeProtocol() {
 
     if (host === "recording") {
       const id = pathname.slice(1)
+      if (!isValidId(id)) {
+        return callback({ error: FILE_NOT_FOUND })
+      }
       const wavPath = path.join(recordingsFolder, `${id}.wav`)
       if (fs.existsSync(wavPath)) {
         return callback({ path: wavPath })
@@ -83,6 +97,9 @@ export function registerServeProtocol() {
 
     if (host === "screenshot") {
       const id = pathname.slice(1)
+      if (!isValidId(id)) {
+        return callback({ error: FILE_NOT_FOUND })
+      }
       const screenshotPath = path.join(
         recordingsFolder,
         "screenshots",
@@ -96,7 +113,15 @@ export function registerServeProtocol() {
     if (host === "file") {
       const filepath = searchParams.get("path")
       if (filepath) {
-        return callback({ path: filepath })
+        const resolvedPath = path.resolve(filepath)
+        if (!isPathInside(resolvedPath, dataFolder)) {
+          console.warn(
+            "[serve] Rejecting file protocol request outside data folder:",
+            resolvedPath,
+          )
+          return callback({ error: FILE_NOT_FOUND })
+        }
+        return callback({ path: resolvedPath })
       }
     }
 
