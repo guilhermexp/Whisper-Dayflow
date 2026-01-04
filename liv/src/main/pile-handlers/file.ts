@@ -8,6 +8,14 @@ const pilesConfigPath = path.join(app.getPath('home'), 'Piles', 'piles.json');
 
 const loadAllowedRoots = () => {
   const roots = new Set<string>([path.resolve(path.dirname(pilesConfigPath))]);
+
+  // Allow ~/Documents/Liv for default journal creation
+  const homeDir = app.getPath('home');
+  if (homeDir) {
+    const defaultLivFolder = path.join(homeDir, 'Documents', 'Liv');
+    roots.add(path.resolve(defaultLivFolder));
+  }
+
   try {
     if (fs.existsSync(pilesConfigPath)) {
       const raw = fs.readFileSync(pilesConfigPath, 'utf-8');
@@ -26,10 +34,10 @@ const loadAllowedRoots = () => {
   return roots;
 };
 
-const allowedRoots = loadAllowedRoots();
-
+// Dynamically check allowed paths to support newly created piles
 const assertAllowedPath = (targetPath: string) => {
   const resolved = path.resolve(targetPath);
+  const allowedRoots = loadAllowedRoots();
   for (const root of allowedRoots) {
     if (resolved === root || resolved.startsWith(root + path.sep)) {
       return;
@@ -96,6 +104,11 @@ ipcMain.on('get-config-file-path', (_event) => {
   const userHomeDirectoryPath = app.getPath('home');
   const pilesConfig = path.join(userHomeDirectoryPath, 'Piles', 'piles.json');
   _event.returnValue = pilesConfig;
+});
+
+// Get system locale for i18n initialization (sync)
+ipcMain.on('get-system-locale', (_event) => {
+  _event.returnValue = app.getLocale();
 });
 
 ipcMain.on('open-file-dialog', async (_event) => {

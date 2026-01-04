@@ -11,7 +11,21 @@ export const resources = {
 export type Language = keyof typeof resources
 
 const getDefaultLanguage = (): Language => {
-  // Try to get language from browser
+  // Try to get system locale from Electron (most reliable)
+  try {
+    const systemLocale = window.electron?.getSystemLocale?.()
+    if (systemLocale) {
+      if (systemLocale.startsWith("pt")) {
+        return "pt-BR"
+      }
+      // Could add more languages here in the future
+      return "en-US"
+    }
+  } catch {
+    // Fall through to browser detection
+  }
+
+  // Fallback to browser language
   const browserLang = navigator.language
 
   if (browserLang.startsWith("pt")) {

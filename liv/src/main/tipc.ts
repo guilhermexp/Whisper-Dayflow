@@ -1301,6 +1301,11 @@ export const router = {
     const { isTimerWindowVisible } = await import("./window")
     return isTimerWindowVisible()
   }),
+
+  // Utility to get cross-platform documents folder path
+  getDocumentsPath: t.procedure.action(async () => {
+    return app.getPath("documents")
+  }),
 }
 
 export type Router = typeof router

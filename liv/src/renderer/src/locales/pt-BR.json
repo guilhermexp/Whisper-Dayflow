@@ -566,5 +566,34 @@
   "errors": {
     "title": "Erro",
     "openSettings": "Abrir Configurações"
+  },
+  "onboarding": {
+    "title": "Liv",
+    "subtitle": "Seu assistente de ditado com IA",
+    "description": "Grave seus pensamentos em qualquer aplicativo e organize em um diário pessoal.",
+    "start": "Começar",
+    "accessibility": {
+      "title": "Acesso de Acessibilidade",
+      "description": "Permite capturar atalhos de teclado globalmente.",
+      "action": "Ativar nas Configurações"
+    },
+    "microphone": {
+      "title": "Acesso ao Microfone",
+      "description": "Grava sua voz para transcrição. Tudo fica no seu dispositivo.",
+      "action": "Permitir Acesso"
+    },
+    "granted": "Concedido",
+    "creatingJournal": "Criando seu diário..."
+  },
+  "createPile": {
+    "title": "Criar Diário",
+    "header": "Novo Diário",
+    "pileName": "Nome do Diário",
+    "pileNameDesc": "Escolha um nome para seu diário",
+    "pileNamePlaceholder": "Meu Diário",
+    "location": "Local",
+    "locationDesc": "Onde os arquivos serão salvos",
+    "chooseLocation": "Escolher Pasta",
+    "create": "Criar Diário"
   }
 }

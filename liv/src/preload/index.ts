@@ -5,13 +5,21 @@ import path from "path"
 
 export type Channels = 'ipc-example';
 
-// Restrict filesystem access to the Piles roots (config location + pile paths)
-const ALLOWED_ROOTS = (() => {
+// Dynamically check filesystem access against Piles roots (config location + pile paths)
+// Re-reads config on each check to support newly created piles
+const getAllowedRoots = (): Set<string> => {
   const roots = new Set<string>()
   try {
     const configPath = ipcRenderer.sendSync("get-config-file-path")
     const configRoot = path.dirname(configPath)
     roots.add(path.resolve(configRoot))
+
+    // Allow ~/Documents/Liv for default journal creation
+    const homeDir = process.env.HOME || process.env.USERPROFILE || ""
+    if (homeDir) {
+      const defaultLivFolder = path.join(homeDir, "Documents", "Liv")
+      roots.add(path.resolve(defaultLivFolder))
+    }
 
     if (fs.existsSync(configPath)) {
       const raw = fs.readFileSync(configPath, "utf-8")
@@ -28,12 +36,13 @@ const ALLOWED_ROOTS = (() => {
     // ignore
   }
   return roots
-})()
+}
 
 const isPathAllowed = (candidatePath: string) => {
   if (!candidatePath) return false
   const resolved = path.resolve(candidatePath)
-  for (const root of ALLOWED_ROOTS) {
+  const allowedRoots = getAllowedRoots()
+  for (const root of allowedRoots) {
     if (resolved === root || resolved.startsWith(root + path.sep)) {
       return true
     }
@@ -130,6 +139,8 @@ const pileAPI = {
   settingsGet: (key: string) => ipcRenderer.invoke('electron-store-get', key),
   settingsSet: (key: string, value: string) =>
     ipcRenderer.invoke('electron-store-set', key, value),
+  // Get system locale for i18n (sync call - used at startup)
+  getSystemLocale: () => ipcRenderer.sendSync('get-system-locale') as string,
 };
 
 // Custom APIs for renderer

@@ -27,6 +27,11 @@ export const router: ReturnType<typeof createBrowserRouter> =
           HydrateFallback,
         },
         {
+          path: "onboarding",
+          lazy: () => import("./pages/onboarding"),
+          HydrateFallback,
+        },
+        {
           path: "timeline",
           lazy: () => import("./pages/pile/Timeline"),
           HydrateFallback,
