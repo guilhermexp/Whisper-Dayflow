@@ -566,5 +566,34 @@
   "errors": {
     "title": "Error",
     "openSettings": "Open Settings"
+  },
+  "onboarding": {
+    "title": "Liv",
+    "subtitle": "Your AI-powered dictation assistant",
+    "description": "Record your thoughts in any app and organize them in a personal journal.",
+    "start": "Get Started",
+    "accessibility": {
+      "title": "Accessibility Access",
+      "description": "Allows capturing keyboard shortcuts globally.",
+      "action": "Enable in Settings"
+    },
+    "microphone": {
+      "title": "Microphone Access",
+      "description": "Records your voice for transcription. Everything stays on your device.",
+      "action": "Allow Access"
+    },
+    "granted": "Granted",
+    "creatingJournal": "Creating your journal..."
+  },
+  "createPile": {
+    "title": "Create Journal",
+    "header": "New Journal",
+    "pileName": "Journal Name",
+    "pileNameDesc": "Choose a name for your journal",
+    "pileNamePlaceholder": "My Journal",
+    "location": "Location",
+    "locationDesc": "Where the files will be saved",
+    "chooseLocation": "Choose Folder",
+    "create": "Create Journal"
   }
 }

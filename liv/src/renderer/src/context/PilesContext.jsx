@@ -6,7 +6,8 @@ import {
   useMemo,
   useCallback,
 } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 export const availableThemes = {
   light: { primary: '#ddd', secondary: '#fff' },
@@ -21,9 +22,11 @@ export const PilesContext = createContext();
 
 export const PilesContextProvider = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [currentPile, setCurrentPile] = useState(null);
   const [piles, setPiles] = useState([]);
   const [isPilesLoaded, setIsPilesLoaded] = useState(false);
+  const [isCreatingDefault, setIsCreatingDefault] = useState(false);
 
   // Initialize config file (only once on mount)
   useEffect(() => {
@@ -33,12 +36,23 @@ export const PilesContextProvider = ({ children }) => {
   // Set the current pile based on the url
   useEffect(() => {
     if (!location.pathname) return;
-    if (!location.pathname.startsWith('/pile/')) return;
 
-    const currentPileName = location.pathname.split(/[/\\]/).pop();
+    // If on a pile route, set currentPile from URL
+    if (location.pathname.startsWith('/pile/')) {
+      const rawPileName = location.pathname.split(/[/\\]/).pop();
+      // Decode URL-encoded characters (e.g., %20 -> space, %C3%A1 -> á)
+      const currentPileName = decodeURIComponent(rawPileName);
+      changeCurrentPile(currentPileName);
+      return;
+    }
 
-    changeCurrentPile(currentPileName);
-  }, [location.pathname]);
+    // If on other routes (settings, dashboard, etc.) and no pile selected,
+    // auto-select the first pile so theme and other pile-specific features work
+    if (!currentPile && piles && piles.length > 0) {
+      console.log('[PilesContext] Auto-selecting first pile:', piles[0].name);
+      setCurrentPile(piles[0]);
+    }
+  }, [location.pathname, piles, currentPile]);
 
   const getConfig = async () => {
     const configFilePath = window.electron.getConfigPath();
@@ -110,8 +124,66 @@ export const PilesContextProvider = ({ children }) => {
     return name;
   };
 
+  /**
+   * Create a default journal automatically for new users.
+   * Creates "Meu Diário" in ~/Documents/Liv/
+   * Returns the journal name on success, null on failure.
+   */
+  const createDefaultJournal = useCallback(async () => {
+    // Prevent double creation
+    if (isCreatingDefault) {
+      console.log('[PilesContext] Already creating default journal, skipping...');
+      return null;
+    }
+
+    // Don't create if piles already exist
+    if (piles && piles.length > 0) {
+      console.log('[PilesContext] Piles already exist, skipping default creation');
+      return piles[0].name;
+    }
+
+    setIsCreatingDefault(true);
+
+    try {
+      // Get documents path from main process
+      const documentsPath = await tipcClient.getDocumentsPath();
+      const journalName = 'Meu Diário';
+      const livFolder = window.electron.joinPath(documentsPath, 'Liv');
+      const journalPath = window.electron.joinPath(livFolder, journalName);
+
+      console.log('[PilesContext] Creating default journal at:', journalPath);
+
+      // Create the Liv folder if it doesn't exist
+      if (!window.electron.existsSync(livFolder)) {
+        await window.electron.mkdir(livFolder);
+      }
+
+      // Create the journal folder
+      if (!window.electron.existsSync(journalPath)) {
+        await window.electron.mkdir(journalPath);
+      }
+
+      // Add to piles list
+      const newPiles = [{ name: journalName, path: journalPath }];
+      setPiles(newPiles);
+      await writeConfig(newPiles);
+
+      console.log('[PilesContext] Default journal created successfully:', journalName);
+
+      // Return journal name - caller is responsible for navigation
+      return journalName;
+    } catch (error) {
+      console.error('[PilesContext] Failed to create default journal:', error);
+      return null;
+    } finally {
+      setIsCreatingDefault(false);
+    }
+  }, [piles, isCreatingDefault]);
+
   const changeCurrentPile = (name) => {
     if (!piles || piles.length == 0) return;
+    // Don't change if current pile is already the correct one
+    if (currentPile && currentPile.name === name) return;
     const pile = piles.find((p) => p.name == name);
     setCurrentPile(pile);
   };
@@ -134,6 +206,7 @@ export const PilesContextProvider = ({ children }) => {
       }
       return pile;
     });
+    setPiles(newPiles);
     writeConfig(newPiles);
     setCurrentPile(newPile);
   };
@@ -145,6 +218,10 @@ export const PilesContextProvider = ({ children }) => {
 
   const setTheme = useCallback(
     (theme = 'light') => {
+      if (!currentPile) {
+        console.warn('[PilesContext] setTheme called but currentPile is null');
+        return;
+      }
       const valid = Object.keys(availableThemes);
       if (!valid.includes(theme)) return;
       const _pile = { ...currentPile, theme: theme };
@@ -158,6 +235,7 @@ export const PilesContextProvider = ({ children }) => {
     isPilesLoaded,
     getCurrentPilePath,
     createPile,
+    createDefaultJournal,
     currentPile,
     deletePile,
     currentTheme,
