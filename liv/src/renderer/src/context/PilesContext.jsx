@@ -105,19 +105,26 @@ export const PilesContextProvider = ({ children }) => {
   const createPile = (name = '', selectedPath = null) => {
     if (name == '' && selectedPath == null) return;
 
-    let path = selectedPath;
-
     if (piles.find((p) => p.name == name)) {
       return;
     }
 
-    // If selected directory is not empty, create a new directory
-    if (!window.electron.isDirEmpty(selectedPath)) {
-      path = window.electron.joinPath(selectedPath, name);
-      window.electron.mkdir(path);
+    // Always create organized structure: selectedPath/Liv/name/
+    // This ensures journals are never scattered, they're always in a "Liv" container
+    const livFolder = window.electron.joinPath(selectedPath, 'Liv');
+    const journalPath = window.electron.joinPath(livFolder, name);
+
+    // Create the Liv folder if it doesn't exist
+    if (!window.electron.existsSync(livFolder)) {
+      window.electron.mkdir(livFolder);
     }
 
-    const newPiles = [{ name, path }, ...piles];
+    // Create the journal folder
+    if (!window.electron.existsSync(journalPath)) {
+      window.electron.mkdir(journalPath);
+    }
+
+    const newPiles = [{ name, path: journalPath }, ...piles];
     setPiles(newPiles);
     writeConfig(newPiles);
 
