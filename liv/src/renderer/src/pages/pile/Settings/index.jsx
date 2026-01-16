@@ -45,34 +45,48 @@ function Settings() {
   } = useAIContext()
   const [APIkey, setCurrentKey] = useState("")
   const [originalAPIkey, setOriginalAPIkey] = useState("")
-  const { currentTheme, setTheme } = usePilesContext()
+  const { currentTheme, setTheme, currentPile, isPilesLoaded } = usePilesContext()
 
   const themeStyles = useMemo(
     () => (currentTheme ? `${currentTheme}Theme` : ""),
     [currentTheme],
   )
 
-  const hasChanges = useMemo(() => {
-    return APIkey !== originalAPIkey
-  }, [APIkey, originalAPIkey])
+  const renderThemes = () => {
+    if (!currentPile || !isPilesLoaded) {
+      return (
+        <div style={{ 
+          padding: '20px', 
+          textAlign: 'center', 
+          color: 'var(--secondary)',
+          fontSize: '13px'
+        }}>
+          Carregando configuração do diário...
+        </div>
+      )
+    }
 
-  const [mainTab, setMainTab] = useState("journal")
-  const navigate = useNavigate()
-
-  // Liv configuration hooks
-  const livConfigQuery = useConfigQuery()
-  const saveLivConfigMutation = useSaveConfigMutation()
-  const [expandedSection, setExpandedSection] = useState(null)
-
-  // Prompt editor states
-  const [promptEditorOpen, setPromptEditorOpen] = useState(false)
-  const [editingPrompt, setEditingPrompt] = useState(null)
-  const [viewingPrompt, setViewingPrompt] = useState(null)
-  const [promptForm, setPromptForm] = useState({
-    title: "",
-    description: "",
-    promptText: "",
-  })
+    return Object.keys(availableThemes).map((theme, index) => {
+      const colors = availableThemes[theme]
+      return (
+        <button
+          key={`theme-${theme}`}
+          className={`${styles.theme} ${
+            currentTheme == theme && styles.current
+          }`}
+          onClick={() => {
+            setTheme(theme)
+          }}
+          title={theme.charAt(0).toUpperCase() + theme.slice(1)}
+        >
+          <div
+            className={styles.color1}
+            style={{ background: colors.primary }}
+          ></div>
+        </button>
+      )
+    })
+  }
 
   const handleViewPrompt = (prompt) => {
     setViewingPrompt(prompt)
@@ -218,27 +232,6 @@ function Settings() {
     }
   }
 
-  const renderThemes = () => {
-    return Object.keys(availableThemes).map((theme, index) => {
-      const colors = availableThemes[theme]
-      return (
-        <button
-          key={`theme-${theme}`}
-          className={`${styles.theme} ${
-            currentTheme == theme && styles.current
-          }`}
-          onClick={() => {
-            setTheme(theme)
-          }}
-        >
-          <div
-            className={styles.color1}
-            style={{ background: colors.primary }}
-          ></div>
-        </button>
-      )
-    })
-  }
   const handleClose = () => {
     navigate(-1)
   }
