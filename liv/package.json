@@ -1,6 +1,6 @@
 {
   "name": "liv",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "type": "module",
   "description": "AI powered dictation and journaling",
   "main": "./out/main/index.js",
