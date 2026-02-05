@@ -47,17 +47,56 @@ function Settings() {
   const [originalAPIkey, setOriginalAPIkey] = useState("")
   const { currentTheme, setTheme, currentPile, isPilesLoaded } = usePilesContext()
 
+  // Track original theme to detect changes
+  const [originalTheme, setOriginalTheme] = useState(null)
+  const [pendingTheme, setPendingTheme] = useState(null)
+
+  // Initialize originalTheme when currentTheme loads
+  useEffect(() => {
+    if (currentTheme && originalTheme === null) {
+      setOriginalTheme(currentTheme)
+    }
+  }, [currentTheme, originalTheme])
+
+  const [mainTab, setMainTab] = useState("journal")
+  const navigate = useNavigate()
+
+  // Liv configuration hooks
+  const livConfigQuery = useConfigQuery()
+  const saveLivConfigMutation = useSaveConfigMutation()
+  const [expandedSection, setExpandedSection] = useState(null)
+
+  // Prompt editor states
+  const [promptEditorOpen, setPromptEditorOpen] = useState(false)
+  const [editingPrompt, setEditingPrompt] = useState(null)
+  const [viewingPrompt, setViewingPrompt] = useState(null)
+  const [promptForm, setPromptForm] = useState({
+    title: "",
+    description: "",
+    promptText: "",
+  })
+
+  // The displayed theme (pending or current)
+  const displayedTheme = pendingTheme ?? currentTheme
+
+  // Detect if there are unsaved changes
+  const hasChanges = useMemo(() => {
+    const apiKeyChanged = APIkey !== originalAPIkey
+    const themeChanged = pendingTheme !== null && pendingTheme !== originalTheme
+    return apiKeyChanged || themeChanged
+  }, [APIkey, originalAPIkey, pendingTheme, originalTheme])
+
   const themeStyles = useMemo(
-    () => (currentTheme ? `${currentTheme}Theme` : ""),
-    [currentTheme],
+    () => (displayedTheme ? `${displayedTheme}Theme` : ""),
+    [displayedTheme],
   )
 
   const renderThemes = () => {
     if (!currentPile || !isPilesLoaded) {
       return (
-        <div style={{ 
-          padding: '20px', 
-          textAlign: 'center', 
+        <div style={{
+          padding: '20px',
+          textAlign: 'center',
           color: 'var(--secondary)',
           fontSize: '13px'
         }}>
@@ -68,14 +107,14 @@ function Settings() {
 
     return Object.keys(availableThemes).map((theme, index) => {
       const colors = availableThemes[theme]
+      const isSelected = displayedTheme === theme
       return (
         <button
           key={`theme-${theme}`}
-          className={`${styles.theme} ${
-            currentTheme == theme && styles.current
-          }`}
+          className={`${styles.theme} ${isSelected && styles.current}`}
           onClick={() => {
-            setTheme(theme)
+            // Set pending theme (will be saved when user clicks Save)
+            setPendingTheme(theme)
           }}
           title={theme.charAt(0).toUpperCase() + theme.slice(1)}
         >
@@ -219,6 +258,14 @@ function Settings() {
 
       updateSettings(prompt)
       // regenerateEmbeddings();
+
+      // Save pending theme if changed
+      if (pendingTheme !== null && pendingTheme !== originalTheme) {
+        console.log("[Settings] Saving theme:", pendingTheme)
+        setTheme(pendingTheme)
+        setOriginalTheme(pendingTheme)
+        setPendingTheme(null)
+      }
 
       // Update original value to match saved value
       setOriginalAPIkey(APIkey)

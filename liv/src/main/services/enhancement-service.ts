@@ -3,6 +3,7 @@ import { configStore } from "../config"
 import { PREDEFINED_PROMPTS } from "../../shared/data/predefined-prompts"
 import { wrapPromptWithSystemInstructions } from "../../shared/data/system-instructions"
 import { screenCaptureService } from "./screen-capture-service"
+import { getKey, getOpenrouterKey } from "../pile-utils/store"
 import type {
   ContextCapture,
   CustomPrompt,
@@ -316,14 +317,18 @@ export class EnhancementService {
     }
 
     // OpenAI-compatible providers (OpenAI, Groq, OpenRouter, and Custom)
-    const apiKey =
-      provider === "custom"
-        ? config.customEnhancementApiKey
-        : provider === "openrouter"
-          ? config.openrouterApiKey
-          : provider === "groq"
-            ? config.groqApiKey
-            : config.openaiApiKey
+    // For OpenAI and OpenRouter, use the secure storage keys (same as Chat)
+    // For other providers, use config values
+    let apiKey: string | null = null
+    if (provider === "openai") {
+      apiKey = await getKey()
+    } else if (provider === "openrouter") {
+      apiKey = await getOpenrouterKey()
+    } else if (provider === "custom") {
+      apiKey = config.customEnhancementApiKey || null
+    } else if (provider === "groq") {
+      apiKey = config.groqApiKey || null
+    }
 
     const baseUrl =
       provider === "custom"
