@@ -361,44 +361,46 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
         "No recordings found in the selected time window",
       )
 
-    if (cfg.autoJournalAutoSaveEnabled) {
-      if (!hasRealContent) {
-        console.log(
-          "[auto-journal] No recordings found in window, skipping auto-save",
-        )
-      } else {
-        // Use configured target pile, or fall back to first available pile
-        let pilePath: string | null | undefined = cfg.autoJournalTargetPilePath
-        if (!pilePath || pilePath.trim().length === 0) {
-          pilePath = getFirstPilePath()
-          console.log(
-            `[auto-journal] No target pile configured, using first available: ${pilePath}`,
-          )
-        }
+    // Skip saving empty runs entirely - don't clutter the history with "Vazio" entries
+    if (!hasRealContent) {
+      console.log(
+        "[auto-journal] No recordings found in window, skipping run save entirely",
+      )
+      return null
+    }
 
-        if (pilePath && pilePath.trim().length > 0) {
-          try {
-            const result = await saveAutoJournalEntry({
-              pilePath,
-              summary: summary.summary,
-              activities: summary.activities || [],
-              windowStartTs: summary.windowStartTs,
-              windowEndTs: summary.windowEndTs,
-              highlight: summary.highlight ?? null,
-            })
-            await addEntryToIndex(pilePath, result.relativePath)
-            run.autoSaved = true
-            console.log(
-              `[auto-journal] Auto-saved summary to pile: ${pilePath} (run ${id})`,
-            )
-          } catch (error) {
-            console.error("[auto-journal] Failed to auto-save entry", error)
-          }
-        } else {
-          console.warn(
-            "[auto-journal] Auto-save enabled but no pile available; skipping save",
+    if (cfg.autoJournalAutoSaveEnabled) {
+      // Use configured target pile, or fall back to first available pile
+      let pilePath: string | null | undefined = cfg.autoJournalTargetPilePath
+      if (!pilePath || pilePath.trim().length === 0) {
+        pilePath = getFirstPilePath()
+        console.log(
+          `[auto-journal] No target pile configured, using first available: ${pilePath}`,
+        )
+      }
+
+      if (pilePath && pilePath.trim().length > 0) {
+        try {
+          const result = await saveAutoJournalEntry({
+            pilePath,
+            summary: summary.summary,
+            activities: summary.activities || [],
+            windowStartTs: summary.windowStartTs,
+            windowEndTs: summary.windowEndTs,
+            highlight: summary.highlight ?? null,
+          })
+          await addEntryToIndex(pilePath, result.relativePath)
+          run.autoSaved = true
+          console.log(
+            `[auto-journal] Auto-saved summary to pile: ${pilePath} (run ${id})`,
           )
+        } catch (error) {
+          console.error("[auto-journal] Failed to auto-save entry", error)
         }
+      } else {
+        console.warn(
+          "[auto-journal] Auto-save enabled but no pile available; skipping save",
+        )
       }
     } else {
       console.log("[auto-journal] Auto-save disabled, skipping save")

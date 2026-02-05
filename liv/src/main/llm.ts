@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { configStore } from "./config"
 import { enhancementService } from "./services/enhancement-service"
+import { getKey, getOpenrouterKey } from "./pile-utils/store"
 import type { AutoJournalSummary, RecordingHistoryItem } from "../shared/types"
 
 export async function postProcessTranscript(
@@ -465,14 +466,18 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
   }
 
   const callWithOpenAICompatible = async (): Promise<string> => {
-    const apiKey =
-      provider === "custom"
-        ? config.customEnhancementApiKey
-        : provider === "openrouter"
-          ? config.openrouterApiKey
-          : provider === "groq"
-            ? config.groqApiKey
-            : config.openaiApiKey
+    // For OpenAI and OpenRouter, use the secure storage keys (same as Chat)
+    // For other providers, use config values
+    let apiKey: string | null = null
+    if (provider === "openai") {
+      apiKey = await getKey()
+    } else if (provider === "openrouter") {
+      apiKey = await getOpenrouterKey()
+    } else if (provider === "custom") {
+      apiKey = config.customEnhancementApiKey || null
+    } else if (provider === "groq") {
+      apiKey = config.groqApiKey || null
+    }
 
     const baseUrl =
       provider === "custom"

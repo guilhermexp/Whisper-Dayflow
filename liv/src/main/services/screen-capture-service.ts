@@ -1,4 +1,4 @@
-import { desktopCapturer, app, powerMonitor } from "electron"
+import { desktopCapturer, app, powerMonitor, BrowserWindow } from "electron"
 import { createWorker, type Worker as TesseractWorker } from "tesseract.js"
 import fs from "fs"
 import path from "path"
@@ -366,6 +366,19 @@ class ScreenCaptureService {
   async captureAndExtractText(
     saveImagePath?: string,
   ): Promise<ScreenCaptureResult | null> {
+    // Guard: ReplayKit crashes (NSException in [NSWindow setStyleMask:]) when
+    // there is no visible BrowserWindow.  This happens when the user closes the
+    // main window and the app is running only from the system tray.
+    const hasVisibleWindow = BrowserWindow.getAllWindows().some(
+      (w) => !w.isDestroyed() && w.isVisible(),
+    )
+    if (!hasVisibleWindow) {
+      console.warn(
+        "[ScreenCapture] No visible BrowserWindow — skipping capture to avoid ReplayKit crash",
+      )
+      return null
+    }
+
     // Check if we're paused due to system event
     if (this.state === CaptureState.Paused) {
       console.log(`[ScreenCapture] Paused due to: ${this.pauseReason} - skipping`)

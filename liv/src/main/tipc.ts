@@ -3,6 +3,7 @@ import { getRendererHandlers, tipc } from "@egoist/tipc/main"
 import { showPanelWindow, WINDOWS } from "./window"
 import {
   app,
+  BrowserWindow,
   clipboard,
   Menu,
   shell,
@@ -795,6 +796,15 @@ export const router = {
    */
   captureRecordingScreenshot: t.procedure.action(async () => {
     const capturedAt = Date.now()
+
+    // Guard: ReplayKit crashes when no visible BrowserWindow exists (tray-only mode)
+    const hasVisibleWindow = BrowserWindow.getAllWindows().some(
+      (w) => !w.isDestroyed() && w.isVisible(),
+    )
+    if (!hasVisibleWindow) {
+      console.warn("[auto-journal] No visible window — skipping screenshot to avoid ReplayKit crash")
+      return { path: "", capturedAt }
+    }
 
     try {
       const sources = await desktopCapturer.getSources({
