@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { configStore } from "./config"
 import { enhancementService } from "./services/enhancement-service"
 import { getKey, getOpenrouterKey } from "./pile-utils/store"
+import settings from "electron-settings"
 import type { AutoJournalSummary, RecordingHistoryItem } from "../shared/types"
 
 export async function postProcessTranscript(
@@ -440,9 +441,13 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
 `
   const finalPrompt = userPrompt ? `${userPrompt}\n\n${basePrompt}` : basePrompt
 
-  // Use the same provider configuration as enhancement, since this is
-  // conceptually another "meta" AI feature on top of transcripts.
-  const provider = config.enhancementProvider ?? "openai"
+  // Use the same provider as the Chat page (reads from electron-settings,
+  // where pileAIProvider, model, openrouterModel and baseUrl are stored).
+  // This ensures auto-journal uses the same working configuration as Chat.
+  const pileAIProvider = (await settings.get("pileAIProvider")) as
+    | string
+    | undefined
+  const provider = pileAIProvider || "openai"
   let debugModel = "unknown"
   const debugProvider = provider
 
@@ -479,14 +484,18 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
       apiKey = config.groqApiKey || null
     }
 
+    // Read base URL from electron-settings for openai (same as Chat/AIContext)
+    const settingsBaseUrl = (await settings.get("baseUrl")) as
+      | string
+      | undefined
     const baseUrl =
       provider === "custom"
         ? config.customEnhancementBaseUrl || "https://api.example.com/v1"
         : provider === "openrouter"
-          ? config.openrouterBaseUrl || "https://openrouter.ai/api/v1"
+          ? "https://openrouter.ai/api/v1"
           : provider === "groq"
             ? config.groqBaseUrl || "https://api.groq.com/openai/v1"
-            : config.openaiBaseUrl || "https://api.openai.com/v1"
+            : settingsBaseUrl || "https://api.openai.com/v1"
 
     if (!apiKey) {
       throw new Error(
@@ -494,14 +503,19 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
       )
     }
 
+    // Read model from electron-settings for openai/openrouter (same as Chat/AIContext)
+    const settingsModel = (await settings.get("model")) as string | undefined
+    const settingsOpenrouterModel = (await settings.get("openrouterModel")) as
+      | string
+      | undefined
     const model =
       provider === "custom"
         ? config.customEnhancementModel || "gpt-5.1"
         : provider === "openrouter"
-          ? config.openrouterModel || "openai/gpt-4o-mini"
+          ? settingsOpenrouterModel || "x-ai/grok-4-fast"
           : provider === "groq"
             ? config.groqModel || "llama-3.1-70b-versatile"
-            : config.openaiModel || "gpt-5.1"
+            : settingsModel || "gpt-5.1"
     debugModel = model
 
     const timeout = config.enhancementTimeout ?? 30000
@@ -574,9 +588,35 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
     }
   }
 
+  const callWithOllama = async (): Promise<string> => {
+    const ollamaModel =
+      ((await settings.get("model")) as string | undefined) || "llama3"
+    debugModel = ollamaModel
+
+    ensureNotAborted()
+    const response = await fetch("http://localhost:11434/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: ollamaModel,
+        messages: [{ role: "user", content: finalPrompt }],
+        stream: false,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Ollama request failed: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.message?.content || ""
+  }
+
   let raw: string
   if (provider === "gemini") {
     raw = await callWithGemini()
+  } else if (provider === "ollama") {
+    raw = await callWithOllama()
   } else {
     raw = await callWithOpenAICompatible()
   }
