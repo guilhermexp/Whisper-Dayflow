@@ -12,6 +12,8 @@ import { useElectronStore } from "renderer/hooks/useElectronStore"
 const OLLAMA_URL = "http://localhost:11434/api"
 const OPENAI_URL = "https://api.openai.com/v1"
 const OPENROUTER_URL = "https://openrouter.ai/api/v1"
+const DEFAULT_CHAT_MODEL = "gpt-5.3"
+const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.3"
 const DEFAULT_PROMPT =
   "You are an AI within a journaling app. Your job is to help the user reflect on their thoughts in a thoughtful and kind manner. The user can never directly address you or directly respond to you. Try not to repeat what the user said, instead try to seed new ideas, encourage or debate. Keep your responses concise, but meaningful."
 
@@ -23,12 +25,12 @@ export const AIContextProvider = ({ children }) => {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT)
   const [pileAIProvider, setPileAIProvider] = useElectronStore(
     "pileAIProvider",
-    "openai",
+    "openrouter",
   )
-  const [model, setModel] = useElectronStore("model", "gpt-5.1")
+  const [model, setModel] = useElectronStore("model", DEFAULT_CHAT_MODEL)
   const [openrouterModel, setOpenrouterModel] = useElectronStore(
     "openrouterModel",
-    "x-ai/grok-4-fast",
+    DEFAULT_OPENROUTER_MODEL,
   )
   const [embeddingModel, setEmbeddingModel] = useElectronStore(
     "embeddingModel",
@@ -36,14 +38,35 @@ export const AIContextProvider = ({ children }) => {
   )
   const [baseUrl, setBaseUrl] = useElectronStore("baseUrl", OPENAI_URL)
 
+  useEffect(() => {
+    if (pileAIProvider === "subscription") {
+      setPileAIProvider("openrouter")
+    }
+    if (model === "gpt-5.1") {
+      setModel(DEFAULT_CHAT_MODEL)
+    }
+    if (!openrouterModel || openrouterModel === "x-ai/grok-4-fast") {
+      setOpenrouterModel(DEFAULT_OPENROUTER_MODEL)
+    }
+  }, [
+    pileAIProvider,
+    model,
+    openrouterModel,
+    setPileAIProvider,
+    setModel,
+    setOpenrouterModel,
+  ])
+
   const setupAi = useCallback(async () => {
     const key = await window.electron.ipc.invoke("get-ai-key")
     const openrouterKey = await window.electron.ipc.invoke("get-openrouter-key")
+    const provider =
+      pileAIProvider === "subscription" ? "openrouter" : pileAIProvider
 
-    if (pileAIProvider === "ollama") {
+    if (provider === "ollama") {
       console.log("[AIContext] Setting up Ollama provider")
       setAi({ type: "ollama" })
-    } else if (pileAIProvider === "openrouter") {
+    } else if (provider === "openrouter") {
       if (!openrouterKey) {
         console.warn("[AIContext] No OpenRouter API key configured.")
         setAi(null)
@@ -210,11 +233,13 @@ export const AIContextProvider = ({ children }) => {
   )
 
   const checkApiKeyValidity = useCallback(async () => {
+    const provider =
+      pileAIProvider === "subscription" ? "openrouter" : pileAIProvider
     // Check the correct key based on provider
-    if (pileAIProvider === "ollama") {
+    if (provider === "ollama") {
       // Ollama doesn't need an API key
       return true
-    } else if (pileAIProvider === "openrouter") {
+    } else if (provider === "openrouter") {
       const key = await window.electron.ipc.invoke("get-openrouter-key")
       return key !== null && key !== ""
     } else {
