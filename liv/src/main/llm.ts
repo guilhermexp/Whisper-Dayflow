@@ -5,6 +5,23 @@ import { getKey, getOpenrouterKey } from "./pile-utils/store"
 import settings from "electron-settings"
 import type { AutoJournalSummary, RecordingHistoryItem } from "../shared/types"
 
+const DEFAULT_CHAT_MODEL = "gpt-5.3"
+const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.3"
+
+const normalizePileProvider = (provider?: string) => {
+  const supportedProviders = new Set([
+    "openai",
+    "openrouter",
+    "ollama",
+    "gemini",
+    "groq",
+    "custom",
+  ])
+  if (provider === "subscription") return "openrouter"
+  if (!provider || !supportedProviders.has(provider)) return "openrouter"
+  return provider
+}
+
 export async function postProcessTranscript(
   transcript: string,
   options: { signal?: AbortSignal; returnMetadata?: boolean } = {},
@@ -447,9 +464,9 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
   const pileAIProvider = (await settings.get("pileAIProvider")) as
     | string
     | undefined
-  const provider = pileAIProvider || "openai"
+  const provider = normalizePileProvider(pileAIProvider)
   let debugModel = "unknown"
-  const debugProvider = provider
+  let debugProvider = provider
 
   const callWithGemini = async (): Promise<string> => {
     if (!config.geminiApiKey) {
@@ -471,16 +488,29 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
   }
 
   const callWithOpenAICompatible = async (): Promise<string> => {
+    let effectiveProvider = provider
+
     // For OpenAI and OpenRouter, use the secure storage keys (same as Chat)
     // For other providers, use config values
     let apiKey: string | null = null
-    if (provider === "openai") {
+    if (effectiveProvider === "openai") {
       apiKey = await getKey()
-    } else if (provider === "openrouter") {
+      // Fallback: if OpenAI key is missing, use OpenRouter key to avoid hard failure.
+      if (!apiKey) {
+        const openrouterKey = await getOpenrouterKey()
+        if (openrouterKey) {
+          console.warn(
+            "[auto-journal] OpenAI key missing. Falling back to OpenRouter provider.",
+          )
+          apiKey = openrouterKey
+          effectiveProvider = "openrouter"
+        }
+      }
+    } else if (effectiveProvider === "openrouter") {
       apiKey = await getOpenrouterKey()
-    } else if (provider === "custom") {
+    } else if (effectiveProvider === "custom") {
       apiKey = config.customEnhancementApiKey || null
-    } else if (provider === "groq") {
+    } else if (effectiveProvider === "groq") {
       apiKey = config.groqApiKey || null
     }
 
@@ -489,17 +519,17 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
       | string
       | undefined
     const baseUrl =
-      provider === "custom"
+      effectiveProvider === "custom"
         ? config.customEnhancementBaseUrl || "https://api.example.com/v1"
-        : provider === "openrouter"
+        : effectiveProvider === "openrouter"
           ? "https://openrouter.ai/api/v1"
-          : provider === "groq"
+          : effectiveProvider === "groq"
             ? config.groqBaseUrl || "https://api.groq.com/openai/v1"
             : settingsBaseUrl || "https://api.openai.com/v1"
 
     if (!apiKey) {
       throw new Error(
-        `${provider === "custom" ? "Custom provider" : provider} API key is required for auto-journal`,
+        `${effectiveProvider === "custom" ? "Custom provider" : effectiveProvider} API key is required for auto-journal`,
       )
     }
 
@@ -509,14 +539,15 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
       | string
       | undefined
     const model =
-      provider === "custom"
-        ? config.customEnhancementModel || "gpt-5.1"
-        : provider === "openrouter"
-          ? settingsOpenrouterModel || "x-ai/grok-4-fast"
-          : provider === "groq"
+      effectiveProvider === "custom"
+        ? config.customEnhancementModel || DEFAULT_CHAT_MODEL
+        : effectiveProvider === "openrouter"
+          ? settingsOpenrouterModel || DEFAULT_OPENROUTER_MODEL
+          : effectiveProvider === "groq"
             ? config.groqModel || "llama-3.1-70b-versatile"
-            : settingsModel || "gpt-5.1"
+            : settingsModel || DEFAULT_CHAT_MODEL
     debugModel = model
+    debugProvider = effectiveProvider
 
     const timeout = config.enhancementTimeout ?? 30000
     const controller = new AbortController()

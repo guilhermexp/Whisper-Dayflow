@@ -87,7 +87,8 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
   const { currentTheme, setTheme } = usePilesContext();
 
   const handleTabChange = (newValue) => {
-    setPileAIProvider(newValue);
+    const provider = newValue === 'subscription' ? 'openrouter' : newValue;
+    setPileAIProvider(provider);
   };
 
   const handleInputChange = (setter) => (e) => setter(e.target.value);
@@ -112,7 +113,7 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
   return (
     <Tabs.Root
       className={styles.tabsRoot}
-      defaultValue="openai"
+      defaultValue="openrouter"
       value={pileAIProvider}
       onValueChange={handleTabChange}
     >
@@ -245,8 +246,9 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
                 id="openai-model"
                 className={styles.input}
                 onChange={handleInputChange(setModel)}
-                value={model || 'gpt-5.1'}
+                value={model || 'gpt-5.3'}
               >
+                <option value="gpt-5.3">gpt-5.3</option>
                 <option value="gpt-5.1">gpt-5.1</option>
                 <option value="gpt-5">gpt-5</option>
                 <option value="gpt-5-mini">gpt-5-mini</option>

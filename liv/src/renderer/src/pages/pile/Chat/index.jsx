@@ -33,7 +33,7 @@ function Chat() {
   const currentModelDisplay = useMemo(() => {
     if (pileAIProvider === "openrouter") return openrouterModel || "openrouter"
     if (pileAIProvider === "ollama") return model || "ollama"
-    return model || "gpt-4"
+    return model || "gpt-5.3"
   }, [pileAIProvider, model, openrouterModel])
 
   const { getAIResponse, addMessage, resetMessages, relevantEntries } =

@@ -252,10 +252,10 @@ Responda APENAS com o resumo, sem aspas nem explicações.`
           : provider === "groq" ? (config.groqBaseUrl || "https://api.groq.com/openai/v1")
           : (config.openaiBaseUrl || "https://api.openai.com/v1")
 
-        const model = provider === "custom" ? (config.customEnhancementModel || "gpt-4o-mini")
-          : provider === "openrouter" ? (config.openrouterModel || "openai/gpt-4o-mini")
+        const model = provider === "custom" ? (config.customEnhancementModel || "gpt-5.3")
+          : provider === "openrouter" ? (config.openrouterModel || "openai/gpt-5.3")
           : provider === "groq" ? (config.groqModel || "llama-3.1-70b-versatile")
-          : (config.openaiModel || "gpt-4o-mini")
+          : (config.openaiModel || "gpt-5.3")
 
         if (!apiKey) return
 
