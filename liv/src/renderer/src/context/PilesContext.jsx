@@ -56,12 +56,20 @@ export const PilesContextProvider = ({ children }) => {
 
   const getConfig = async () => {
     const configFilePath = window.electron.getConfigPath();
+    const configDirPath = configFilePath.replace(/[/\\][^/\\]+$/, '');
 
     // Setup new piles.json if doesn't exist,
     // or read in the existing
     if (!window.electron.existsSync(configFilePath)) {
+      try {
+        await window.electron.mkdir(configDirPath);
+      } catch (mkdirErr) {
+        console.error('[PilesContext] Failed to create config directory:', mkdirErr);
+      }
+
       window.electron.writeFile(configFilePath, JSON.stringify([]), (err) => {
         if (err) {
+          console.error('[PilesContext] Failed to initialize piles config:', err);
           setIsPilesLoaded(true);
           return;
         }
@@ -94,11 +102,23 @@ export const PilesContextProvider = ({ children }) => {
   const writeConfig = async (piles) => {
     if (!piles) return;
     const configFilePath = window.electron.getConfigPath();
-    window.electron.writeFile(configFilePath, JSON.stringify(piles), (err) => {
-      if (err) {
-        console.error('Error writing to config');
-        return;
-      }
+    const configDirPath = configFilePath.replace(/[/\\][^/\\]+$/, '');
+
+    try {
+      await window.electron.mkdir(configDirPath);
+    } catch (mkdirErr) {
+      console.error('[PilesContext] Failed to ensure config directory exists:', mkdirErr);
+    }
+
+    return new Promise((resolve) => {
+      window.electron.writeFile(configFilePath, JSON.stringify(piles), (err) => {
+        if (err) {
+          console.error('[PilesContext] Error writing piles config:', err);
+          resolve(false);
+          return;
+        }
+        resolve(true);
+      });
     });
   };
 

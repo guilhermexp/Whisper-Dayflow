@@ -68,8 +68,6 @@ function AutoJournal() {
     refetchInterval: 10000, // Refresh every 10 seconds
   })
 
-  const gifDir = settingsQuery.data?.autoJournalGifDir
-
   const schedulerStatusQuery = useQuery({
     queryKey: ["auto-journal-scheduler-status"],
     queryFn: async () => tipcClient.getAutoJournalSchedulerStatus(),
@@ -819,12 +817,10 @@ Bad examples:
                               >
                                 {(() => {
                                   const raw = selectedRun.previewGifPath || ""
-                                  const basePath =
-                                    raw || (gifDir ? `${gifDir}/${selectedRun.id}.gif` : "")
-                                  const src = basePath
-                                    ? basePath.startsWith("assets://")
-                                      ? basePath
-                                      : `assets://file?path=${encodeURIComponent(basePath)}`
+                                  const src = raw
+                                    ? raw.startsWith("assets://")
+                                      ? raw
+                                      : `assets://file?path=${encodeURIComponent(raw)}`
                                     : ""
 
                                   if (!src) return null

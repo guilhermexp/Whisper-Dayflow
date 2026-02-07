@@ -582,6 +582,11 @@
       "description": "Grava sua voz para transcrição. Tudo fica no seu dispositivo.",
       "action": "Permitir Acesso"
     },
+    "screenRecording": {
+      "title": "Acesso à Gravação de Tela",
+      "description": "Necessário para capturar contexto visual no Auto Jornal.",
+      "action": "Permitir Acesso"
+    },
     "granted": "Concedido",
     "creatingJournal": "Criando seu diário..."
   },

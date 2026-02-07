@@ -43,9 +43,21 @@ export default defineConfig({
       host: "127.0.0.1",
     },
     resolve: {
+      dedupe: ["react", "react-dom"],
       alias: {
         renderer: resolve(__dirname, "src/renderer/src"),
         "@shared": resolve(__dirname, "src/shared"),
+        react: resolve(__dirname, "node_modules/react"),
+        "react-dom": resolve(__dirname, "node_modules/react-dom"),
+        "react/jsx-runtime": resolve(
+          __dirname,
+          "node_modules/react/jsx-runtime.js",
+        ),
+        "react/jsx-dev-runtime": resolve(
+          __dirname,
+          "node_modules/react/jsx-dev-runtime.js",
+        ),
+        "react-dom/client": resolve(__dirname, "node_modules/react-dom/client.js"),
       },
     },
     css: {

@@ -9,6 +9,10 @@ export function Component() {
     queryKey: ["setup-isAccessibilityGranted"],
     queryFn: () => tipcClient.isAccessibilityGranted(),
   })
+  const screenRecordingStatusQuery = useQuery({
+    queryKey: ["setup-screenRecordingStatus"],
+    queryFn: () => tipcClient.getScreenRecordingStatus(),
+  })
 
   return (
     <div className="app-drag-region flex h-dvh items-center justify-center p-10">
@@ -49,6 +53,25 @@ export function Component() {
               }}
               enabled={microphoneStatusQuery.data === "granted"}
             />
+
+            {process.env.IS_MAC && (
+              <PermissionBlock
+                title="Screen Recording Access"
+                description={`We need Screen Recording Access for auto-journal screen context and periodic screenshots.`}
+                actionText={
+                  screenRecordingStatusQuery.data === "denied"
+                    ? "Enable in System Settings"
+                    : "Request Access"
+                }
+                actionHandler={async () => {
+                  const granted = await tipcClient.requestScreenRecordingAccess()
+                  if (!granted) {
+                    tipcClient.openScreenRecordingInSystemPreferences()
+                  }
+                }}
+                enabled={screenRecordingStatusQuery.data === "granted"}
+              />
+            )}
           </div>
         </div>
 

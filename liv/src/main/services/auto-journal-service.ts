@@ -2,6 +2,7 @@ import fs from "fs"
 import path from "path"
 import { app } from "electron"
 import { execFile, exec } from "child_process"
+import { createRequire } from "module"
 import { configStore, recordingsFolder } from "../config"
 import { historyStore } from "../history-store"
 import { generateAutoJournalSummaryFromHistory } from "../llm"
@@ -16,6 +17,7 @@ const TEMP_DIR = path.join(recordingsFolder, "auto-journal", "tmp")
 
 // FFmpeg path - try system ffmpeg first, then bundled
 let FFMPEG_PATH: string | null = null
+const requireForFfmpeg = createRequire(import.meta.url)
 
 // Try to find ffmpeg
 async function findFfmpeg(): Promise<string | null> {
@@ -31,6 +33,19 @@ async function findFfmpeg(): Promise<string | null> {
       console.log("[ffmpeg] Found system ffmpeg at:", p)
       return p
     }
+  }
+
+  // Try bundled ffmpeg from dependency (@ffmpeg-installer/ffmpeg)
+  try {
+    const bundled = requireForFfmpeg("@ffmpeg-installer/ffmpeg") as {
+      path?: string
+    }
+    if (bundled?.path && fs.existsSync(bundled.path)) {
+      console.log("[ffmpeg] Found bundled ffmpeg at:", bundled.path)
+      return bundled.path
+    }
+  } catch (error) {
+    console.warn("[ffmpeg] Bundled ffmpeg not available:", error)
   }
 
   // Try which command
@@ -54,40 +69,94 @@ findFfmpeg().then((p) => {
 
 // Helper to get the first available pile path
 function getFirstPilePath(): string | null {
-  try {
-    const userHomeDirectoryPath = app.getPath("home")
-    const pilesConfigPath = path.join(
-      userHomeDirectoryPath,
-      "Piles",
-      "piles.json",
-    )
+  const parsePilesConfig = (configPath: string): string | null => {
+    try {
+      if (!fs.existsSync(configPath)) {
+        return null
+      }
 
-    if (!fs.existsSync(pilesConfigPath)) {
-      console.log("[auto-journal] piles.json not found at:", pilesConfigPath)
+      const pilesConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"))
+      const piles = Array.isArray(pilesConfig)
+        ? pilesConfig
+        : pilesConfig.piles || []
+
+      for (const pile of piles) {
+        const pilePath = typeof pile?.path === "string" ? pile.path : ""
+        if (pilePath && fs.existsSync(pilePath)) {
+          console.log(
+            "[auto-journal] Found pile from config:",
+            pile?.name || "(unnamed)",
+            "at",
+            pilePath,
+          )
+          return pilePath
+        }
+      }
+      return null
+    } catch (error) {
+      console.error("[auto-journal] Failed to parse piles config:", configPath, error)
       return null
     }
+  }
 
-    const pilesConfig = JSON.parse(fs.readFileSync(pilesConfigPath, "utf-8"))
+  const findFirstPileInDefaultFolder = (livFolder: string): string | null => {
+    try {
+      if (!fs.existsSync(livFolder)) return null
+      const entries = fs.readdirSync(livFolder, { withFileTypes: true })
+      const pileDirs = entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => path.join(livFolder, entry.name))
+        .filter((dirPath) => fs.existsSync(dirPath))
 
-    // piles.json is an array directly, not an object with a "piles" property
-    const piles = Array.isArray(pilesConfig)
-      ? pilesConfig
-      : pilesConfig.piles || []
+      if (pileDirs.length === 0) return null
 
-    if (piles.length > 0 && piles[0].path) {
-      console.log(
-        "[auto-journal] Found pile:",
-        piles[0].name,
-        "at",
-        piles[0].path,
+      // Prefer most recently modified pile folder
+      pileDirs.sort(
+        (a, b) =>
+          fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs,
       )
-      return piles[0].path
+
+      console.log("[auto-journal] Found pile from default Liv folder:", pileDirs[0])
+      return pileDirs[0]
+    } catch (error) {
+      console.error(
+        "[auto-journal] Failed to inspect default Liv folder:",
+        livFolder,
+        error,
+      )
+      return null
+    }
+  }
+
+  try {
+    const homeDirectoryPath = app.getPath("home")
+    const documentsDirectoryPath = app.getPath("documents")
+
+    // Try known config locations first
+    const configCandidates = [
+      path.join(homeDirectoryPath, "Piles", "piles.json"),
+      path.join(documentsDirectoryPath, "Piles", "piles.json"),
+    ]
+
+    for (const candidate of configCandidates) {
+      const pilePath = parsePilesConfig(candidate)
+      if (pilePath) return pilePath
     }
 
-    console.log("[auto-journal] No piles found in piles.json")
+    // Fallback: look for pile folders in ~/Documents/Liv
+    const livFolderCandidates = [
+      path.join(documentsDirectoryPath, "Liv"),
+      path.join(homeDirectoryPath, "Documents", "Liv"),
+    ]
+    for (const livFolder of livFolderCandidates) {
+      const pilePath = findFirstPileInDefaultFolder(livFolder)
+      if (pilePath) return pilePath
+    }
+
+    console.log("[auto-journal] No pile path found from config or default folders")
     return null
   } catch (error) {
-    console.error("[auto-journal] Failed to read piles.json:", error)
+    console.error("[auto-journal] Failed to resolve fallback pile path:", error)
     return null
   }
 }

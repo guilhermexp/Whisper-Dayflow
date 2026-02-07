@@ -181,13 +181,13 @@ const Timeline = memo(() => {
     useTimelineContext();
   const [parentEntries, setParentEntries] = useState([]);
   const [oldestDate, setOldestDate] = useState(new Date());
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [daySummaries, setDaySummaries] = useState({});
 
   // Load preference from config on mount
   useEffect(() => {
     tipcClient.getConfig().then((config) => {
-      if (config?.timelineExpanded !== undefined) {
+      if (config?.timelineExpanded === true) {
         setIsExpanded(config.timelineExpanded);
       }
     });
@@ -281,7 +281,15 @@ const Timeline = memo(() => {
 
     for (const [filePath, metadata] of index) {
       if (metadata.isReply) continue;
-      if (!metadata.timelineSummary) continue;
+
+      const timelineText =
+        typeof metadata.timelineSummary === "string" &&
+        metadata.timelineSummary.trim().length > 0
+          ? metadata.timelineSummary
+          : typeof metadata.title === "string" && metadata.title.trim().length > 0
+            ? metadata.title.trim()
+            : "";
+      if (!timelineText) continue;
 
       summaryCount++;
 
@@ -296,7 +304,7 @@ const Timeline = memo(() => {
         summaries[dateString].push({
           hour: createdAt.getHours(),
           minute: createdAt.getMinutes(),
-          summary: metadata.timelineSummary,
+          summary: timelineText,
           filePath
         });
       } catch (error) {}

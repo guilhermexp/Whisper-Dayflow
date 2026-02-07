@@ -7,6 +7,10 @@ import { common, createLowlight } from "lowlight"
 import { useEffect, memo } from "react"
 
 const lowlight = createLowlight(common)
+const TIME_RANGE_REGEX =
+  /\b\d{1,2}:\d{2}\s?(?:AM|PM)\s*-\s*\d{1,2}:\d{2}\s?(?:AM|PM)\b/gi
+const CHIP_TOKEN_REGEX =
+  /(?:\/[a-zA-Z0-9_-]+(?:\s+[a-zA-Z0-9_-]+)?)|(?:@[a-zA-Z0-9_.-]+)|(?:\b[a-zA-Z0-9_.-]+\.(?:ts|tsx|js|jsx|json|py|md)\b)/g
 
 const TipTapRenderer = memo(({ content, className }) => {
   const editor = useEditor({
@@ -201,7 +205,84 @@ function formatInline(text) {
   // Images
   result = result.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
 
+  // Semantic chips (time ranges, file extensions, commands, tags)
+  result = transformOutsideProtectedTags(result, (segment) =>
+    segment.replace(TIME_RANGE_REGEX, (timeRange) => `<span class="timeChip">${timeRange}</span>`),
+  )
+
+  result = transformOutsideProtectedTags(result, (segment) =>
+    segment.replace(CHIP_TOKEN_REGEX, (token) => createTokenChip(token)),
+  )
+
   return result
+}
+
+function createTokenChip(token) {
+  if (token.startsWith("/")) {
+    return `<code class="tokenChip tokenCommand">${token}</code>`
+  }
+
+  if (token.startsWith("@")) {
+    return `<code class="tokenChip tokenTag">${token}</code>`
+  }
+
+  const lower = token.toLowerCase()
+
+  if (lower.endsWith(".ts") || lower.endsWith(".tsx")) {
+    return `<code class="tokenChip tokenFile tokenExtTs">${token}</code>`
+  }
+
+  if (lower.endsWith(".js") || lower.endsWith(".jsx")) {
+    return `<code class="tokenChip tokenFile tokenExtJs">${token}</code>`
+  }
+
+  if (lower.endsWith(".py")) {
+    return `<code class="tokenChip tokenFile tokenExtPy">${token}</code>`
+  }
+
+  if (lower.endsWith(".json")) {
+    return `<code class="tokenChip tokenFile tokenExtJson">${token}</code>`
+  }
+
+  if (lower.endsWith(".md")) {
+    return `<code class="tokenChip tokenFile tokenExtMd">${token}</code>`
+  }
+
+  return `<code class="tokenChip tokenFile">${token}</code>`
+}
+
+function transformOutsideProtectedTags(input, transformer) {
+  const chunks = input.split(/(<\/?[^>]+>)/g)
+  const protectedTags = new Set(["code", "a", "pre", "img"])
+  const stack = []
+
+  return chunks
+    .map((chunk) => {
+      if (!chunk) return chunk
+
+      if (chunk.startsWith("<")) {
+        const match = chunk.match(/^<\/?\s*([a-zA-Z0-9-]+)/)
+        if (match) {
+          const tagName = match[1].toLowerCase()
+          const isClosingTag = chunk.startsWith("</")
+          const isSelfClosing = chunk.endsWith("/>")
+
+          if (protectedTags.has(tagName) && !isSelfClosing) {
+            if (isClosingTag) {
+              const index = stack.lastIndexOf(tagName)
+              if (index !== -1) stack.splice(index, 1)
+            } else {
+              stack.push(tagName)
+            }
+          }
+        }
+        return chunk
+      }
+
+      if (stack.length > 0) return chunk
+      return transformer(chunk)
+    })
+    .join("")
 }
 
 function escapeHtml(text) {
