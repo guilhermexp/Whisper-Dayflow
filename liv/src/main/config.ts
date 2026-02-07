@@ -76,6 +76,7 @@ const withDefaults = (config?: Config): Config => {
     autoJournalPrompt: config?.autoJournalPrompt ?? "",
     autoJournalIncludeScreenCapture:
       config?.autoJournalIncludeScreenCapture ?? false,
+    timelineExpanded: config?.timelineExpanded ?? true,
 
     // Context capture defaults
     useClipboardContext: config?.useClipboardContext ?? false,

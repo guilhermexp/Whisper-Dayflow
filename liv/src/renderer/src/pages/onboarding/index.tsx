@@ -27,9 +27,17 @@ export function Component() {
     refetchInterval: 1000,
   });
 
+  // Check screen recording permission (macOS)
+  const screenRecordingQuery = useQuery({
+    queryKey: ['onboarding-screen-recording'],
+    queryFn: () => tipcClient.getScreenRecordingStatus(),
+    refetchInterval: 1000,
+  });
+
   const isMac = window.electron?.isMac ?? true;
   const accessibilityGranted = !isMac || accessibilityQuery.data === true;
   const microphoneGranted = microphoneQuery.data === 'granted';
+  const screenRecordingGranted = !isMac || screenRecordingQuery.data === 'granted';
   const allPermissionsGranted = accessibilityGranted && microphoneGranted;
 
   // Handle "Get Started" button click
@@ -39,6 +47,14 @@ export function Component() {
     setIsCreating(true);
 
     try {
+      // Prompt screen recording permission during first onboarding flow as well.
+      if (isMac && !screenRecordingGranted) {
+        const granted = await tipcClient.requestScreenRecordingAccess();
+        if (!granted) {
+          tipcClient.openScreenRecordingInSystemPreferences();
+        }
+      }
+
       // Create default journal
       const journalName = await createDefaultJournal();
 
@@ -53,7 +69,7 @@ export function Component() {
       console.error('[Onboarding] Failed to create default journal:', error);
       setIsCreating(false);
     }
-  }, [allPermissionsGranted, isCreating, createDefaultJournal, navigate]);
+  }, [allPermissionsGranted, isCreating, isMac, screenRecordingGranted, createDefaultJournal, navigate]);
 
   // Auto-redirect if user already has journals
   useEffect(() => {
@@ -72,6 +88,14 @@ export function Component() {
     const granted = await tipcClient.requestMicrophoneAccess();
     if (!granted) {
       tipcClient.openMicrophoneInSystemPreferences();
+    }
+  };
+
+  // Request screen recording access
+  const handleScreenRecordingClick = async () => {
+    const granted = await tipcClient.requestScreenRecordingAccess();
+    if (!granted) {
+      tipcClient.openScreenRecordingInSystemPreferences();
     }
   };
 
@@ -165,6 +189,41 @@ export function Component() {
                 <span className={styles.grantedLabel}>{t('onboarding.granted')}</span>
               )}
             </motion.div>
+
+            {/* Screen Recording Card (macOS only) */}
+            {isMac && (
+              <motion.div
+                className={`${styles.permissionCard} ${screenRecordingGranted ? styles.granted : ''}`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.35 }}
+              >
+                <div className={styles.permissionInfo}>
+                  <div className={styles.permissionIcon}>
+                    {screenRecordingGranted ? (
+                      <span className={styles.checkIcon}>✓</span>
+                    ) : (
+                      <span className={styles.pendingIcon}>○</span>
+                    )}
+                  </div>
+                  <div className={styles.permissionText}>
+                    <h3>{t('onboarding.screenRecording.title')}</h3>
+                    <p>{t('onboarding.screenRecording.description')}</p>
+                  </div>
+                </div>
+                {!screenRecordingGranted && (
+                  <button
+                    className={styles.permissionButton}
+                    onClick={handleScreenRecordingClick}
+                  >
+                    {t('onboarding.screenRecording.action')}
+                  </button>
+                )}
+                {screenRecordingGranted && (
+                  <span className={styles.grantedLabel}>{t('onboarding.granted')}</span>
+                )}
+              </motion.div>
+            )}
           </div>
 
           {/* Start Button */}

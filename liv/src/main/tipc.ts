@@ -251,6 +251,13 @@ export const router = {
     )
   }),
 
+  openScreenRecordingInSystemPreferences: t.procedure.action(async () => {
+    if (process.platform !== "darwin") return
+    await shell.openExternal(
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+    )
+  }),
+
   openAccessibilitySettings: t.procedure.action(async () => {
     await openAccessibilitySettings()
   }),
@@ -307,6 +314,15 @@ export const router = {
     return systemPreferences.getMediaAccessStatus("microphone")
   }),
 
+  getScreenRecordingStatus: t.procedure.action(async () => {
+    if (process.platform !== "darwin") return "granted"
+    try {
+      return systemPreferences.getMediaAccessStatus("screen")
+    } catch {
+      return "unknown"
+    }
+  }),
+
   isAccessibilityGranted: t.procedure.action(async () => {
     return isAccessibilityGranted()
   }),
@@ -319,6 +335,24 @@ export const router = {
 
   requestMicrophoneAccess: t.procedure.action(async () => {
     return systemPreferences.askForMediaAccess("microphone")
+  }),
+
+  requestScreenRecordingAccess: t.procedure.action(async () => {
+    if (process.platform !== "darwin") return true
+
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        thumbnailSize: { width: 320, height: 180 },
+      })
+
+      if (!sources.length) return false
+
+      // On macOS without permission, thumbnails are usually empty.
+      return sources.some((source) => !source.thumbnail.isEmpty())
+    } catch {
+      return false
+    }
   }),
 
   showPanelWindow: t.procedure.action(async () => {

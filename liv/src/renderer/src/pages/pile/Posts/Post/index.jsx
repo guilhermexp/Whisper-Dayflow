@@ -25,6 +25,91 @@ import { useHighlightsContext } from 'renderer/context/HighlightsContext';
 import { useAIContext } from 'renderer/context/AIContext';
 import { useTranslation } from 'react-i18next';
 
+const COMMAND_OR_TAG_REGEX =
+  /(`[^`]+`)|(\/[a-z0-9_-]+(?:\s+[a-z0-9_-]+)?)|(@[a-z0-9_.-]+)|(\b[a-z0-9_.-]+\.(?:ts|tsx|js|jsx|json|py|md)\b)/gi;
+
+const splitParagraphs = (raw = '') =>
+  String(raw)
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+const hasTimeRange = (line = '') =>
+  /\b\d{1,2}:\d{2}\s?(?:AM|PM)\s*-\s*\d{1,2}:\d{2}\s?(?:AM|PM)\b/i.test(line);
+
+const parseAutoJournalContent = (content = '') => {
+  const paragraphs = splitParagraphs(content);
+  if (paragraphs.length === 0) return null;
+
+  const overall = paragraphs[0];
+  const activities = [];
+  let index = 1;
+
+  while (index < paragraphs.length) {
+    const title = paragraphs[index] || '';
+    const maybeTime = paragraphs[index + 1] || '';
+    const maybeSummary = paragraphs[index + 2] || '';
+
+    if (title && hasTimeRange(maybeTime) && maybeSummary) {
+      activities.push({
+        title,
+        timeRange: maybeTime,
+        summary: maybeSummary,
+      });
+      index += 3;
+      continue;
+    }
+
+    // Fallback for malformed/partial blocks
+    activities.push({
+      title: title || 'Activity',
+      timeRange: hasTimeRange(maybeTime) ? maybeTime : '',
+      summary: hasTimeRange(maybeTime)
+        ? maybeSummary || ''
+        : [maybeTime, maybeSummary].filter(Boolean).join(' '),
+    });
+    index += 3;
+  }
+
+  return { overall, activities };
+};
+
+const renderRichText = (text = '') => {
+  const content = String(text || '');
+  if (!content) return null;
+
+  const nodes = [];
+  let last = 0;
+  let match;
+
+  while ((match = COMMAND_OR_TAG_REGEX.exec(content)) !== null) {
+    const start = match.index;
+    const end = COMMAND_OR_TAG_REGEX.lastIndex;
+
+    if (start > last) {
+      nodes.push(
+        <span key={`text-${start}`}>{content.slice(last, start)}</span>
+      );
+    }
+
+    const token = match[0].replaceAll('`', '');
+    nodes.push(
+      <span key={`chip-${start}`} className={styles.inlineChip}>
+        {token}
+      </span>
+    );
+
+    last = end;
+  }
+
+  if (last < content.length) {
+    nodes.push(<span key={`tail-${last}`}>{content.slice(last)}</span>);
+  }
+
+  return nodes.length > 0 ? nodes : content;
+};
+
 const Post = memo(({ postPath, searchTerm = null, repliesCount = 0 }) => {
   const { t, i18n } = useTranslation();
   const { currentPile, getCurrentPilePath } = usePilesContext();
@@ -73,6 +158,17 @@ const Post = memo(({ postPath, searchTerm = null, repliesCount = 0 }) => {
   const hasReplies = replies.length > 0;
   const isAI = post?.data?.isAI || false;
   const isReply = post?.data?.isReply || false;
+  const isAutoJournalPost =
+    Array.isArray(post?.data?.tags) &&
+    post.data.tags.includes('auto-journal') &&
+    isAI;
+  const structuredAutoJournal = useMemo(
+    () =>
+      isAutoJournalPost && !editable
+        ? parseAutoJournalContent(post?.content || '')
+        : null,
+    [isAutoJournalPost, editable, post?.content]
+  );
   const highlightColor = post?.data?.highlight
     ? highlights.get(post.data.highlight).color
     : 'var(--border)';
@@ -142,12 +238,47 @@ const Post = memo(({ postPath, searchTerm = null, repliesCount = 0 }) => {
             </div>
           </div>
           <div className={styles.editor}>
-            <Editor
-              postPath={postPath}
-              editable={editable}
-              setEditable={setEditable}
-              searchTerm={searchTerm}
-            />
+            {structuredAutoJournal ? (
+              <div className={styles.autoJournalView}>
+                {structuredAutoJournal.overall && (
+                  <p className={styles.autoOverall}>
+                    {renderRichText(structuredAutoJournal.overall)}
+                  </p>
+                )}
+
+                {structuredAutoJournal.activities.length > 0 && (
+                  <div className={styles.autoCards}>
+                    {structuredAutoJournal.activities.map((activity, idx) => (
+                      <article key={`${activity.title}-${idx}`} className={styles.autoCard}>
+                        <div className={styles.autoCardHeader}>
+                          <div className={styles.autoTitleWrap}>
+                            <span className={styles.autoDot} />
+                            <h4 className={styles.autoCardTitle}>{activity.title}</h4>
+                          </div>
+                          {activity.timeRange && (
+                            <span className={styles.timeChip}>
+                              {activity.timeRange}
+                            </span>
+                          )}
+                        </div>
+                        {activity.summary && (
+                          <p className={styles.autoCardSummary}>
+                            {renderRichText(activity.summary)}
+                          </p>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Editor
+                postPath={postPath}
+                editable={editable}
+                setEditable={setEditable}
+                searchTerm={searchTerm}
+              />
+            )}
           </div>
         </div>
       </div>

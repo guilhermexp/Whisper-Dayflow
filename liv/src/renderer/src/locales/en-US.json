@@ -582,6 +582,11 @@
       "description": "Records your voice for transcription. Everything stays on your device.",
       "action": "Allow Access"
     },
+    "screenRecording": {
+      "title": "Screen Recording Access",
+      "description": "Required to capture visual context for Auto Journal.",
+      "action": "Allow Access"
+    },
     "granted": "Granted",
     "creatingJournal": "Creating your journal..."
   },

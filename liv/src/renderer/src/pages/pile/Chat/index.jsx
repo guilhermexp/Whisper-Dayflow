@@ -39,7 +39,6 @@ function Chat() {
   const { getAIResponse, addMessage, resetMessages, relevantEntries } =
     useChat()
   const navigate = useNavigate()
-  const [ready, setReady] = useState(false)
   const [text, setText] = useState("")
   const [querying, setQuerying] = useState(false)
   const [history, setHistory] = useState([])
@@ -89,7 +88,8 @@ function Chat() {
         if (!history || history.length === 0) return []
         const last = history[history.length - 1]
         if (last?.role === "system") {
-          const currentContent = last.content === PENDING_MESSAGE_MARKER ? "" : last.content
+          const currentContent =
+            last.content === PENDING_MESSAGE_MARKER ? "" : last.content
           return [
             ...history.slice(0, -1),
             { role: "system", content: currentContent + bufferedContent },
@@ -144,7 +144,9 @@ function Chat() {
         error?.message ||
           "Nao foi possivel gerar resposta agora. Tente novamente.",
       )
-      setHistory((history) => history.filter((m) => m.content !== PENDING_MESSAGE_MARKER))
+      setHistory((history) =>
+        history.filter((m) => m.content !== PENDING_MESSAGE_MARKER),
+      )
     } finally {
       setQuerying(false)
     }
@@ -239,7 +241,7 @@ function Chat() {
           <div className={styles.header}>
             <div className={styles.wrapper}>
               <h1 className={styles.DialogTitle}>
-                <Status setReady={setReady} />
+                <Status />
               </h1>
               <div className={styles.buttons}>
                 {/* Theme Selector */}
