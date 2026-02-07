@@ -47,16 +47,7 @@ function Settings() {
   const [originalAPIkey, setOriginalAPIkey] = useState("")
   const { currentTheme, setTheme, currentPile, isPilesLoaded } = usePilesContext()
 
-  // Track original theme to detect changes
-  const [originalTheme, setOriginalTheme] = useState(null)
   const [pendingTheme, setPendingTheme] = useState(null)
-
-  // Initialize originalTheme when currentTheme loads
-  useEffect(() => {
-    if (currentTheme && originalTheme === null) {
-      setOriginalTheme(currentTheme)
-    }
-  }, [currentTheme, originalTheme])
 
   const [mainTab, setMainTab] = useState("journal")
   const navigate = useNavigate()
@@ -82,13 +73,13 @@ function Settings() {
   // Detect if there are unsaved changes
   const hasChanges = useMemo(() => {
     const apiKeyChanged = APIkey !== originalAPIkey
-    const themeChanged = pendingTheme !== null && pendingTheme !== originalTheme
+    const themeChanged = pendingTheme !== null && pendingTheme !== currentTheme
     return apiKeyChanged || themeChanged
-  }, [APIkey, originalAPIkey, pendingTheme, originalTheme])
+  }, [APIkey, originalAPIkey, pendingTheme, currentTheme])
 
   const themeStyles = useMemo(
-    () => (displayedTheme ? `${displayedTheme}Theme` : ""),
-    [displayedTheme],
+    () => (currentTheme ? `${currentTheme}Theme` : ""),
+    [currentTheme],
   )
 
   const renderThemes = () => {
@@ -248,6 +239,13 @@ function Settings() {
 
   const [saveStatus, setSaveStatus] = useState(null)
 
+  useEffect(() => {
+    // If the persisted theme changed (e.g. after save), clear pending state.
+    if (pendingTheme !== null && pendingTheme === currentTheme) {
+      setPendingTheme(null)
+    }
+  }, [pendingTheme, currentTheme])
+
   const handleSaveChanges = async () => {
     try {
       if (!APIkey || APIkey == "") {
@@ -260,10 +258,9 @@ function Settings() {
       // regenerateEmbeddings();
 
       // Save pending theme if changed
-      if (pendingTheme !== null && pendingTheme !== originalTheme) {
+      if (pendingTheme !== null && pendingTheme !== currentTheme) {
         console.log("[Settings] Saving theme:", pendingTheme)
         setTheme(pendingTheme)
-        setOriginalTheme(pendingTheme)
         setPendingTheme(null)
       }
 

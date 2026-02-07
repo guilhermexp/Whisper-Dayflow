@@ -33,7 +33,7 @@ function Chat() {
   const currentModelDisplay = useMemo(() => {
     if (pileAIProvider === "openrouter") return openrouterModel || "openrouter"
     if (pileAIProvider === "ollama") return model || "ollama"
-    return model || "gpt-5.3"
+    return model || "gpt-5.2"
   }, [pileAIProvider, model, openrouterModel])
 
   const { getAIResponse, addMessage, resetMessages, relevantEntries } =
@@ -44,6 +44,7 @@ function Chat() {
   const [querying, setQuerying] = useState(false)
   const [history, setHistory] = useState([])
   const [aiApiKeyValid, setAiApiKeyValid] = useState(false)
+  const [requestError, setRequestError] = useState("")
   const [showContext, setShowContext] = useState(false)
   const [showThemeSelector, setShowThemeSelector] = useState(false)
 
@@ -61,6 +62,9 @@ function Chat() {
   }, [validKey])
 
   const onChangeText = (e) => {
+    if (requestError) {
+      setRequestError("")
+    }
     setText(e.target.value)
   }
 
@@ -119,19 +123,31 @@ function Chat() {
   }, [])
 
   const onSubmit = async () => {
-    if (text === "") return
+    const message = text.trim()
+    if (message === "" || querying || !aiApiKeyValid) return
+
     setQuerying(true)
-    const message = `${text}`
+    setRequestError("")
     setText("")
     setHistory((history) => [...history, { role: "user", content: message }])
-    const messages = await addMessage(message)
-    setHistory((history) => [
-      ...history,
-      { role: "system", content: PENDING_MESSAGE_MARKER },
-    ])
-    await getAIResponse(messages, appendToLastSystemMessage)
-    flushTokenBuffer()
-    setQuerying(false)
+    try {
+      const messages = await addMessage(message)
+      setHistory((history) => [
+        ...history,
+        { role: "system", content: PENDING_MESSAGE_MARKER },
+      ])
+      await getAIResponse(messages, appendToLastSystemMessage)
+      flushTokenBuffer()
+    } catch (error) {
+      console.error("[Chat] Request failed:", error)
+      setRequestError(
+        error?.message ||
+          "Nao foi possivel gerar resposta agora. Tente novamente.",
+      )
+      setHistory((history) => history.filter((m) => m.content !== PENDING_MESSAGE_MARKER))
+    } finally {
+      setQuerying(false)
+    }
   }
 
   const handleSuggestionClick = (suggestion) => {
@@ -143,7 +159,13 @@ function Chat() {
   }
 
   const handleKeyPress = (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !querying &&
+      aiApiKeyValid &&
+      text.trim() !== ""
+    ) {
       onSubmit()
       event.preventDefault()
       return false
@@ -175,6 +197,8 @@ function Chat() {
     setTheme(theme)
     setShowThemeSelector(false)
   }
+
+  const canSubmit = text.trim() !== "" && !querying && aiApiKeyValid
 
   const osStyles = useMemo(
     () => (window.electron.isMac ? styles.mac : styles.win),
@@ -220,13 +244,15 @@ function Chat() {
               <div className={styles.buttons}>
                 {/* Theme Selector */}
                 <div className={styles.buttonGroup}>
-                  <div
+                  <button
+                    type="button"
                     className={styles.button}
                     onClick={() => setShowThemeSelector(!showThemeSelector)}
                     title={t("chat.changeTheme")}
+                    aria-label={t("chat.changeTheme")}
                   >
                     <ColorsIcon className={styles.icon} />
-                  </div>
+                  </button>
                   <AnimatePresence>
                     {showThemeSelector && (
                       <motion.div
@@ -250,22 +276,28 @@ function Chat() {
                 </div>
 
                 {/* Export */}
-                <div
+                <button
+                  type="button"
                   className={`${styles.button} ${history.length === 0 ? styles.disabled : ""}`}
                   onClick={exportChat}
                   title={t("chat.exportChat")}
+                  aria-label={t("chat.exportChat")}
+                  disabled={history.length === 0}
                 >
                   <DownloadIcon className={styles.icon} />
-                </div>
+                </button>
 
                 {/* Clear */}
-                <div
+                <button
+                  type="button"
                   className={`${styles.button} ${history.length === 0 ? styles.disabled : ""}`}
                   onClick={onResetConversation}
                   title={t("chat.clearChat")}
+                  aria-label={t("chat.clearChat")}
+                  disabled={history.length === 0}
                 >
                   <RefreshIcon className={styles.icon} />
-                </div>
+                </button>
 
                 {/* Close */}
                 <button
@@ -280,64 +312,69 @@ function Chat() {
           </div>
 
           <div className={styles.mainContent}>
-            {/* Context toggle */}
-            {relevantEntries.length > 0 && !showIntro && (
-              <motion.div
-                className={styles.contextToggle}
-                onClick={() => setShowContext(!showContext)}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                {showContext ? (
-                  <ChevronLeftIcon className={styles.chevron} />
-                ) : (
-                  <ChevronRightIcon className={styles.chevron} />
-                )}
-                <span className={styles.contextCount}>
-                  {relevantEntries.length} {t("chat.relevantEntries")}
-                </span>
-              </motion.div>
-            )}
-
-            {/* Context Panel */}
-            <AnimatePresence>
-              {showContext && relevantEntries.length > 0 && (
-                <motion.div
-                  className={styles.contextPanel}
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: 250, opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+            <div className={styles.contentColumn}>
+              {/* Context toggle */}
+              {relevantEntries.length > 0 && !showIntro && (
+                <motion.button
+                  type="button"
+                  className={styles.contextToggle}
+                  onClick={() => setShowContext(!showContext)}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
                 >
-                  <div className={styles.contextHeader}>
-                    {t("chat.contextUsed")}
-                  </div>
-                  <div className={styles.contextList}>
-                    {relevantEntries.map((entry, index) => (
-                      <div key={entry.path} className={styles.contextItem}>
-                        <div className={styles.contextIndex}>
-                          {index + 1}
-                        </div>
-                        <div className={styles.contextPath}>
-                          {entry.path.split("/").pop().replace(".md", "")}
-                        </div>
-                        <div className={styles.contextScore}>
-                          {Math.round(entry.score * 100)}%
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
+                  {showContext ? (
+                    <ChevronLeftIcon className={styles.chevron} />
+                  ) : (
+                    <ChevronRightIcon className={styles.chevron} />
+                  )}
+                  <span className={styles.contextCount}>
+                    {relevantEntries.length} {t("chat.relevantEntries")}
+                  </span>
+                </motion.button>
               )}
-            </AnimatePresence>
 
-            {/* Chat Messages or Intro */}
-            <div className={styles.answer}>
-              {showIntro ? (
-                <Intro onSuggestionClick={handleSuggestionClick} />
-              ) : (
-                <VirtualList data={history} isStreaming={querying} />
-              )}
+              <div className={styles.chatStage}>
+                {/* Context Panel */}
+                <AnimatePresence initial={false}>
+                  {showContext && relevantEntries.length > 0 && (
+                    <motion.aside
+                      className={styles.contextPanel}
+                      initial={{ width: 0, opacity: 0, x: -12 }}
+                      animate={{ width: 250, opacity: 1, x: 0 }}
+                      exit={{ width: 0, opacity: 0, x: -12 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className={styles.contextHeader}>
+                        {t("chat.contextUsed")}
+                      </div>
+                      <div className={styles.contextList}>
+                        {relevantEntries.map((entry, index) => (
+                          <div key={entry.path} className={styles.contextItem}>
+                            <div className={styles.contextIndex}>
+                              {index + 1}
+                            </div>
+                            <div className={styles.contextPath}>
+                              {entry.path.split("/").pop().replace(".md", "")}
+                            </div>
+                            <div className={styles.contextScore}>
+                              {Math.round(entry.score * 100)}%
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.aside>
+                  )}
+                </AnimatePresence>
+
+                {/* Chat Messages or Intro */}
+                <div className={styles.answer}>
+                  {showIntro ? (
+                    <Intro onSuggestionClick={handleSuggestionClick} />
+                  ) : (
+                    <VirtualList data={history} isStreaming={querying} />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -357,14 +394,19 @@ function Chat() {
                   onChange={onChangeText}
                   className={styles.textarea}
                   onKeyDown={handleKeyPress}
-                  placeholder={t("chat.placeholder")}
+                  placeholder={
+                    aiApiKeyValid
+                      ? t("chat.placeholder")
+                      : "Configure a chave da OpenAI em Settings para usar o chat."
+                  }
                   autoFocus
                 />
 
                 <button
+                  type="button"
                   className={`${styles.ask} ${querying ? styles.processing : ""}`}
                   onClick={onSubmit}
-                  disabled={querying}
+                  disabled={!canSubmit}
                 >
                   {querying ? (
                     <Thinking className={styles.spinner} />
@@ -373,6 +415,16 @@ function Chat() {
                   )}
                 </button>
               </div>
+              {!aiApiKeyValid && (
+                <div className={`${styles.statusLine} ${styles.warningText}`}>
+                  Chave de API nao configurada.
+                </div>
+              )}
+              {requestError && (
+                <div className={`${styles.statusLine} ${styles.errorText}`}>
+                  {requestError}
+                </div>
+              )}
               <div className={styles.disclaimer}>
                 {t("chat.disclaimer")} · {currentModelDisplay}
               </div>

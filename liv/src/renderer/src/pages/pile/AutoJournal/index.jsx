@@ -484,18 +484,8 @@ Bad examples:
     <div className={`${layoutStyles.frame} ${themeStyles} ${osStyles}`}>
       <div className={layoutStyles.bg}></div>
 
-      {/* Toast notifications - fixed position */}
-      <div
-        style={{
-          position: "fixed",
-          top: "60px",
-          right: "20px",
-          zIndex: 1000,
-          maxWidth: "300px",
-        }}
-      >
-        <Toasts />
-      </div>
+      {/* Toast notifications - always above page container */}
+      <Toasts />
 
       <div className={styles.pageContainer}>
         {/* Header */}

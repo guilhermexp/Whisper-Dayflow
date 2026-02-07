@@ -70,7 +70,7 @@ const VirtualList = memo(({ data, isStreaming = false }) => {
       itemContent={renderItem}
       computeItemKey={getKey}
       overscan={500}
-      initialTopMostItemIndex={data.length - 1}
+      initialTopMostItemIndex={hasMessages ? data.length - 1 : undefined}
       // Keep list pinned to the bottom as new content arrives
       followOutput={"smooth"}
       style={{ height: "100%" }}
@@ -79,7 +79,7 @@ const VirtualList = memo(({ data, isStreaming = false }) => {
         Footer: () => (
           <div
             style={{
-              paddingTop: "140px",
+              paddingTop: "170px",
             }}
           ></div>
         ),

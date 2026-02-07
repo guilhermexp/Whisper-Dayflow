@@ -5,8 +5,8 @@ import { getKey, getOpenrouterKey } from "./pile-utils/store"
 import settings from "electron-settings"
 import type { AutoJournalSummary, RecordingHistoryItem } from "../shared/types"
 
-const DEFAULT_CHAT_MODEL = "gpt-5.3"
-const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.3"
+const DEFAULT_CHAT_MODEL = "gpt-5.2"
+const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.2"
 
 const normalizePileProvider = (provider?: string) => {
   const supportedProviders = new Set([
@@ -17,9 +17,91 @@ const normalizePileProvider = (provider?: string) => {
     "groq",
     "custom",
   ])
-  if (provider === "subscription") return "openrouter"
-  if (!provider || !supportedProviders.has(provider)) return "openrouter"
+  if (provider === "subscription") return "openai"
+  if (!provider || !supportedProviders.has(provider)) return "openai"
   return provider
+}
+
+const stripMarkdownCodeFences = (text: string) => {
+  const trimmed = text.trim()
+  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
+  if (fenceMatch?.[1]) return fenceMatch[1].trim()
+  return trimmed
+}
+
+const extractFirstJsonObject = (text: string): string | null => {
+  const start = text.indexOf("{")
+  if (start === -1) return null
+
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let i = start; i < text.length; i += 1) {
+    const char = text[i]
+
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (char === "\\") {
+        escaped = true
+      } else if (char === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === '"') {
+      inString = true
+      continue
+    }
+
+    if (char === "{") {
+      depth += 1
+      continue
+    }
+
+    if (char === "}") {
+      depth -= 1
+      if (depth === 0) {
+        return text.slice(start, i + 1)
+      }
+    }
+  }
+
+  return null
+}
+
+const tryParseAutoJournalJson = (raw: string): any | null => {
+  if (!raw || typeof raw !== "string") return null
+
+  const candidates = [
+    raw.trim(),
+    stripMarkdownCodeFences(raw),
+    stripMarkdownCodeFences(raw)
+      .replace(/^json\s*/i, "")
+      .trim(),
+  ].filter(Boolean)
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate)
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed
+      }
+    } catch {}
+
+    const embedded = extractFirstJsonObject(candidate)
+    if (!embedded) continue
+    try {
+      const parsed = JSON.parse(embedded)
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed
+      }
+    } catch {}
+  }
+
+  return null
 }
 
 export async function postProcessTranscript(
@@ -468,7 +550,7 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
   let debugModel = "unknown"
   let debugProvider = provider
 
-  const callWithGemini = async (): Promise<string> => {
+  const callWithGemini = async (promptText = finalPrompt): Promise<string> => {
     if (!config.geminiApiKey) {
       throw new Error(
         "Gemini API key is required for auto-journal when provider=gemini",
@@ -481,13 +563,15 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
     const gModel = gai.getGenerativeModel({ model: modelId })
 
     ensureNotAborted()
-    const result = await gModel.generateContent([finalPrompt], {
+    const result = await gModel.generateContent([promptText], {
       baseUrl: config.geminiBaseUrl,
     })
     return result.response.text()
   }
 
-  const callWithOpenAICompatible = async (): Promise<string> => {
+  const callWithOpenAICompatible = async (
+    promptText = finalPrompt,
+  ): Promise<string> => {
     let effectiveProvider = provider
 
     // For OpenAI and OpenRouter, use the secure storage keys (same as Chat)
@@ -568,14 +652,22 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
         body: JSON.stringify({
           model,
           temperature: 0.2,
+          ...(effectiveProvider === "openai" || effectiveProvider === "groq"
+            ? { response_format: { type: "json_object" } }
+            : {}),
           // Novos modelos OpenAI (gpt-4o, gpt-4o-mini, gpt-5.1, o1, o3) usam max_completion_tokens
           ...(model.startsWith("gpt-4o") || model.startsWith("gpt-5") || model.startsWith("o1") || model.startsWith("o3")
             ? { max_completion_tokens: 1200 }
             : { max_tokens: 1200 }),
           messages: [
             {
+              role: "system",
+              content:
+                "Return only one valid JSON object with keys summary, highlight, activities. Do not use markdown fences or extra text.",
+            },
+            {
               role: "user",
-              content: finalPrompt,
+              content: promptText,
             },
           ],
         }),
@@ -619,7 +711,7 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
     }
   }
 
-  const callWithOllama = async (): Promise<string> => {
+  const callWithOllama = async (promptText = finalPrompt): Promise<string> => {
     const ollamaModel =
       ((await settings.get("model")) as string | undefined) || "llama3"
     debugModel = ollamaModel
@@ -630,7 +722,14 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: ollamaModel,
-        messages: [{ role: "user", content: finalPrompt }],
+        messages: [
+          {
+            role: "system",
+            content:
+              "Return only one valid JSON object with keys summary, highlight, activities. No markdown.",
+          },
+          { role: "user", content: promptText },
+        ],
         stream: false,
       }),
     })
@@ -656,22 +755,103 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
 
   // Try to parse the JSON. If parsing fails, throw a clear error so callers
   // can decide how to surface this in the UI.
-  let parsed: any
-  try {
-    const trimmed = raw.trim()
-    const jsonStart = trimmed.indexOf("{")
-    const jsonEnd = trimmed.lastIndexOf("}")
-    if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
-      throw new Error("No JSON object found in model response")
-    }
-    parsed = JSON.parse(trimmed.slice(jsonStart, jsonEnd + 1))
-  } catch (error) {
-    console.error(
-      "[auto-journal] Failed to parse model response as JSON:",
-      error,
+  let parsed: any | null = tryParseAutoJournalJson(raw)
+
+  if (!parsed) {
+    console.warn(
+      "[auto-journal] Model returned non-JSON output; retrying with repair prompt",
     )
-    console.error("[auto-journal] Raw response:", raw.slice(0, 500))
-    throw error
+    console.warn("[auto-journal] Raw response preview:", raw.slice(0, 500))
+
+    const repairPrompt = `
+The previous answer was not valid JSON.
+
+Return ONLY one valid JSON object using this exact shape:
+{
+  "summary": "string",
+  "highlight": "Highlight" | "Do later" | "New idea" | null,
+  "activities": [
+    {
+      "startTs": number,
+      "endTs": number,
+      "title": "string",
+      "summary": "string",
+      "category": "Work" | "Personal" | "Distraction" | "Idle",
+      "detailedSummary": [
+        { "startTs": number, "endTs": number, "description": "string" }
+      ]
+    }
+  ]
+}
+
+Window start: ${windowStartTs}
+Window end: ${windowEndTs}
+Input transcriptions:
+${logText}
+`
+
+    try {
+      const repairedRaw =
+        provider === "gemini"
+          ? await callWithGemini(repairPrompt)
+          : provider === "ollama"
+            ? await callWithOllama(repairPrompt)
+            : await callWithOpenAICompatible(repairPrompt)
+
+      parsed = tryParseAutoJournalJson(repairedRaw)
+      if (!parsed) {
+        console.warn(
+          "[auto-journal] Repair attempt still returned invalid JSON; using deterministic fallback summary",
+        )
+      }
+    } catch (repairError) {
+      console.error(
+        "[auto-journal] Repair attempt failed; using deterministic fallback summary:",
+        repairError,
+      )
+    }
+  }
+
+  if (!parsed) {
+    const fallbackStartTs = windowItems[0]?.createdAt ?? windowStartTs
+    const fallbackEndTs =
+      (windowItems[windowItems.length - 1]?.createdAt ?? windowEndTs) +
+      (windowItems[windowItems.length - 1]?.duration ?? 0)
+    const fallbackSummary = `Resumo automático parcial. Foram detectadas ${windowItems.length} gravações no período, mas o modelo não retornou JSON válido.`
+
+    return {
+      windowStartTs,
+      windowEndTs,
+      summary: fallbackSummary,
+      highlight: null,
+      activities: [
+        {
+          startTs: fallbackStartTs,
+          endTs: Math.max(fallbackStartTs, fallbackEndTs),
+          title: "Resumo automático",
+          summary: fallbackSummary,
+          category: "Work",
+          detailedSummary: windowItems.slice(0, 20).map((item) => ({
+            startTs: item.createdAt,
+            endTs: item.createdAt + (item.duration || 0),
+            description: item.transcript
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 160),
+          })),
+        },
+      ],
+      debug: {
+        provider: debugProvider,
+        model: debugModel,
+        windowStartTs,
+        windowEndTs,
+        windowMinutes,
+        itemsUsed: windowItems.length,
+        truncated,
+        logChars: logText.length,
+      },
+    }
   }
 
   const validHighlights = ["Highlight", "Do later", "New idea"]

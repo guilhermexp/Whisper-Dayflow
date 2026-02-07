@@ -48,6 +48,7 @@ export default function PileLayout({ children }) {
   return (
     <div className={`${styles.frame} ${themeStyles} ${osStyles}`}>
       <div className={styles.bg}></div>
+      <Toasts />
       <div className={styles.main}>
         <div className={styles.sidebar}>
           <div className={styles.top}>
@@ -75,7 +76,6 @@ export default function PileLayout({ children }) {
             </div>
             <div className={styles.headerRight}>
               <TimerChip />
-              <Toasts />
               <InstallUpdate />
             </div>
           </div>

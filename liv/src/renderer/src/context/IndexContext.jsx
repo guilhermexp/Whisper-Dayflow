@@ -89,15 +89,18 @@ export const IndexContextProvider = ({ children }) => {
     return window.electron.ipc.invoke('index-vector-search', query, topN);
   }, []);
 
-  const loadLatestThreads = useCallback(async (count = 25) => {
+  const loadLatestThreads = useCallback(async (count = 10) => {
     const items = await search('');
     const latest = items.slice(0, count);
 
     const entryFilePaths = latest.map((entry) => entry.ref);
     const latestThreadsAsText = await getThreadsAsText(entryFilePaths);
+    const normalizedThreads = (latestThreadsAsText || [])
+      .map((thread) => (typeof thread === 'string' ? thread.trim() : ''))
+      .filter(Boolean);
 
-    setLatestThreads(latestThreadsAsText);
-  }, []);
+    setLatestThreads(normalizedThreads);
+  }, [search, getThreadsAsText]);
 
   const indexContextValue = {
     index,
