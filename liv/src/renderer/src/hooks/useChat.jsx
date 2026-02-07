@@ -2,10 +2,43 @@ import { useState, useCallback, useMemo } from 'react';
 import { useAIContext } from 'renderer/context/AIContext';
 import { useIndexContext } from 'renderer/context/IndexContext';
 
+const RAG_TOP_N = 24;
+const MAX_CONTEXT_ENTRIES = 12;
+const MAX_ENTRY_CHARS = 1500;
+const MAX_TOTAL_CONTEXT_CHARS = 12000;
+const MAX_QUERY_CHARS = 2000;
+const MIN_RELEVANCE_SCORE = 0.12;
+
+const normalizeText = (value) =>
+  typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+
+const buildRetrievalQuery = (messages, message) => {
+  const recentUserMessages = messages
+    .filter((m) => m?.role === 'user' && typeof m?.content === 'string')
+    .slice(-3)
+    .map((m) => normalizeText(m.content))
+    .filter(Boolean);
+
+  const currentMessage = normalizeText(message);
+  const query = [...recentUserMessages, currentMessage].join('\n');
+
+  return query.slice(0, MAX_QUERY_CHARS);
+};
+
 const useChat = () => {
   const { generateCompletion, prompt } = useAIContext();
   const { vectorSearch, getThreadsAsText, latestThreads } = useIndexContext();
   const [relevantEntries, setRelevantEntries] = useState([]);
+
+  const latestThreadsBlock = useMemo(
+    () =>
+      (latestThreads || [])
+        .map((thread) => normalizeText(thread))
+        .filter(Boolean)
+        .slice(0, 10)
+        .join('\n\n---\n\n'),
+    [latestThreads]
+  );
 
   const STARTER = useMemo(
     () => [
@@ -25,11 +58,11 @@ const useChat = () => {
       },
       {
         role: 'system',
-        content: `Here are the 10 latest journal entries from the user: \n\n${latestThreads}`,
+        content: `Here are ${latestThreadsBlock ? 'the latest journal entries' : 'no recent journal entries yet'} from the user:\n\n${latestThreadsBlock || 'No recent entries available.'}`,
       },
       { role: 'system', content: 'The user starts the conversation:' },
     ],
-    [prompt, latestThreads]
+    [prompt, latestThreadsBlock]
   );
 
   const [messages, setMessages] = useState(STARTER);
@@ -41,25 +74,73 @@ const useChat = () => {
 
   const addMessage = useCallback(
     async (message) => {
-      const lastSystemMessage = messages[messages.length - 1];
-      const augmentedMessages = `${lastSystemMessage.content} \n\n${message}`;
-      const searchResults = await vectorSearch(augmentedMessages, 50);
-      const entryFilePaths = searchResults.map((entry) => entry.ref);
+      const retrievalQuery = buildRetrievalQuery(messages, message);
+      const rawSearchResults = retrievalQuery
+        ? await vectorSearch(retrievalQuery, RAG_TOP_N)
+        : [];
+
+      const dedupedResults = [];
+      const seenRefs = new Set();
+
+      for (const entry of rawSearchResults || []) {
+        if (!entry?.ref || seenRefs.has(entry.ref)) continue;
+        seenRefs.add(entry.ref);
+        dedupedResults.push(entry);
+      }
+
+      const filteredResults = dedupedResults.filter((entry) => {
+        return (
+          typeof entry?.score === 'number' &&
+          Number.isFinite(entry.score) &&
+          entry.score >= MIN_RELEVANCE_SCORE
+        );
+      });
+
+      const selectedResults = filteredResults.slice(0, MAX_CONTEXT_ENTRIES);
+      const entryFilePaths = selectedResults.map((entry) => entry.ref);
       const threadsAsText = await getThreadsAsText(entryFilePaths);
 
       // Store relevant entries for UI display (top 5 most relevant)
-      setRelevantEntries(searchResults.slice(0, 5).map(entry => ({
-        path: entry.ref,
-        score: entry.score,
-      })));
+      setRelevantEntries(
+        selectedResults.slice(0, 5).map((entry) => ({
+          path: entry.ref,
+          score: entry.score,
+        }))
+      );
+
+      let usedChars = 0;
+      const contextBlocks = [];
+
+      for (let i = 0; i < selectedResults.length; i += 1) {
+        const rawThread = normalizeText(threadsAsText?.[i]);
+        if (!rawThread) continue;
+
+        const thread = rawThread.slice(0, MAX_ENTRY_CHARS);
+        const score = selectedResults[i]?.score;
+        const scoreLabel =
+          typeof score === 'number' ? `${Math.round(score * 100)}%` : 'n/a';
+        const block = `[Entry ${i + 1} | relevance ${scoreLabel}]\n${thread}`;
+
+        if (usedChars + block.length > MAX_TOTAL_CONTEXT_CHARS) {
+          break;
+        }
+
+        contextBlocks.push(block);
+        usedChars += block.length;
+      }
+
+      const contextText =
+        contextBlocks.length > 0
+          ? contextBlocks.join('\n\n---\n\n')
+          : 'No highly relevant journal entries found for this question.';
 
       return [
         ...messages,
         {
           role: 'system',
           content:
-            "Here are some relevant entries from the user's journal related to the user's message:" +
-            threadsAsText.join('\n'),
+            "Relevant journal context for the user's latest message (most similar first):\n\n" +
+            contextText,
         },
         { role: 'user', content: message },
       ];

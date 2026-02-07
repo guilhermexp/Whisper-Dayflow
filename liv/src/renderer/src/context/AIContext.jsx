@@ -12,8 +12,8 @@ import { useElectronStore } from "renderer/hooks/useElectronStore"
 const OLLAMA_URL = "http://localhost:11434/api"
 const OPENAI_URL = "https://api.openai.com/v1"
 const OPENROUTER_URL = "https://openrouter.ai/api/v1"
-const DEFAULT_CHAT_MODEL = "gpt-5.3"
-const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.3"
+const DEFAULT_CHAT_MODEL = "gpt-5.2"
+const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.2"
 const DEFAULT_PROMPT =
   "You are an AI within a journaling app. Your job is to help the user reflect on their thoughts in a thoughtful and kind manner. The user can never directly address you or directly respond to you. Try not to repeat what the user said, instead try to seed new ideas, encourage or debate. Keep your responses concise, but meaningful."
 
@@ -25,7 +25,7 @@ export const AIContextProvider = ({ children }) => {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT)
   const [pileAIProvider, setPileAIProvider] = useElectronStore(
     "pileAIProvider",
-    "openrouter",
+    "openai",
   )
   const [model, setModel] = useElectronStore("model", DEFAULT_CHAT_MODEL)
   const [openrouterModel, setOpenrouterModel] = useElectronStore(
@@ -40,9 +40,9 @@ export const AIContextProvider = ({ children }) => {
 
   useEffect(() => {
     if (pileAIProvider === "subscription") {
-      setPileAIProvider("openrouter")
+      setPileAIProvider("openai")
     }
-    if (model === "gpt-5.1") {
+    if (model === "gpt-5.1" || model === "gpt-5.3") {
       setModel(DEFAULT_CHAT_MODEL)
     }
     if (!openrouterModel || openrouterModel === "x-ai/grok-4-fast") {
@@ -61,7 +61,7 @@ export const AIContextProvider = ({ children }) => {
     const key = await window.electron.ipc.invoke("get-ai-key")
     const openrouterKey = await window.electron.ipc.invoke("get-openrouter-key")
     const provider =
-      pileAIProvider === "subscription" ? "openrouter" : pileAIProvider
+      pileAIProvider === "subscription" ? "openai" : pileAIProvider
 
     if (provider === "ollama") {
       console.log("[AIContext] Setting up Ollama provider")
@@ -234,7 +234,7 @@ export const AIContextProvider = ({ children }) => {
 
   const checkApiKeyValidity = useCallback(async () => {
     const provider =
-      pileAIProvider === "subscription" ? "openrouter" : pileAIProvider
+      pileAIProvider === "subscription" ? "openai" : pileAIProvider
     // Check the correct key based on provider
     if (provider === "ollama") {
       // Ollama doesn't need an API key

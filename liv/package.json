@@ -18,11 +18,12 @@
     "postinstall": "node ./scripts/patch-entities.js && node ./scripts/patch-nan.js && electron-builder install-app-deps && node ./scripts/patch-panel-window.js",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win --config electron-builder.config.cjs",
-    "build:mac": "npm run build && electron-builder --mac --config electron-builder.config.cjs",
+    "build:mac": "npm run build && electron-builder --mac --config electron-builder.config.cjs && npm run open:mac:dmg",
     "build:linux": "electron-vite build && electron-builder --linux --config electron-builder.config.cjs",
     "release": "node ./scripts/release.js",
     "fix-pnpm-windows": "node ./scripts/fix-pnpm-windows.js",
-    "build-rs": "sh scripts/build-rs.sh"
+    "build-rs": "node ./scripts/build-rs.cjs",
+    "open:mac:dmg": "node ./scripts/open-mac-dmg.cjs"
   },
   "dependencies": {
     "@egoist/electron-panel-window": "^9.0.0",
@@ -103,6 +104,7 @@
     "electron-builder": "^26.0.12",
     "electron-updater": "^6.6.2",
     "electron-vite": "^4.0.1",
+    "eslint": "^9.20.0",
     "fuse.js": "^7.1.0",
     "lucide-react": "^0.555.0",
     "prettier": "^3.7.1",

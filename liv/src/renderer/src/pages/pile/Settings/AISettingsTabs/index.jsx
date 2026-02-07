@@ -10,6 +10,12 @@ import { CardIcon, OllamaIcon, BoxOpenIcon, GlobeIcon, RefreshIcon } from 'rende
 import { useIndexContext } from 'renderer/context/IndexContext';
 import { useTranslation } from 'react-i18next';
 
+const resolveTabFromProvider = (provider) => {
+  if (provider === 'ollama') return 'ollama';
+  if (provider === 'openrouter') return 'openrouter';
+  return 'openai';
+};
+
 export default function AISettingTabs({ APIkey, setCurrentKey }) {
   const { t } = useTranslation();
   const {
@@ -35,6 +41,9 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
   } = useAIContext();
 
   const [openrouterAPIKey, setOpenrouterAPIKey] = useState('');
+  const [selectedTab, setSelectedTab] = useState(() =>
+    resolveTabFromProvider(pileAIProvider)
+  );
 
   // OpenRouter models state
   const [openrouterModels, setOpenrouterModels] = useState([]);
@@ -63,6 +72,14 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
     }
   }, [pileAIProvider]);
 
+  useEffect(() => {
+    setSelectedTab((currentTab) =>
+      currentTab === 'subscription'
+        ? currentTab
+        : resolveTabFromProvider(pileAIProvider)
+    );
+  }, [pileAIProvider]);
+
   const handleFetchOpenrouterModels = async () => {
     setIsLoadingModels(true);
     try {
@@ -87,8 +104,9 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
   const { currentTheme, setTheme } = usePilesContext();
 
   const handleTabChange = (newValue) => {
-    const provider = newValue === 'subscription' ? 'openrouter' : newValue;
-    setPileAIProvider(provider);
+    setSelectedTab(newValue);
+    if (newValue === 'subscription') return;
+    setPileAIProvider(newValue);
   };
 
   const handleInputChange = (setter) => (e) => setter(e.target.value);
@@ -113,44 +131,23 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
   return (
     <Tabs.Root
       className={styles.tabsRoot}
-      defaultValue="openrouter"
-      value={pileAIProvider}
+      value={selectedTab}
       onValueChange={handleTabChange}
     >
       <Tabs.List className={styles.tabsList} aria-label="Manage your account">
-        <Tabs.Trigger
-          className={`${styles.tabsTrigger} ${
-            pileAIProvider === 'ollama' ? styles.activeCenter : ''
-          } ${pileAIProvider === 'openai' ? styles.activeRight : ''}`}
-          value="subscription"
-        >
+        <Tabs.Trigger className={styles.tabsTrigger} value="subscription">
           {t('settingsDialog.journal.subscription')}
           <CardIcon className={styles.icon} />
         </Tabs.Trigger>
-        <Tabs.Trigger
-          className={`${styles.tabsTrigger} ${
-            pileAIProvider === 'subscription' ? styles.activeLeft : ''
-          } ${pileAIProvider === 'openai' ? styles.activeRight : ''}`}
-          value="ollama"
-        >
+        <Tabs.Trigger className={styles.tabsTrigger} value="ollama">
           {t('settingsDialog.journal.ollamaApi')}
           <OllamaIcon className={styles.icon} />
         </Tabs.Trigger>
-        <Tabs.Trigger
-          className={`${styles.tabsTrigger} ${
-            pileAIProvider === 'ollama' ? styles.activeCenter : ''
-          } ${pileAIProvider === 'openrouter' ? styles.activeLeft : ''}`}
-          value="openai"
-        >
+        <Tabs.Trigger className={styles.tabsTrigger} value="openai">
           {t('settingsDialog.journal.openaiApi')}
           <BoxOpenIcon className={styles.icon} />
         </Tabs.Trigger>
-        <Tabs.Trigger
-          className={`${styles.tabsTrigger} ${
-            pileAIProvider === 'openai' ? styles.activeLeft : ''
-          }`}
-          value="openrouter"
-        >
+        <Tabs.Trigger className={styles.tabsTrigger} value="openrouter">
           OpenRouter
           <GlobeIcon className={styles.icon} />
         </Tabs.Trigger>
@@ -246,8 +243,9 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
                 id="openai-model"
                 className={styles.input}
                 onChange={handleInputChange(setModel)}
-                value={model || 'gpt-5.3'}
+                value={model || 'gpt-5.2'}
               >
+                <option value="gpt-5.2">gpt-5.2</option>
                 <option value="gpt-5.3">gpt-5.3</option>
                 <option value="gpt-5.1">gpt-5.1</option>
                 <option value="gpt-5">gpt-5</option>

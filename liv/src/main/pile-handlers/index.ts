@@ -31,8 +31,12 @@ ipcMain.handle('index-search', (_event, query) => {
   return results;
 });
 
-ipcMain.handle('index-vector-search', (_event, query, _topN = 50) => {
-  const results = pileIndex.vectorSearch(query);
+ipcMain.handle('index-vector-search', (_event, query, topN = 50) => {
+  const parsedTopN = Number(topN);
+  const safeTopN = Number.isFinite(parsedTopN)
+    ? Math.min(100, Math.max(1, parsedTopN))
+    : 50;
+  const results = pileIndex.vectorSearch(query, safeTopN);
   return results;
 });
 
@@ -41,7 +45,9 @@ ipcMain.handle('index-get-threads-as-text', (_event, filePaths = []) => {
 
   for (const filePath of filePaths) {
     const entry = pileIndex.getThreadAsText(filePath);
-    results.push(entry);
+    if (entry) {
+      results.push(entry);
+    }
   }
   return results;
 });
