@@ -44,3 +44,6 @@ temp/
 # Application data (user configs and recordings)
 user-data/
 recordings/
+
+# Auto Claude data directory
+.auto-claude/
