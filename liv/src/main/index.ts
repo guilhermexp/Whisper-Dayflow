@@ -198,22 +198,28 @@ app.whenReady().then(() => {
     }
   }
 
-  // Set up one-time warmup after window is shown
+  // Defer schedulers initialization until after window is shown for faster startup
+  const performDeferredSchedulersInit = () => {
+    logger.info("[Schedulers] Starting deferred schedulers initialization...")
+
+    // Auto-journal scheduler (manual runs still available via IPC)
+    startAutoJournalScheduler()
+
+    // Periodic screenshot scheduler (independent of recordings)
+    startPeriodicScreenshotScheduler()
+
+    markPhase("schedulers-started")
+  }
+
+  // Set up one-time deferred initialization after window is shown
   const primaryWindow = WINDOWS.get("main") || WINDOWS.get("setup")
   if (primaryWindow) {
     primaryWindow.once("show", () => {
-      // Defer warmup slightly to ensure window is fully rendered
+      // Defer warmup and schedulers slightly to ensure window is fully rendered
       setTimeout(performDeferredModelWarmup, 100)
+      setTimeout(performDeferredSchedulersInit, 150)
     })
   }
-
-  // Auto-journal scheduler (manual runs still available via IPC)
-  startAutoJournalScheduler()
-
-  // Periodic screenshot scheduler (independent of recordings)
-  startPeriodicScreenshotScheduler()
-
-  markPhase("schedulers-started")
 
   // Verify bundled ffmpeg for auto-journal GIF generation
   import("./services/auto-journal-service").then(({ checkFfmpegAvailability }) => {
