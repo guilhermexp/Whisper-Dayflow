@@ -230,18 +230,28 @@ app.whenReady().then(() => {
     }).catch((err) => logger.error("[ffmpeg] Import failed:", err))
   }
 
+  // Defer updater initialization until after window is shown for faster startup
+  const performDeferredUpdaterInit = () => {
+    logger.info("[Updater] Starting deferred updater initialization...")
+    import("./updater")
+      .then((res) => {
+        res.init()
+        markPhase("updater-initialized")
+      })
+      .catch((err) => logger.error("[updater] Init failed:", err))
+  }
+
   // Set up one-time deferred initialization after window is shown
   const primaryWindow = WINDOWS.get("main") || WINDOWS.get("setup")
   if (primaryWindow) {
     primaryWindow.once("show", () => {
-      // Defer warmup, schedulers, and FFmpeg verification slightly to ensure window is fully rendered
+      // Defer warmup, schedulers, FFmpeg verification, and updater slightly to ensure window is fully rendered
       setTimeout(performDeferredModelWarmup, 100)
       setTimeout(performDeferredSchedulersInit, 150)
       setTimeout(performDeferredFfmpegVerification, 200)
+      setTimeout(performDeferredUpdaterInit, 250)
     })
   }
-
-  import("./updater").then((res) => res.init()).catch((err) => logger.error("[updater] Init failed:", err))
 
   markPhase("background-services-started")
 
