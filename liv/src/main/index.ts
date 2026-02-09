@@ -153,7 +153,7 @@ app.whenReady().then(() => {
     createSetupWindow()
   }
 
-  createPanelWindow()
+  // Panel window is created lazily on first use for faster startup
 
   markPhase("windows-created")
 

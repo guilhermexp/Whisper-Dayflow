@@ -220,13 +220,18 @@ export function createPanelWindow() {
 }
 
 export function showPanelWindow() {
-  const win = WINDOWS.get("panel")
-  if (win) {
-    const position = getPanelWindowPosition()
-    win.setPosition(position.x, position.y)
-    win.showInactive()
-    makeKeyWindow(win)
+  let win = WINDOWS.get("panel")
+
+  // Create panel window lazily on first use
+  if (!win || win.isDestroyed()) {
+    logger.info("[Window] Creating panel window on-demand")
+    win = createPanelWindow()
   }
+
+  const position = getPanelWindowPosition()
+  win.setPosition(position.x, position.y)
+  win.showInactive()
+  makeKeyWindow(win)
 }
 
 export async function showPanelWindowAndStartRecording() {
