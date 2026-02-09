@@ -69,8 +69,13 @@ function createBaseWindow({
   WINDOWS.set(id, win)
 
   if (showWhenReady) {
+    // Show window immediately for faster perceived startup
+    // The spinner.css will show a loading state while React bootstraps
+    win.show()
+
+    // Mark window as shown when fully ready
     win.on("ready-to-show", () => {
-      win.show()
+      logger.info(`[Window] Window "${id}" fully ready`)
     })
   }
 
