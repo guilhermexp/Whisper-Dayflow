@@ -262,6 +262,8 @@ export class Recorder extends EventEmitter<{
   stopRecording() {
     if (this.pendingStopTimeout !== null) return
 
+    const wasRecording = this.mediaRecorder !== null || this.stream !== null
+
     if (this.mediaRecorder) {
       const mediaRecorder = this.mediaRecorder
       const now = Date.now()
@@ -285,7 +287,7 @@ export class Recorder extends EventEmitter<{
       this.stream = null
     }
 
-    if (this.audioCuesEnabled) {
+    if (this.audioCuesEnabled && wasRecording) {
       void playSound("end_record", this.audioVolume)
     }
 

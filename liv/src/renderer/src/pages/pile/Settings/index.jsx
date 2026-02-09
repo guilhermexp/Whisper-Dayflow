@@ -477,6 +477,7 @@ function Settings() {
                               }}
                             >
                               <label
+                                htmlFor="whisper-audio-volume"
                                 style={{
                                   fontSize: "13px",
                                   color: "var(--secondary)",
@@ -492,6 +493,7 @@ function Settings() {
                                 }}
                               >
                                 <input
+                                  id="whisper-audio-volume"
                                   type="range"
                                   min="0"
                                   max="100"
