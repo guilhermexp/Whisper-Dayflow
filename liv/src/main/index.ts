@@ -19,7 +19,6 @@ import { registerIpcMain } from "@egoist/tipc/main"
 import { router } from "./tipc"
 import { registerServeProtocol, registerServeSchema } from "./serve"
 import { createAppMenu } from "./menu"
-import { initTray } from "./tray"
 import { isAccessibilityGranted } from "./utils"
 import { globalShortcutManager } from "./global-shortcut"
 import { mediaController } from "./services/media-controller"
@@ -164,10 +163,6 @@ app.whenReady().then(() => {
 
   markPhase("keyboard-listener-ready")
 
-  initTray()
-
-  markPhase("tray-initialized")
-
   // Initialize global shortcuts
   const shortcutSuccess = globalShortcutManager.registerPasteLastTranscription()
   if (shortcutSuccess) {
@@ -241,11 +236,23 @@ app.whenReady().then(() => {
       .catch((err) => logger.error("[updater] Init failed:", err))
   }
 
+  // Defer tray initialization until after window is shown for faster startup
+  const performDeferredTrayInit = () => {
+    logger.info("[Tray] Starting deferred tray initialization...")
+    import("./tray")
+      .then(({ initTray }) => {
+        initTray()
+        markPhase("tray-initialized")
+      })
+      .catch((err) => logger.error("[Tray] Init failed:", err))
+  }
+
   // Set up one-time deferred initialization after window is shown
   const primaryWindow = WINDOWS.get("main") || WINDOWS.get("setup")
   if (primaryWindow) {
     primaryWindow.once("show", () => {
-      // Defer warmup, schedulers, FFmpeg verification, and updater slightly to ensure window is fully rendered
+      // Defer tray, warmup, schedulers, FFmpeg verification, and updater slightly to ensure window is fully rendered
+      setTimeout(performDeferredTrayInit, 50)
       setTimeout(performDeferredModelWarmup, 100)
       setTimeout(performDeferredSchedulersInit, 150)
       setTimeout(performDeferredFfmpegVerification, 200)
