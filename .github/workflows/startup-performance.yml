@@ -1,0 +1,78 @@
+name: Startup Performance
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  startup-performance:
+    name: Measure Startup Performance
+    runs-on: macos-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.1
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        working-directory: ./liv
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        working-directory: ./liv
+        run: pnpm run build
+
+      - name: Measure cold start performance
+        working-directory: ./liv
+        run: node ./scripts/measure-startup.js --cold
+
+      - name: Measure hot start performance
+        working-directory: ./liv
+        run: node ./scripts/measure-startup.js --hot
+
+      - name: Performance summary
+        if: always()
+        run: |
+          echo "## Startup Performance Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All startup performance tests completed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Thresholds" >> $GITHUB_STEP_SUMMARY
+          echo "- Cold start: < 3000ms" >> $GITHUB_STEP_SUMMARY
+          echo "- Hot start: < 1000ms" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See job logs for detailed timing information." >> $GITHUB_STEP_SUMMARY

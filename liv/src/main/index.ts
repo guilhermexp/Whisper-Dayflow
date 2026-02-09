@@ -1,6 +1,9 @@
 // IMPORTANT: Logger must be imported first to catch early crashes
 import { logger, getLogFilePath } from "./logger"
 
+// Import performance monitor early to track startup timing
+import { markPhase } from "./performance-monitor"
+
 import { app, Menu } from "electron"
 import path from "path"
 import { electronApp, optimizer } from "@electron-toolkit/utils"
@@ -16,7 +19,6 @@ import { registerIpcMain } from "@egoist/tipc/main"
 import { router } from "./tipc"
 import { registerServeProtocol, registerServeSchema } from "./serve"
 import { createAppMenu } from "./menu"
-import { initTray } from "./tray"
 import { isAccessibilityGranted } from "./utils"
 import { globalShortcutManager } from "./global-shortcut"
 import { mediaController } from "./services/media-controller"
@@ -110,10 +112,15 @@ import "./pile-ipc"
 
 registerServeSchema()
 
+// Mark pre-ready initialization complete
+markPhase("pre-ready-complete")
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  markPhase("app-ready")
+
   // Set app user model id for windows
   electronApp.setAppUserModelId(process.env.APP_ID)
 
@@ -138,19 +145,23 @@ app.whenReady().then(() => {
 
   registerServeProtocol()
 
+  markPhase("protocols-registered")
+
   if (accessibilityGranted) {
     createMainWindow()
   } else {
     createSetupWindow()
   }
 
-  createPanelWindow()
+  // Panel window is created lazily on first use for faster startup
+
+  markPhase("windows-created")
 
   logger.info("[App] About to start keyboard listener...")
   listenToKeyboardEvents()
   logger.info("[App] Keyboard listener started")
 
-  initTray()
+  markPhase("keyboard-listener-ready")
 
   // Initialize global shortcuts
   const shortcutSuccess = globalShortcutManager.registerPasteLastTranscription()
@@ -160,6 +171,8 @@ app.whenReady().then(() => {
     logger.error("Failed to initialize global shortcuts")
   }
 
+  markPhase("shortcuts-registered")
+
   // Initialize media controller
   const config = configStore.get()
   mediaController.setEnabled(config.isPauseMediaEnabled ?? false)
@@ -168,33 +181,89 @@ app.whenReady().then(() => {
     mediaController.isEnabled(),
   )
 
-  // Pre-warm Parakeet to avoid cold-start lag if it's the default local model
-  const defaultLocalModel = config.defaultLocalModel
-  if (defaultLocalModel?.startsWith("local-parakeet")) {
-    void warmupParakeetModel(defaultLocalModel, config.localInferenceThreads)
+  markPhase("media-controller-ready")
+
+  // Defer model warmup until after window is shown for faster startup
+  const performDeferredModelWarmup = () => {
+    const defaultLocalModel = config.defaultLocalModel
+    if (defaultLocalModel?.startsWith("local-parakeet")) {
+      logger.info("[ModelWarmup] Starting deferred model warmup...")
+      void warmupParakeetModel(defaultLocalModel, config.localInferenceThreads)
+      markPhase("model-warmup-started")
+    }
   }
 
-  // Auto-journal scheduler (manual runs still available via IPC)
-  startAutoJournalScheduler()
+  // Defer schedulers initialization until after window is shown for faster startup
+  const performDeferredSchedulersInit = () => {
+    logger.info("[Schedulers] Starting deferred schedulers initialization...")
 
-  // Periodic screenshot scheduler (independent of recordings)
-  startPeriodicScreenshotScheduler()
+    // Auto-journal scheduler (manual runs still available via IPC)
+    startAutoJournalScheduler()
 
-  // Verify bundled ffmpeg for auto-journal GIF generation
-  import("./services/auto-journal-service").then(({ checkFfmpegAvailability }) => {
-    checkFfmpegAvailability().then((available) => {
-      if (!available) {
-        logger.error(
-          "[ffmpeg] Bundled binary verification failed!",
-          "Auto-journal GIF previews will be unavailable."
-        )
-      } else {
-        logger.info("[ffmpeg] Bundled binary verified - GIF previews enabled for auto-journal")
-      }
-    }).catch((err) => logger.error("[ffmpeg] Verification failed:", err))
-  }).catch((err) => logger.error("[ffmpeg] Import failed:", err))
+    // Periodic screenshot scheduler (independent of recordings)
+    startPeriodicScreenshotScheduler()
 
-  import("./updater").then((res) => res.init()).catch((err) => logger.error("[updater] Init failed:", err))
+    markPhase("schedulers-started")
+  }
+
+  // Defer FFmpeg verification until after window is shown for faster startup
+  const performDeferredFfmpegVerification = () => {
+    logger.info("[FFmpeg] Starting deferred FFmpeg verification...")
+
+    // Verify bundled ffmpeg for auto-journal GIF generation
+    import("./services/auto-journal-service").then(({ checkFfmpegAvailability }) => {
+      checkFfmpegAvailability().then((available) => {
+        if (!available) {
+          logger.error(
+            "[ffmpeg] Bundled binary verification failed!",
+            "Auto-journal GIF previews will be unavailable."
+          )
+        } else {
+          logger.info("[ffmpeg] Bundled binary verified - GIF previews enabled for auto-journal")
+        }
+      }).catch((err) => logger.error("[ffmpeg] Verification failed:", err))
+    }).catch((err) => logger.error("[ffmpeg] Import failed:", err))
+  }
+
+  // Defer updater initialization until after window is shown for faster startup
+  const performDeferredUpdaterInit = () => {
+    logger.info("[Updater] Starting deferred updater initialization...")
+    import("./updater")
+      .then((res) => {
+        res.init()
+        markPhase("updater-initialized")
+      })
+      .catch((err) => logger.error("[updater] Init failed:", err))
+  }
+
+  // Defer tray initialization until after window is shown for faster startup
+  const performDeferredTrayInit = () => {
+    logger.info("[Tray] Starting deferred tray initialization...")
+    import("./tray")
+      .then(({ initTray }) => {
+        initTray()
+        markPhase("tray-initialized")
+      })
+      .catch((err) => logger.error("[Tray] Init failed:", err))
+  }
+
+  // Set up one-time deferred initialization after window is shown
+  const primaryWindow = WINDOWS.get("main") || WINDOWS.get("setup")
+  if (primaryWindow) {
+    primaryWindow.once("show", () => {
+      // Mark startup complete as soon as window is visible
+      markPhase("startup-complete")
+
+      // Defer tray, warmup, schedulers, FFmpeg verification, and updater slightly to ensure window is fully rendered
+      setTimeout(performDeferredTrayInit, 50)
+      setTimeout(performDeferredModelWarmup, 100)
+      setTimeout(performDeferredSchedulersInit, 150)
+      setTimeout(performDeferredFfmpegVerification, 200)
+      setTimeout(performDeferredUpdaterInit, 250)
+    })
+  }
+
+  markPhase("background-services-started")
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

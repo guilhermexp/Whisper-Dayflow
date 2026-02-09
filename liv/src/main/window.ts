@@ -69,8 +69,13 @@ function createBaseWindow({
   WINDOWS.set(id, win)
 
   if (showWhenReady) {
+    // Show window immediately for faster perceived startup
+    // The spinner.css will show a loading state while React bootstraps
+    win.show()
+
+    // Mark window as shown when fully ready
     win.on("ready-to-show", () => {
-      win.show()
+      logger.info(`[Window] Window "${id}" fully ready`)
     })
   }
 
@@ -220,13 +225,18 @@ export function createPanelWindow() {
 }
 
 export function showPanelWindow() {
-  const win = WINDOWS.get("panel")
-  if (win) {
-    const position = getPanelWindowPosition()
-    win.setPosition(position.x, position.y)
-    win.showInactive()
-    makeKeyWindow(win)
+  let win = WINDOWS.get("panel")
+
+  // Create panel window lazily on first use
+  if (!win || win.isDestroyed()) {
+    logger.info("[Window] Creating panel window on-demand")
+    win = createPanelWindow()
   }
+
+  const position = getPanelWindowPosition()
+  win.setPosition(position.x, position.y)
+  win.showInactive()
+  makeKeyWindow(win)
 }
 
 export async function showPanelWindowAndStartRecording() {
