@@ -211,29 +211,35 @@ app.whenReady().then(() => {
     markPhase("schedulers-started")
   }
 
+  // Defer FFmpeg verification until after window is shown for faster startup
+  const performDeferredFfmpegVerification = () => {
+    logger.info("[FFmpeg] Starting deferred FFmpeg verification...")
+
+    // Verify bundled ffmpeg for auto-journal GIF generation
+    import("./services/auto-journal-service").then(({ checkFfmpegAvailability }) => {
+      checkFfmpegAvailability().then((available) => {
+        if (!available) {
+          logger.error(
+            "[ffmpeg] Bundled binary verification failed!",
+            "Auto-journal GIF previews will be unavailable."
+          )
+        } else {
+          logger.info("[ffmpeg] Bundled binary verified - GIF previews enabled for auto-journal")
+        }
+      }).catch((err) => logger.error("[ffmpeg] Verification failed:", err))
+    }).catch((err) => logger.error("[ffmpeg] Import failed:", err))
+  }
+
   // Set up one-time deferred initialization after window is shown
   const primaryWindow = WINDOWS.get("main") || WINDOWS.get("setup")
   if (primaryWindow) {
     primaryWindow.once("show", () => {
-      // Defer warmup and schedulers slightly to ensure window is fully rendered
+      // Defer warmup, schedulers, and FFmpeg verification slightly to ensure window is fully rendered
       setTimeout(performDeferredModelWarmup, 100)
       setTimeout(performDeferredSchedulersInit, 150)
+      setTimeout(performDeferredFfmpegVerification, 200)
     })
   }
-
-  // Verify bundled ffmpeg for auto-journal GIF generation
-  import("./services/auto-journal-service").then(({ checkFfmpegAvailability }) => {
-    checkFfmpegAvailability().then((available) => {
-      if (!available) {
-        logger.error(
-          "[ffmpeg] Bundled binary verification failed!",
-          "Auto-journal GIF previews will be unavailable."
-        )
-      } else {
-        logger.info("[ffmpeg] Bundled binary verified - GIF previews enabled for auto-journal")
-      }
-    }).catch((err) => logger.error("[ffmpeg] Verification failed:", err))
-  }).catch((err) => logger.error("[ffmpeg] Import failed:", err))
 
   import("./updater").then((res) => res.init()).catch((err) => logger.error("[updater] Init failed:", err))
 
