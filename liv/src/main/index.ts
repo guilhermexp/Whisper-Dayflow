@@ -188,13 +188,24 @@ app.whenReady().then(() => {
 
   markPhase("media-controller-ready")
 
-  // Pre-warm Parakeet to avoid cold-start lag if it's the default local model
-  const defaultLocalModel = config.defaultLocalModel
-  if (defaultLocalModel?.startsWith("local-parakeet")) {
-    void warmupParakeetModel(defaultLocalModel, config.localInferenceThreads)
+  // Defer model warmup until after window is shown for faster startup
+  const performDeferredModelWarmup = () => {
+    const defaultLocalModel = config.defaultLocalModel
+    if (defaultLocalModel?.startsWith("local-parakeet")) {
+      logger.info("[ModelWarmup] Starting deferred model warmup...")
+      void warmupParakeetModel(defaultLocalModel, config.localInferenceThreads)
+      markPhase("model-warmup-started")
+    }
   }
 
-  markPhase("model-warmup-started")
+  // Set up one-time warmup after window is shown
+  const primaryWindow = WINDOWS.get("main") || WINDOWS.get("setup")
+  if (primaryWindow) {
+    primaryWindow.once("show", () => {
+      // Defer warmup slightly to ensure window is fully rendered
+      setTimeout(performDeferredModelWarmup, 100)
+    })
+  }
 
   // Auto-journal scheduler (manual runs still available via IPC)
   startAutoJournalScheduler()
