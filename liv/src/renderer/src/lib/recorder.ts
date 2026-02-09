@@ -280,6 +280,10 @@ export class Recorder extends EventEmitter<{
       this.stream = null
     }
 
+    if (this.audioCuesEnabled) {
+      void playSound("end_record")
+    }
+
     this.emit("destroy")
 
   }
