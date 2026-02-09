@@ -47,3 +47,7 @@ recordings/
 
 # Auto Claude data directory
 .auto-claude/
+
+# Auto-generated Claude status/security files
+.auto-claude-status
+.auto-claude-security.json

@@ -261,6 +261,14 @@ app.whenReady().then(() => {
       setTimeout(performDeferredFfmpegVerification, 200)
       setTimeout(performDeferredUpdaterInit, 250)
     })
+  } else {
+    logger.warn("[App] No primary window found, running deferred initializations immediately")
+    markPhase("startup-complete")
+    performDeferredTrayInit()
+    performDeferredModelWarmup()
+    performDeferredSchedulersInit()
+    performDeferredFfmpegVerification()
+    performDeferredUpdaterInit()
   }
 
   markPhase("background-services-started")

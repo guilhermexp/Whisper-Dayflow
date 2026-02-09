@@ -65,7 +65,7 @@ export const measure = (
   }
 
   const endTime = endMark ? marks.get(endMark)?.timestamp : performance.now()
-  if (!endTime) {
+  if (endTime === undefined) {
     logger.warn(`[Perf] Cannot measure: end mark '${endMark}' not found`)
     return null
   }
