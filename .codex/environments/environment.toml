@@ -8,4 +8,4 @@ script = ""
 [[actions]]
 name = "Run"
 icon = "run"
-command = "pnpm run build:mac"
+command = "cd liv && npm run build:mac"

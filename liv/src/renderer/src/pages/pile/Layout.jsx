@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import styles from "./PileLayout.module.scss"
 import Sidebar from "./Sidebar/Timeline/index"
 import { useIndexContext } from "renderer/context/IndexContext"
@@ -14,23 +15,29 @@ import TimerChip from "renderer/components/TimerChip"
 
 export default function PileLayout({ children }) {
   const { pileName } = useParams()
+  const { t, i18n } = useTranslation()
   const { index, refreshIndex } = useIndexContext()
   const { visibleIndex, closestDate } = useTimelineContext()
   const { currentTheme } = usePilesContext()
 
-  const [now, setNow] = useState(DateTime.now().toFormat("cccc, LLL dd, yyyy"))
+  const locale = i18n.language === "pt-BR" ? "pt-BR" : "en-US"
+
+  const formatDate = (dt) =>
+    dt.setLocale(locale).toFormat("cccc, LLL dd, yyyy")
+
+  const [now, setNow] = useState(formatDate(DateTime.now()))
 
   useEffect(() => {
     try {
       if (visibleIndex < 5) {
-        setNow(DateTime.now().toFormat("cccc, LLL dd, yyyy"))
+        setNow(formatDate(DateTime.now()))
       } else {
-        setNow(DateTime.fromISO(closestDate).toFormat("cccc, LLL dd, yyyy"))
+        setNow(formatDate(DateTime.fromISO(closestDate)))
       }
     } catch (error) {
       console.log("Failed to render header date")
     }
-  }, [visibleIndex, closestDate])
+  }, [visibleIndex, closestDate, locale])
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -54,7 +61,7 @@ export default function PileLayout({ children }) {
           <div className={styles.top}>
             <div className={styles.part}>
               <div className={styles.count}>
-                <span>{index.size}</span> entries
+                <span>{index.size}</span> {t("pile.entries")}
               </div>
             </div>
           </div>

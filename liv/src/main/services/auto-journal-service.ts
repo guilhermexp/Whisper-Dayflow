@@ -166,6 +166,12 @@ let running = false
 let nextRunAt: number | null = null
 let lastRunAt: number | null = null
 
+function isNoRecordingsSummary(summary: string | undefined): boolean {
+  if (!summary) return true
+  const normalized = summary.trim().toLowerCase()
+  return normalized.includes("no recordings found in the selected time window")
+}
+
 /**
  * Check if FFmpeg is available and functional
  */
@@ -422,13 +428,10 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
       `[auto-journal] Run ${id} completed successfully in ${Date.now() - startedAt}ms`,
     )
 
-    // Check if there's actual content to save (not just "No recordings found" message)
+    // Content exists whenever we had recordings in the time window and the
+    // returned summary is not the explicit empty-window placeholder.
     const hasRealContent =
-      summary.activities &&
-      summary.activities.length > 0 &&
-      !summary.summary.includes(
-        "No recordings found in the selected time window",
-      )
+      windowItems.length > 0 && !isNoRecordingsSummary(summary.summary)
 
     // Skip saving empty runs entirely - don't clutter the history with "Vazio" entries
     if (!hasRealContent) {

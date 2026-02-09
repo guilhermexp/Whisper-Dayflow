@@ -13,23 +13,22 @@
 .iconButton {
   width: 28px;
   height: 28px;
-  border-radius: 10px;
+  border-radius: 90px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(55, 55, 55, 0.6);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--secondary);
+  background: var(--base);
+  border: none;
+  color: var(--base-text);
   cursor: pointer;
   transition: all 120ms ease-in-out;
 
   &:hover {
-    background: rgba(87, 87, 87, 0.6);
-    color: var(--primary);
+    background: var(--base-hover);
   }
 
   &:active {
+    background: var(--base);
     transform: scale(0.95);
   }
 
@@ -98,22 +97,31 @@
 // Main pill chip
 .chip {
   height: 28px;
-  padding: 0 10px;
+  padding: 0 18px;
   display: flex;
   align-items: center;
   gap: 6px;
-  border-radius: 14px;
-  background: rgba(55, 55, 55, 0.6);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--secondary);
-  font-size: 12px;
+  border-radius: 90px;
+  background: var(--base);
+  border: none;
+  color: var(--base-text);
+  font-size: 0.9em;
+  font-weight: 500;
   transition: all 120ms ease-in-out;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--base-hover);
+  }
+
+  &:active {
+    background: var(--base);
+  }
 
   .clockIcon {
     width: 14px;
     height: 14px;
-    opacity: 0.7;
+    opacity: 0.85;
   }
 }
 
@@ -129,7 +137,7 @@
   transition: background 120ms;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.15);
   }
 }
 
@@ -144,7 +152,7 @@
 .divider {
   width: 1px;
   height: 14px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.2);
   margin: 0 2px;
 }
 
@@ -243,5 +251,5 @@
 
 // Idle state label
 .idleLabel {
-  opacity: 0.7;
+  opacity: 0.9;
 }

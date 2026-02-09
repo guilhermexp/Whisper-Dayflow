@@ -460,6 +460,15 @@
       "november": "November",
       "december": "December"
     },
+    "days": {
+      "sun": "S",
+      "mon": "M",
+      "tue": "T",
+      "wed": "W",
+      "thu": "T",
+      "fri": "F",
+      "sat": "S"
+    },
     "weeks": {
       "first": "1st week",
       "second": "2nd week",
@@ -588,6 +597,8 @@
       "action": "Allow Access"
     },
     "granted": "Granted",
+    "restart": "Restart App",
+    "permissionsNeeded": "We need some system permissions before we can run the app",
     "creatingJournal": "Creating your journal..."
   },
   "createPile": {
