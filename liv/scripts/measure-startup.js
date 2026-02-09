@@ -11,6 +11,12 @@ const __dirname = path.dirname(__filename)
 const COLD_START_THRESHOLD = 3000
 const HOT_START_THRESHOLD = 1000
 
+// Warning threshold as percentage of max threshold (warn at 80%)
+const WARNING_THRESHOLD_PERCENT = 0.8
+
+// Check if running in CI environment
+const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true"
+
 /**
  * Parse command line arguments
  * @returns {{ help: boolean, cold: boolean, hot: boolean }}
@@ -163,6 +169,69 @@ const measureStartup = (isColdStart) => {
 }
 
 /**
+ * Output GitHub Actions annotation
+ * @param {'error' | 'warning' | 'notice'} level
+ * @param {string} message
+ */
+const outputGitHubAnnotation = (level, message) => {
+  if (!isCI) return
+  console.log(`::${level}::${message}`)
+}
+
+/**
+ * Report performance results with CI-friendly output
+ * @param {number} startupTime
+ * @param {number} threshold
+ * @param {string} startType
+ * @returns {{ passed: boolean, warningLevel: boolean }}
+ */
+const reportPerformanceResults = (startupTime, threshold, startType) => {
+  const warningThreshold = threshold * WARNING_THRESHOLD_PERCENT
+  const percentOfThreshold = (startupTime / threshold) * 100
+  const overThresholdMs = startupTime - threshold
+  const overThresholdPercent = percentOfThreshold - 100
+
+  // Console output for all environments
+  console.log(`\n${"=".repeat(50)}`)
+  console.log(`${startType} Start Performance Results`)
+  console.log(`${"=".repeat(50)}`)
+  console.log(`Startup time: ${startupTime.toFixed(2)}ms`)
+  console.log(`Threshold:    ${threshold}ms`)
+  console.log(`Percentage:   ${percentOfThreshold.toFixed(1)}% of threshold`)
+
+  const passed = startupTime <= threshold
+  const isWarning = startupTime > warningThreshold && startupTime <= threshold
+
+  if (passed) {
+    console.log(`Status:       ✓ PASS`)
+    if (isWarning) {
+      const warningMsg = `⚠️  WARNING: Approaching threshold (${percentOfThreshold.toFixed(1)}%)`
+      console.log(warningMsg)
+
+      // CI annotation for warning
+      outputGitHubAnnotation(
+        "warning",
+        `${startType} start performance approaching threshold: ${startupTime.toFixed(2)}ms (${percentOfThreshold.toFixed(1)}% of ${threshold}ms threshold)`,
+      )
+    }
+  } else {
+    console.log(`Status:       ✗ FAIL`)
+    const errorMsg = `Performance regression: ${startType} start exceeded threshold by ${overThresholdMs.toFixed(2)}ms (+${overThresholdPercent.toFixed(1)}%)`
+    console.error(`\n${errorMsg}`)
+
+    // CI annotation for error
+    outputGitHubAnnotation(
+      "error",
+      `${errorMsg} - Measured: ${startupTime.toFixed(2)}ms, Threshold: ${threshold}ms`,
+    )
+  }
+
+  console.log(`${"=".repeat(50)}\n`)
+
+  return { passed, warningLevel: isWarning }
+}
+
+/**
  * Main function
  */
 const main = async () => {
@@ -186,24 +255,36 @@ const main = async () => {
   try {
     const startupTime = await measureStartup(isColdStart)
 
-    console.log(`\n${"=".repeat(50)}`)
-    console.log(`${startType} Start Performance Results`)
-    console.log(`${"=".repeat(50)}`)
-    console.log(`Startup time: ${startupTime.toFixed(2)}ms`)
-    console.log(`Threshold:    ${threshold}ms`)
-    console.log(`Status:       ${startupTime <= threshold ? "✓ PASS" : "✗ FAIL"}`)
-    console.log(`${"=".repeat(50)}\n`)
+    // Report results with enhanced CI output
+    const { passed, warningLevel } = reportPerformanceResults(startupTime, threshold, startType)
 
-    if (startupTime > threshold) {
-      console.error(
-        `Performance regression detected: ${startType} start exceeded threshold by ${(startupTime - threshold).toFixed(2)}ms`,
-      )
+    if (!passed) {
+      // Add CI-specific output for better visibility
+      if (isCI) {
+        outputGitHubAnnotation(
+          "notice",
+          `Startup performance test failed. Consider optimizing initialization code or reviewing recent changes.`,
+        )
+      }
       process.exit(1)
+    }
+
+    if (warningLevel && isCI) {
+      outputGitHubAnnotation(
+        "notice",
+        `Startup performance is approaching the threshold. Monitor for potential regressions.`,
+      )
     }
 
     process.exit(0)
   } catch (error) {
     console.error(`\nError: ${error.message}`)
+
+    // CI annotation for measurement errors
+    if (isCI) {
+      outputGitHubAnnotation("error", `Startup measurement failed: ${error.message}`)
+    }
+
     process.exit(1)
   }
 }
