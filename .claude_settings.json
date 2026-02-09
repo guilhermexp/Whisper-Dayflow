@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/worktrees/tasks/005-fast-startup-time/**)",
+      "Write(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/worktrees/tasks/005-fast-startup-time/**)",
+      "Edit(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/worktrees/tasks/005-fast-startup-time/**)",
+      "Glob(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/worktrees/tasks/005-fast-startup-time/**)",
+      "Grep(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/worktrees/tasks/005-fast-startup-time/**)",
+      "Read(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/worktrees/tasks/005-fast-startup-time/.auto-claude/specs/005-fast-startup-time/**)",
+      "Write(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/worktrees/tasks/005-fast-startup-time/.auto-claude/specs/005-fast-startup-time/**)",
+      "Edit(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/worktrees/tasks/005-fast-startup-time/.auto-claude/specs/005-fast-startup-time/**)",
+      "Read(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/**)",
+      "Write(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/**)",
+      "Edit(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/**)",
+      "Glob(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/**)",
+      "Grep(/Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv/.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
