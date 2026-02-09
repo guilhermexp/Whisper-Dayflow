@@ -35,6 +35,7 @@ export function Component() {
   const [phase, setPhase] = useState<PanelPhase>("idle")
   const isConfirmedRef = useRef(false)
   const audioCuesEnabled = configQuery.data?.enableAudioCues ?? true
+  const audioVolume = configQuery.data?.audioVolume ?? 0.7
   const [error, setError] = useState<{ name: string; message: string } | null>(null)
 
   const handleError = (error: Error) => {
@@ -132,6 +133,7 @@ export function Component() {
 
   const recorderRef = useRef<Recorder | null>(null)
   const audioCuesEnabledRef = useRef(audioCuesEnabled)
+  const audioVolumeRef = useRef(audioVolume)
 
   // Force refetch config when window gains focus
   useEffect(() => {
@@ -148,10 +150,16 @@ export function Component() {
   }, [audioCuesEnabled])
 
   useEffect(() => {
+    audioVolumeRef.current = audioVolume
+    recorderRef.current?.setAudioVolume(audioVolume)
+  }, [audioVolume])
+
+  useEffect(() => {
     if (recorderRef.current) return
 
     const recorder = (recorderRef.current = new Recorder())
     recorder.setAudioCuesEnabled(audioCuesEnabledRef.current)
+    recorder.setAudioVolume(audioVolumeRef.current)
 
     recorder.on("record-start", () => {
       setRecording(true)

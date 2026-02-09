@@ -118,6 +118,7 @@ export class Recorder extends EventEmitter<{
   stream: MediaStream | null = null
   mediaRecorder: MediaRecorder | null = null
   audioCuesEnabled = true
+  audioVolume = 1.0
   recordStartTime: number | null = null
   pendingStopTimeout: number | null = null
 
@@ -127,6 +128,10 @@ export class Recorder extends EventEmitter<{
 
   setAudioCuesEnabled(enabled: boolean) {
     this.audioCuesEnabled = enabled
+  }
+
+  setAudioVolume(volume: number) {
+    this.audioVolume = volume
   }
 
   analyseAudio(stream: MediaStream) {
@@ -214,7 +219,7 @@ export class Recorder extends EventEmitter<{
       const stopAnalysing = this.analyseAudio(stream)
       this.once("destroy", stopAnalysing)
       if (this.audioCuesEnabled) {
-        void playSound("begin_record")
+        void playSound("begin_record", this.audioVolume)
       }
     }
 
@@ -278,6 +283,10 @@ export class Recorder extends EventEmitter<{
     if (this.stream) {
       this.stream.getTracks().forEach((track) => track.stop())
       this.stream = null
+    }
+
+    if (this.audioCuesEnabled) {
+      void playSound("end_record", this.audioVolume)
     }
 
     this.emit("destroy")
