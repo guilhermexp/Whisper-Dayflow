@@ -1,6 +1,9 @@
 // IMPORTANT: Logger must be imported first to catch early crashes
 import { logger, getLogFilePath } from "./logger"
 
+// Import performance monitor early to track startup timing
+import { markPhase } from "./performance-monitor"
+
 import { app, Menu } from "electron"
 import path from "path"
 import { electronApp, optimizer } from "@electron-toolkit/utils"
@@ -110,10 +113,15 @@ import "./pile-ipc"
 
 registerServeSchema()
 
+// Mark pre-ready initialization complete
+markPhase("pre-ready-complete")
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  markPhase("app-ready")
+
   // Set app user model id for windows
   electronApp.setAppUserModelId(process.env.APP_ID)
 
@@ -138,6 +146,8 @@ app.whenReady().then(() => {
 
   registerServeProtocol()
 
+  markPhase("protocols-registered")
+
   if (accessibilityGranted) {
     createMainWindow()
   } else {
@@ -146,11 +156,17 @@ app.whenReady().then(() => {
 
   createPanelWindow()
 
+  markPhase("windows-created")
+
   logger.info("[App] About to start keyboard listener...")
   listenToKeyboardEvents()
   logger.info("[App] Keyboard listener started")
 
+  markPhase("keyboard-listener-ready")
+
   initTray()
+
+  markPhase("tray-initialized")
 
   // Initialize global shortcuts
   const shortcutSuccess = globalShortcutManager.registerPasteLastTranscription()
@@ -160,6 +176,8 @@ app.whenReady().then(() => {
     logger.error("Failed to initialize global shortcuts")
   }
 
+  markPhase("shortcuts-registered")
+
   // Initialize media controller
   const config = configStore.get()
   mediaController.setEnabled(config.isPauseMediaEnabled ?? false)
@@ -168,17 +186,23 @@ app.whenReady().then(() => {
     mediaController.isEnabled(),
   )
 
+  markPhase("media-controller-ready")
+
   // Pre-warm Parakeet to avoid cold-start lag if it's the default local model
   const defaultLocalModel = config.defaultLocalModel
   if (defaultLocalModel?.startsWith("local-parakeet")) {
     void warmupParakeetModel(defaultLocalModel, config.localInferenceThreads)
   }
 
+  markPhase("model-warmup-started")
+
   // Auto-journal scheduler (manual runs still available via IPC)
   startAutoJournalScheduler()
 
   // Periodic screenshot scheduler (independent of recordings)
   startPeriodicScreenshotScheduler()
+
+  markPhase("schedulers-started")
 
   // Verify bundled ffmpeg for auto-journal GIF generation
   import("./services/auto-journal-service").then(({ checkFfmpegAvailability }) => {
@@ -195,6 +219,11 @@ app.whenReady().then(() => {
   }).catch((err) => logger.error("[ffmpeg] Import failed:", err))
 
   import("./updater").then((res) => res.init()).catch((err) => logger.error("[updater] Init failed:", err))
+
+  markPhase("background-services-started")
+
+  // Mark startup complete - app is now fully ready
+  markPhase("startup-complete")
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
