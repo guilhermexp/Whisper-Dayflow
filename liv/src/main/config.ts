@@ -57,6 +57,7 @@ const getDefaultLanguage = (): "en-US" | "pt-BR" => {
 const withDefaults = (config?: Config): Config => {
   return {
     enableAudioCues: true,
+    audioVolume: config?.audioVolume ?? 0.7,
     launchOnStartup: getSystemAutoLaunchPreference(),
     preferLocalModels: config?.preferLocalModels ?? false,
     language: config?.language ?? getDefaultLanguage(),
