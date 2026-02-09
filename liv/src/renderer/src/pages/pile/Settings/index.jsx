@@ -482,7 +482,7 @@ function Settings() {
                                   color: "var(--secondary)",
                                 }}
                               >
-                                {t("settingsDialog.whisper.audioCueVolume")}
+                                {t("settingsDialog.whisper.audioVolume")}
                               </label>
                               <div
                                 style={{
@@ -496,11 +496,11 @@ function Settings() {
                                   min="0"
                                   max="100"
                                   value={
-                                    livConfigQuery.data.audioCueVolume ?? 100
+                                    Math.round((livConfigQuery.data.audioVolume ?? 0.7) * 100)
                                   }
                                   onChange={(e) =>
                                     saveLivConfig({
-                                      audioCueVolume: parseInt(e.target.value),
+                                      audioVolume: parseInt(e.target.value) / 100,
                                     })
                                   }
                                   style={{
@@ -516,7 +516,7 @@ function Settings() {
                                     textAlign: "right",
                                   }}
                                 >
-                                  {livConfigQuery.data.audioCueVolume ?? 100}%
+                                  {Math.round((livConfigQuery.data.audioVolume ?? 0.7) * 100)}%
                                 </span>
                               </div>
                             </div>
