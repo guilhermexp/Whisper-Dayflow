@@ -468,6 +468,58 @@ function Settings() {
                                 {t("settingsDialog.whisper.audioCues")}
                               </span>
                             </label>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "8px",
+                                marginTop: "12px",
+                              }}
+                            >
+                              <label
+                                style={{
+                                  fontSize: "13px",
+                                  color: "var(--secondary)",
+                                }}
+                              >
+                                {t("settingsDialog.whisper.audioVolume")}
+                              </label>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "12px",
+                                }}
+                              >
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  value={
+                                    Math.round((livConfigQuery.data.audioVolume ?? 0.7) * 100)
+                                  }
+                                  onChange={(e) =>
+                                    saveLivConfig({
+                                      audioVolume: parseInt(e.target.value) / 100,
+                                    })
+                                  }
+                                  style={{
+                                    flex: 1,
+                                    cursor: "pointer",
+                                  }}
+                                />
+                                <span
+                                  style={{
+                                    fontSize: "13px",
+                                    color: "var(--primary)",
+                                    minWidth: "40px",
+                                    textAlign: "right",
+                                  }}
+                                >
+                                  {Math.round((livConfigQuery.data.audioVolume ?? 0.7) * 100)}%
+                                </span>
+                              </div>
+                            </div>
                             {window.electron?.isMac && (
                               <label
                                 style={{

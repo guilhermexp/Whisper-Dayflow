@@ -350,6 +350,8 @@
         "ctrlSlash": "Ctrl + /"
       },
       "audioCues": "Audio cues",
+      "audioVolume": "Audio volume",
+      "audioVolumeDesc": "Adjust the volume of recording start and stop sounds",
       "muteSystemAudio": "Mute system audio",
       "app": "App",
       "language": "Language",

@@ -233,6 +233,7 @@ export type Config = {
   shortcut?: "hold-ctrl" | "ctrl-slash" | "instant-ctrl" | "fn-key"
   hideDockIcon?: boolean
   enableAudioCues?: boolean
+  audioVolume?: number
   launchOnStartup?: boolean
   language?: "en-US" | "pt-BR"
 
