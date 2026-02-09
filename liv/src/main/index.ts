@@ -251,6 +251,9 @@ app.whenReady().then(() => {
   const primaryWindow = WINDOWS.get("main") || WINDOWS.get("setup")
   if (primaryWindow) {
     primaryWindow.once("show", () => {
+      // Mark startup complete as soon as window is visible
+      markPhase("startup-complete")
+
       // Defer tray, warmup, schedulers, FFmpeg verification, and updater slightly to ensure window is fully rendered
       setTimeout(performDeferredTrayInit, 50)
       setTimeout(performDeferredModelWarmup, 100)
@@ -261,9 +264,6 @@ app.whenReady().then(() => {
   }
 
   markPhase("background-services-started")
-
-  // Mark startup complete - app is now fully ready
-  markPhase("startup-complete")
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
