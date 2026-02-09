@@ -1,9 +1,14 @@
-import styles from './Intro.module.scss';
-import { AnimatePresence, motion } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
+import styles from "./Intro.module.scss"
+import { AnimatePresence, motion } from "framer-motion"
+import { useTranslation } from "react-i18next"
 
-const Intro = () => {
-  const { t } = useTranslation();
+const Intro = ({ onSuggestionClick }) => {
+  const { t } = useTranslation()
+  const suggestions = [
+    t("chat.intro.suggestion1"),
+    t("chat.intro.suggestion2"),
+    t("chat.intro.suggestion3"),
+  ]
 
   return (
     <AnimatePresence>
@@ -18,7 +23,6 @@ const Intro = () => {
         }}
         className={styles.intro}
       >
-        {/* Visual preview cards like reference */}
         <div className={styles.contextPreview}>
           <div className={styles.contextCard}>
             <div className={styles.cardLine} />
@@ -39,18 +43,28 @@ const Intro = () => {
           </div>
         </div>
 
-        {/* Elegant headline */}
         <div className={styles.headline}>
-          <span className={styles.title}>{t('chat.intro.titlePart1')}</span>
-          <span className={styles.titleAccent}>{t('chat.intro.titlePart2')}</span>
+          <span className={styles.title}>{t("chat.intro.titlePart1")}</span>
+          <span className={styles.titleAccent}>{t("chat.intro.titlePart2")}</span>
         </div>
 
-        <p className={styles.subtitle}>
-          {t('chat.intro.description')}
-        </p>
+        <p className={styles.subtitle}>{t("chat.intro.description")}</p>
+
+        <div className={styles.suggestions}>
+          {suggestions.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              className={styles.suggestion}
+              onClick={() => onSuggestionClick?.(suggestion)}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
       </motion.div>
     </AnimatePresence>
-  );
-};
+  )
+}
 
-export default Intro;
+export default Intro

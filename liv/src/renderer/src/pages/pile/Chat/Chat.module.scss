@@ -4,10 +4,10 @@
   left: calc(56px + 6px);
   right: 6px;
   bottom: 6px;
-  background-color: var(--bg);
+  background: var(--bg);
   border-radius: 12px;
-  border: 1px solid rgba(127, 127, 127, 0.2);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.24);
+  border: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -30,7 +30,11 @@
 .header {
   padding: 0 32px;
   z-index: 1000;
-  background: transparent;
+  background: linear-gradient(
+    180deg,
+    rgba(127, 127, 127, 0.08) 0%,
+    rgba(127, 127, 127, 0) 100%
+  );
   -webkit-app-region: drag;
   flex-shrink: 0;
 
@@ -41,7 +45,7 @@
     align-items: center;
     justify-content: space-between;
     z-index: 5;
-    border-bottom: 1px solid rgba(127, 127, 127, 0.24);
+    border-bottom: 1px solid rgba(127, 127, 127, 0.2);
 
     .DialogTitle {
       display: flex;
@@ -79,7 +83,7 @@
         height: 32px;
         border-radius: 8px;
         border: 1px solid transparent;
-        opacity: 0.75;
+        opacity: 0.78;
 
         &:hover {
           cursor: pointer;
@@ -156,7 +160,7 @@
   flex: 1;
   overflow: hidden;
   width: 100%;
-  padding: 10px clamp(16px, 4vw, 48px) 0;
+  padding: 14px clamp(16px, 4vw, 52px) 0;
 }
 
 .contentColumn {
@@ -170,7 +174,7 @@
   display: flex;
   flex: 1;
   min-height: 0;
-  gap: 12px;
+  gap: 14px;
   overflow: hidden;
 }
 
@@ -326,14 +330,14 @@
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  padding: 14px clamp(16px, 4vw, 48px) 22px;
+  padding: 14px clamp(16px, 4vw, 52px) 18px;
   background: transparent;
 
   .holder {
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 720px;
+    max-width: 760px;
   }
 
   .bar {
@@ -342,18 +346,24 @@
     display: flex;
     align-items: flex-end;
     gap: 8px;
-    background: var(--bg-secondary);
-    border-radius: 18px;
-    min-height: 56px;
-    padding: 8px;
+    background: linear-gradient(
+      170deg,
+      rgba(127, 127, 127, 0.14),
+      rgba(127, 127, 127, 0.08)
+    );
+    border-radius: 20px;
+    min-height: 58px;
+    padding: 8px 9px 8px 10px;
     transition: all 180ms ease;
-    border: 1px solid rgba(127, 127, 127, 0.34);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(127, 127, 127, 0.32);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 18px 32px rgba(0, 0, 0, 0.2);
 
     &:focus-within {
       border-color: rgba(127, 127, 127, 0.52);
       box-shadow:
-        0 14px 26px rgba(0, 0, 0, 0.24),
+        0 18px 34px rgba(0, 0, 0, 0.24),
         0 0 0 1px rgba(127, 127, 127, 0.18);
     }
   }
@@ -383,7 +393,7 @@
     resize: none;
     width: 100%;
     outline: none;
-    padding: 10px 4px 9px;
+    padding: 10px 6px 10px;
     font-family:
       "Plus Jakarta Sans",
       "SF Pro Text",
@@ -391,9 +401,9 @@
       sans-serif;
     overflow: hidden;
     min-height: 22px;
-    max-height: 160px;
+    max-height: 190px;
     line-height: 1.45;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.012em;
 
     &::placeholder {
       color: var(--secondary);
@@ -406,16 +416,16 @@
     justify-content: center;
     align-items: center;
     background: var(--active);
-    border-radius: 12px;
+    border-radius: 13px;
     transition: all 120ms ease;
     color: var(--active-text);
     user-select: none;
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     flex-shrink: 0;
-    border: 1px solid rgba(127, 127, 127, 0.2);
+    border: 1px solid rgba(127, 127, 127, 0.22);
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 16px rgba(0, 0, 0, 0.24);
 
     &.processing {
       opacity: 0.86;
@@ -458,10 +468,10 @@
   }
 
   .disclaimer {
-    margin: 8px 0 0 12px;
+    margin: 9px 0 0 12px;
     color: var(--secondary);
     font-size: 11px;
-    opacity: 0.7;
+    opacity: 0.74;
     letter-spacing: 0.01em;
   }
 
@@ -504,7 +514,7 @@
   }
 
   .inputBar {
-    padding: 14px 14px 18px;
+    padding: 12px 14px 14px;
 
     .holder {
       max-width: 100%;
@@ -512,6 +522,7 @@
 
     .bar {
       min-height: 58px;
+      border-radius: 18px;
     }
 
     .textarea {
