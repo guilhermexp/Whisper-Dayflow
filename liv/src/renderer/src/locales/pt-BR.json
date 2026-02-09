@@ -350,6 +350,8 @@
         "ctrlSlash": "Ctrl + /"
       },
       "audioCues": "Sinais sonoros",
+      "audioVolume": "Volume do áudio",
+      "audioVolumeDesc": "Ajustar o volume dos sons de início e fim da gravação",
       "muteSystemAudio": "Silenciar áudio do sistema",
       "app": "Aplicativo",
       "language": "Idioma",
