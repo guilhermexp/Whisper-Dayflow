@@ -26,6 +26,23 @@ import layoutStyles from "../PileLayout.module.scss"
 import Toasts from "../Toasts"
 import Navigation from "../Navigation"
 
+const isNoRecordingsSummary = (summaryText) => {
+  if (!summaryText) return true
+  return summaryText
+    .trim()
+    .toLowerCase()
+    .includes("no recordings found in the selected time window")
+}
+
+const hasRunContent = (run) => {
+  const summaryText = run?.summary?.summary
+  const hasActivities = (run?.summary?.activities?.length || 0) > 0
+  const hasSummaryText = Boolean(summaryText && summaryText.trim().length > 0)
+
+  if (!hasSummaryText && !hasActivities) return false
+  return !isNoRecordingsSummary(summaryText)
+}
+
 function AutoJournal() {
 
   const { t } = useTranslation()
@@ -288,11 +305,7 @@ Bad examples:
   // Check if selected run has real content (not just "No recordings found")
   const selectedRunHasContent = useMemo(() => {
     if (!selectedRun?.summary) return false
-    return (
-      selectedRun.summary.activities &&
-      selectedRun.summary.activities.length > 0 &&
-      !selectedRun.summary.summary.includes("No recordings found in the selected time window")
-    )
+    return hasRunContent(selectedRun)
   }, [selectedRun])
 
   // Handlers
@@ -374,10 +387,7 @@ Bad examples:
     console.log("[auto-journal] handleSaveToJournal called with run:", run?.id)
 
     // Check if there's actual content to save
-    const hasRealContent =
-      run?.summary?.activities &&
-      run.summary.activities.length > 0 &&
-      !run.summary.summary.includes("No recordings found in the selected time window")
+    const hasRealContent = hasRunContent(run)
 
     if (!hasRealContent) {
       console.log("[auto-journal] No real content to save, skipping")
@@ -561,12 +571,7 @@ Bad examples:
                         </div>
                       ) : (
                         runs.map((run) => {
-                          const runHasContent =
-                            run.summary?.activities &&
-                            run.summary.activities.length > 0 &&
-                            !run.summary.summary.includes(
-                              "No recordings found in the selected time window",
-                            )
+                          const runHasContent = hasRunContent(run)
 
                           const runDate = new Date(run.startedAt)
                           const dayNames = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
@@ -585,7 +590,7 @@ Bad examples:
                             >
                               {/* Activities Column (left) */}
                               <div className={styles.activitiesColumn}>
-                                {runHasContent && run.summary?.activities ? (
+                                {run.summary?.activities?.length > 0 ? (
                                   run.summary.activities.map((activity, idx) => (
                                     <div key={idx} className={styles.activityItem}>
                                       <span className={styles.activityTime}>
@@ -594,6 +599,8 @@ Bad examples:
                                       <span className={styles.activityTitle}>{activity.title}</span>
                                     </div>
                                   ))
+                                ) : runHasContent && run.summary?.summary ? (
+                                  <span className={styles.activityTitle}>{run.summary.summary}</span>
                                 ) : (
                                   <span className={styles.emptyIndicator}>
                                     {run.error ? run.error : t("autoJournal.empty")}

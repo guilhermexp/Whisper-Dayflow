@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from './Timeline.module.scss';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -62,8 +63,9 @@ const renderCount = (count) => {
 
 const DayComponent = memo(({ date, scrollToDate, isExpanded, summaries }) => {
   const { index } = useIndexContext();
-  const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  const dayName = dayNames[date.getDay()];
+  const { t } = useTranslation();
+  const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const dayName = t(`calendar.days.${dayKeys[date.getDay()]}`);
   const dayNumber = date.getDate();
   const count = countEntriesByDate(index, date);
   const daySummaries = summaries || [];
@@ -75,7 +77,7 @@ const DayComponent = memo(({ date, scrollToDate, isExpanded, summaries }) => {
           scrollToDate(date);
         }}
         className={`${styles.day} ${isToday(date) && styles.today} ${
-          dayName == 'S' && styles.monday
+          date.getDay() === 1 && styles.monday
         }`}
       >
         {renderCount(count)}
@@ -108,22 +110,13 @@ const DayComponent = memo(({ date, scrollToDate, isExpanded, summaries }) => {
 });
 
 const WeekComponent = memo(({ startDate, endDate, scrollToDate, isExpanded, daySummaries }) => {
+  const { t } = useTranslation();
   const weekOfMonth = Math.floor(startDate.getDate() / 7) + 1;
-  const monthNames = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
+  const monthKeys = [
+    'january', 'february', 'march', 'april', 'may', 'june',
+    'july', 'august', 'september', 'october', 'november', 'december',
   ];
-  const monthName = monthNames[startDate.getMonth()];
+  const monthName = t(`calendar.months.${monthKeys[startDate.getMonth()]}`);
   const year = startDate.getFullYear();
   let days = [];
   for (
@@ -143,23 +136,12 @@ const WeekComponent = memo(({ startDate, endDate, scrollToDate, isExpanded, dayS
     );
   }
 
+  const weekKeys = ['', 'first', 'second', 'third', 'fourth'];
   const weekOfMonthText = () => {
-    switch (weekOfMonth) {
-      case 1:
-        return '1st week';
-        break;
-      case 2:
-        return '2nd week';
-        break;
-      case 3:
-        return '3rd week';
-        break;
-      case 4:
-        return '4th week';
-        break;
-      default:
-        return '';
+    if (weekOfMonth >= 1 && weekOfMonth <= 4) {
+      return t(`calendar.weeks.${weekKeys[weekOfMonth]}`);
     }
+    return '';
   };
 
   return (

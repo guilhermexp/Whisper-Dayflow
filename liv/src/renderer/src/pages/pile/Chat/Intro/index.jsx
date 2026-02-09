@@ -2,14 +2,8 @@ import styles from './Intro.module.scss';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
-const Intro = ({ onSuggestionClick }) => {
+const Intro = () => {
   const { t } = useTranslation();
-
-  const suggestions = [
-    t('chat.intro.suggestion1'),
-    t('chat.intro.suggestion2'),
-    t('chat.intro.suggestion3'),
-  ];
 
   return (
     <AnimatePresence>
@@ -54,23 +48,6 @@ const Intro = ({ onSuggestionClick }) => {
         <p className={styles.subtitle}>
           {t('chat.intro.description')}
         </p>
-
-        {/* Quick suggestion pills */}
-        {onSuggestionClick && (
-          <div className={styles.suggestions}>
-            {suggestions.map((suggestion, index) => (
-              <motion.button
-                key={index}
-                className={styles.suggestion}
-                onClick={() => onSuggestionClick(suggestion)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {suggestion}
-              </motion.button>
-            ))}
-          </div>
-        )}
       </motion.div>
     </AnimatePresence>
   );
