@@ -42,6 +42,11 @@ export const router: ReturnType<typeof createBrowserRouter> =
           HydrateFallback,
         },
         {
+          path: "vision",
+          lazy: () => import("./pages/pile/AutoJournal"),
+          HydrateFallback,
+        },
+        {
           path: "dashboard",
           lazy: () => import("./pages/pile/Dashboard"),
           HydrateFallback,
