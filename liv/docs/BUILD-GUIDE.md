@@ -3,13 +3,13 @@
 ## Build Rápido (macOS)
 
 ```bash
-cd /Users/guilhermevarela/Public/Whisper-Dayflow/liv
+cd /Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv
 npm run build:mac
 ```
 
 O app será gerado em:
 - **App:** `dist/mac-arm64/Liv.app`
-- **DMG:** `dist/Liv-0.1.7-arm64.dmg`
+- **DMG:** `dist/Liv-0.1.8-arm64.dmg`
 
 ## Após o Build
 
@@ -74,11 +74,11 @@ import {
 } from "./services/auto-journal-service"
 ```
 
-### Erro: ERR_MODULE_NOT_FOUND (@ffmpeg-installer/ffmpeg)
+### Erro: FFmpeg não encontrado
 
-Este erro ocorre quando módulos nativos não são resolvidos corretamente no bundle.
+Este erro ocorre quando o binário FFmpeg não é encontrado na máquina ou no bundle.
 
-**Solução aplicada:** O FFmpeg agora usa o binário do sistema em vez do pacote npm.
+**Comportamento atual:** o app tenta primeiro o FFmpeg do sistema e depois o binário bundled (`@ffmpeg-installer/ffmpeg`).
 
 O app procura automaticamente em:
 - `/opt/homebrew/bin/ffmpeg` (Homebrew Apple Silicon)
@@ -149,8 +149,8 @@ open /Applications/Liv.app
 dist/
 ├── mac-arm64/
 │   └── Liv.app              # App pronto para uso
-├── Liv-0.1.7-arm64.dmg      # Instalador DMG
-├── Liv-0.1.7-arm64.zip      # Versão compactada
+├── Liv-0.1.8-arm64.dmg      # Instalador DMG
+├── Liv-0.1.8-arm64.zip      # Versão compactada
 └── builder-effective-config.yaml
 ```
 
@@ -171,4 +171,5 @@ Módulos que precisam de tratamento especial no build:
 |--------|------------|
 | `sherpa-onnx-*` | External no Vite + asarUnpack |
 | `@egoist/electron-panel-window` | asarUnpack |
-| FFmpeg | Usa binário do sistema (não mais @ffmpeg-installer) |
+| `sqlite3` | Fallback de carregamento em runtime + empacotamento reforçado |
+| FFmpeg | Busca sistema + fallback bundled (`@ffmpeg-installer/ffmpeg`) |

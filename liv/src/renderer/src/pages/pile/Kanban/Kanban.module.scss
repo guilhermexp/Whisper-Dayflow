@@ -1,6 +1,5 @@
 // Kanban.module.scss - Route-based page (no Dialog)
 
-// Page Container (matches AutoJournal pattern)
 .pageContainer {
   position: fixed;
   top: 8px;
@@ -16,10 +15,8 @@
   z-index: 1400;
 }
 
-// --- Header ---
-
 .header {
-  padding: 0 32px;
+  padding: 0 24px;
   flex-shrink: 0;
   background: transparent;
   z-index: 10;
@@ -35,18 +32,17 @@
 
     .DialogTitle {
       font-size: 15px;
-      font-weight: 500;
+      font-weight: 600;
       color: var(--primary);
       margin: 0;
       flex-shrink: 0;
-      opacity: 0.9;
       -webkit-app-region: none;
     }
 
     .headerActions {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       margin-left: auto;
       margin-right: 44px;
       -webkit-app-region: none;
@@ -81,23 +77,6 @@
   }
 }
 
-.headerBtn {
-  padding: 6px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--secondary);
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    color: var(--primary);
-    background: var(--bg-secondary);
-  }
-}
-
 .headerBtnIcon {
   display: flex;
   align-items: center;
@@ -107,7 +86,7 @@
   font-weight: 500;
   color: var(--primary);
   background: var(--bg-secondary);
-  border: none;
+  border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -119,90 +98,150 @@
   &:hover {
     background: var(--bg-tertiary);
   }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: default;
+  }
 }
 
-.viewToggle {
+.mainContent {
+  flex: 1;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  padding: 16px 20px 20px;
+}
+
+.topFilters {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.searchInput {
+  width: 100%;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
   background: var(--bg-secondary);
-  border-radius: 8px;
-  padding: 2px;
+  color: var(--primary);
+  padding: 0 12px;
+  outline: none;
 }
 
-.viewBtn {
+.weekSelector,
+.daySelector {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  cursor: pointer;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 8px;
+  }
+}
+
+.weekBtn,
+.dayBtn {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
   color: var(--secondary);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
   transition: all 0.15s ease;
 
   &:hover {
     color: var(--primary);
+    background: var(--bg-tertiary);
+  }
+}
+
+.weekBtnActive,
+.dayBtnActive {
+  background: var(--bg);
+  color: var(--primary);
+  border-color: var(--secondary);
+}
+
+.searchResults {
+  display: grid;
+  gap: 8px;
+  max-height: 170px;
+  overflow-y: auto;
+}
+
+.searchResultItem {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+
+  strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: var(--secondary);
   }
 
-  &.active {
-    background: var(--bg);
+  p {
+    margin: 0;
+    font-size: 12px;
     color: var(--primary);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    line-height: 1.4;
   }
 }
 
-.headerDivider {
-  width: 1px;
-  height: 24px;
-  background: var(--border);
-  margin: 0 4px;
-}
-
-// --- Main Content ---
-
-.mainContent {
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 1;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 24px;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  color: var(--secondary);
 }
 
-// --- Board Layout ---
+.boardWrap {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding-bottom: 4px;
+}
 
 .board {
   display: grid;
-  grid-template-columns: repeat(3, minmax(320px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(3, minmax(300px, 1fr));
+  gap: 16px;
+  min-width: 980px;
   min-height: 100%;
-  width: 100%;
 }
-
-// --- Column ---
 
 .column {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   background: var(--bg-secondary);
-  border-radius: 16px;
-  padding: 16px;
-  align-self: flex-start;
+  border-radius: 14px;
+  padding: 12px;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .columnHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px;
+  padding: 0 6px;
 }
 
 .columnTitleArea {
@@ -225,14 +264,14 @@
 
 .columnTitle {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--primary);
   margin: 0;
 }
 
 .columnCount {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--secondary);
 }
 
@@ -261,42 +300,35 @@
   }
 }
 
-// --- Card List ---
-
 .cardList {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+  max-height: calc(100vh - 320px);
+  padding-right: 4px;
 }
-
-// --- Card ---
 
 .card {
   background: var(--bg);
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   border: 1px solid var(--border);
   transition: all 0.2s ease;
 
   &:hover {
     border-color: var(--secondary);
   }
-
-  &.highlighted {
-    border-color: var(--base);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    transform: scale(1.02);
-    z-index: 1;
-  }
 }
 
 .cardTitle {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--primary);
   margin: 0;
 }
@@ -306,19 +338,19 @@
   padding-left: 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 
   li {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--secondary);
-    line-height: 1.5;
+    line-height: 1.4;
   }
 }
 
 .cardDescription {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--secondary);
-  line-height: 1.5;
+  line-height: 1.4;
   margin: 0;
 }
 
@@ -326,7 +358,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 4px;
+  padding-top: 2px;
 }
 
 .tag {
@@ -334,9 +366,9 @@
   align-items: center;
   gap: 8px;
   background: var(--bg-secondary);
-  padding: 4px 12px;
+  padding: 4px 10px;
   border-radius: 20px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .tagIcon {
@@ -351,162 +383,47 @@
   color: var(--secondary);
 }
 
-.dragHandle {
+.boardStats {
+  flex-shrink: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 14px;
   color: var(--secondary);
-  cursor: grab;
-
-  &:active {
-    cursor: grabbing;
-  }
+  font-size: 12px;
+  flex-wrap: wrap;
 }
-
-// --- Floating Search Button ---
-
-.floatingSearch {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--primary);
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: var(--bg-secondary);
-    transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-}
-
-// --- Animations ---
-
-@keyframes overlayShow {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 0.9;
-  }
-}
-
-@keyframes contentShow {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-// --- Responsive ---
 
 @media (max-width: 1100px) {
+  .mainContent {
+    padding: 14px;
+  }
+
   .board {
-    grid-template-columns: repeat(2, minmax(300px, 1fr));
+    grid-template-columns: repeat(3, minmax(280px, 1fr));
+    min-width: 900px;
   }
 }
 
 @media (max-width: 700px) {
+  .header {
+    padding: 0 14px;
+
+    .wrapper {
+      .headerActions {
+        display: none;
+      }
+    }
+  }
+
   .board {
-    grid-template-columns: 1fr;
-    min-width: 0;
+    min-width: 820px;
+    gap: 12px;
   }
 
-  .mainContent {
-    padding: 16px;
-  }
-
-  .header .wrapper {
-    .headerActions {
-      display: none;
-    }
-
-    .DialogTitle {
-      position: static;
-      transform: none;
-    }
-  }
-}
-
-@media (max-width: 500px) {
   .column {
-    padding: 12px;
+    padding: 10px;
   }
 
-  .card {
-    padding: 12px;
-  }
-
-  .cardTitle {
-    font-size: 13px;
-  }
-
-  .cardBullets li,
-  .cardDescription {
-    font-size: 12px;
-  }
-}
-
-// --- Development Overlay ---
-
-.devOverlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  border-radius: 16px;
-}
-
-.devPopup {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 32px 48px;
-  text-align: center;
-  max-width: 400px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
-
-  .devIcon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 16px;
-    color: var(--secondary);
-    opacity: 0.6;
-  }
-
-  .devTitle {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--primary);
-    margin: 0 0 8px 0;
-  }
-
-  .devDescription {
-    font-size: 14px;
-    color: var(--secondary);
-    margin: 0;
-    line-height: 1.5;
+  .cardList {
+    max-height: calc(100vh - 300px);
   }
 }

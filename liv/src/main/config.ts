@@ -9,6 +9,17 @@ import {
 import { PREDEFINED_PROMPTS } from "../shared/data/predefined-prompts"
 import { mediaController } from "./services/media-controller"
 
+const DEFAULT_PROFILE_WIDGETS: Config["profileWidgetsEnabled"] = [
+  "work_time_daily",
+  "parallelism",
+  "engagement_topics",
+  "meeting_suggestions",
+  "top_projects",
+  "top_people",
+  "business_opportunities",
+  "focus_risks",
+]
+
 /**
  * Atomically writes data to a file to prevent corruption
  * Writes to a temporary file first, then renames it
@@ -74,9 +85,16 @@ const withDefaults = (config?: Config): Config => {
     autoJournalWindowMinutes: config?.autoJournalWindowMinutes ?? 60,
     autoJournalTargetPilePath: config?.autoJournalTargetPilePath ?? "",
     autoJournalAutoSaveEnabled: config?.autoJournalAutoSaveEnabled ?? false,
+    autoJournalSourceMode: config?.autoJournalSourceMode ?? "both",
     autoJournalPrompt: config?.autoJournalPrompt ?? "",
     autoJournalIncludeScreenCapture:
       config?.autoJournalIncludeScreenCapture ?? false,
+    ragEmbeddingProvider: config?.ragEmbeddingProvider ?? "ollama",
+    forceLocalRagEmbeddings: config?.forceLocalRagEmbeddings ?? true,
+    embeddingModel: config?.embeddingModel ?? "qwen3-embedding:0.6b",
+    ollamaBaseUrl: config?.ollamaBaseUrl ?? "http://localhost:11434",
+    profileWidgetsEnabled:
+      config?.profileWidgetsEnabled ?? DEFAULT_PROFILE_WIDGETS,
     timelineExpanded: config?.timelineExpanded ?? true,
 
     // Context capture defaults
@@ -88,6 +106,10 @@ const withDefaults = (config?: Config): Config => {
     periodicScreenshotEnabled: config?.periodicScreenshotEnabled ?? false,
     periodicScreenshotIntervalMinutes:
       config?.periodicScreenshotIntervalMinutes ?? 60,
+    screenSessionRecordingEnabled:
+      config?.screenSessionRecordingEnabled ?? false,
+    screenSessionCaptureIntervalSeconds:
+      config?.screenSessionCaptureIntervalSeconds ?? 5,
 
     ...config,
   }

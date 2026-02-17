@@ -1,132 +1,70 @@
 import styles from "./Kanban.module.scss"
 import layoutStyles from "../PileLayout.module.scss"
-import { CrossIcon, PlusIcon } from "renderer/icons"
-import { useState, useMemo } from "react"
+import { CrossIcon, PlusIcon, RefreshIcon, SearchIcon } from "renderer/icons"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { usePilesContext } from "renderer/context/PilesContext"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { tipcClient } from "renderer/lib/tipc-client"
 import Navigation from "../Navigation"
 
-// Initial demo data - will be replaced with backend later
-const initialColumns = [
-  {
-    id: "ideas",
-    title: "Ideas",
-    icon: "lightbulb",
-    color: "#fbbf24",
-    cards: [
-      {
-        id: "1",
-        title: "Why Brand Storytelling is Essential in Today's Digital Age",
-        bullets: [
-          "It allows brands to differentiate themselves in a crowded digital marketplace and foster customer loyalty.",
-        ],
-        description:
-          "In the digital age, consumers are bombarded with information, making it harder for brands to stand out.",
-        tag: { label: "Storytelling", icon: "lightbulb" },
-      },
-      {
-        id: "2",
-        title: "Demystifying SEO: Tips for Ranking Higher in 2024",
-        bullets: [
-          "Effective SEO strategies can significantly improve a website's visibility and ranking on search engine results pages.",
-        ],
-        description:
-          "Understanding user intent, optimizing for mobile, and focusing on local SEO are some of the key strategies for ranking higher.",
-        tag: { label: "SEO", icon: "lightbulb" },
-      },
-      {
-        id: "3",
-        title: "The Future of Marketing: Top Trends to Watch in 2024",
-        bullets: ["Continued rise of AI, VR, and personalized marketing."],
-        description: null,
-        tag: null,
-      },
-    ],
-  },
-  {
-    id: "research",
-    title: "Research",
-    icon: "circle",
-    color: "#a855f7",
-    cards: [
-      {
-        id: "4",
-        title:
-          "Harnessing the Power of Data: How to Create Data-Driven Marketing Campaigns",
-        bullets: [
-          "Data-driven marketing campaigns are becoming essential for businesses seeking to understand and engage their target audience effectively.",
-          "Harnessing the power of data allows marketers to create personalized, targeted campaigns that yield higher returns.",
-        ],
-        description:
-          "Prevent CO2 from entering atmosphere CCS has the potential to significantly reduce the environmental impact of industries while allowing them to continue producing essential goods and services.",
-        tag: { label: "Data", icon: "circle" },
-        highlighted: true,
-      },
-      {
-        id: "5",
-        title:
-          "From Browsers to Buyers: Optimizing Your Website for Conversion",
-        bullets: [
-          "Optimizing your website for conversion is crucial in turning casual browsers into committed buyers.",
-          "Effective website optimization strategies can significantly increase conversion rates and boost your business's bottom line.",
-        ],
-        description:
-          "Website optimization involves improving various elements of your website, such as its design, usability, and content, to make it more appealing and user-friendly.",
-        tag: { label: "Conversion", icon: "circle" },
-      },
-    ],
-  },
-  {
-    id: "outline",
-    title: "Outline",
-    icon: "target",
-    color: "#f97316",
-    cards: [],
-  },
-]
+const DAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
+
+const toTimestamp = (card, fallbackTs) => {
+  if (typeof card?.observedAt === "number" && Number.isFinite(card.observedAt)) {
+    return card.observedAt
+  }
+  const fromUpdated = Date.parse(card?.updatedAt || "")
+  if (Number.isFinite(fromUpdated)) return fromUpdated
+  const fromCreated = Date.parse(card?.createdAt || "")
+  if (Number.isFinite(fromCreated)) return fromCreated
+  return fallbackTs
+}
+
+const startOfWeekMonday = (dateInput) => {
+  const date = new Date(dateInput)
+  const day = date.getDay() // sun=0
+  const diff = day === 0 ? -6 : 1 - day
+  const start = new Date(date)
+  start.setDate(date.getDate() + diff)
+  start.setHours(0, 0, 0, 0)
+  return start
+}
+
+const toDateKey = (dateInput) => {
+  const date = new Date(dateInput)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+const buildWeekLabel = (weekStartKey) => {
+  const start = new Date(`${weekStartKey}T00:00:00`)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+  return `${start.toLocaleDateString("pt-BR")} - ${end.toLocaleDateString("pt-BR")}`
+}
 
 function KanbanCard({ card, columnColor }) {
   return (
-    <div
-      className={`${styles.card} ${card.highlighted ? styles.highlighted : ""}`}
-    >
+    <div className={styles.card}>
       <h3 className={styles.cardTitle}>{card.title}</h3>
-      {card.bullets && card.bullets.length > 0 && (
+      {card.bullets?.length > 0 && (
         <ul className={styles.cardBullets}>
           {card.bullets.map((bullet, idx) => (
             <li key={idx}>{bullet}</li>
           ))}
         </ul>
       )}
-      {card.description && (
-        <p className={styles.cardDescription}>{card.description}</p>
-      )}
-      {card.tag && (
-        <div className={styles.cardFooter}>
-          <div className={styles.tag} style={{ "--tag-color": columnColor }}>
-            <span
-              className={styles.tagIcon}
-              style={{ borderColor: columnColor }}
-            />
-            <span className={styles.tagLabel}>{card.tag.label}</span>
-          </div>
-          {card.highlighted && (
-            <span className={styles.dragHandle}>
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M12 2v20M2 12h20" />
-              </svg>
-            </span>
-          )}
+      {card.description && <p className={styles.cardDescription}>{card.description}</p>}
+      <div className={styles.cardFooter}>
+        <div className={styles.tag} style={{ "--tag-color": columnColor }}>
+          <span className={styles.tagIcon} style={{ borderColor: columnColor }} />
+          <span className={styles.tagLabel}>{Math.round((card.confidence || 0) * 100)}% confiança</span>
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -149,12 +87,7 @@ function KanbanColumn({ column }) {
           </svg>
         )
       case "circle":
-        return (
-          <span
-            className={styles.columnIconCircle}
-            style={{ borderColor: color }}
-          />
-        )
+        return <span className={styles.columnIconCircle} style={{ borderColor: color }} />
       case "target":
         return (
           <svg
@@ -184,22 +117,8 @@ function KanbanColumn({ column }) {
           <span className={styles.columnCount}>{column.cards.length}</span>
         </div>
         <div className={styles.columnActions}>
-          <button className={styles.columnAction}>
+          <button className={styles.columnAction} title="Novo card (em breve)">
             <PlusIcon style={{ width: 18, height: 18 }} />
-          </button>
-          <button className={styles.columnAction}>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="19" cy="12" r="1" />
-              <circle cx="5" cy="12" r="1" />
-            </svg>
           </button>
         </div>
       </div>
@@ -212,24 +131,181 @@ function KanbanColumn({ column }) {
   )
 }
 
+function WeekSelector({ weeks, selectedWeekKey, onSelectWeek }) {
+  return (
+    <div className={styles.weekSelector}>
+      {weeks.map((week) => (
+        <button
+          key={week.key}
+          className={`${styles.weekBtn} ${selectedWeekKey === week.key ? styles.weekBtnActive : ""}`}
+          onClick={() => onSelectWeek(week.key)}
+        >
+          {week.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function DaySelector({ days, selectedDayKey, onSelectDay }) {
+  return (
+    <div className={styles.daySelector}>
+      <button
+        className={`${styles.dayBtn} ${selectedDayKey === "all" ? styles.dayBtnActive : ""}`}
+        onClick={() => onSelectDay("all")}
+      >
+        Semana
+      </button>
+      {days.map((day) => (
+        <button
+          key={day.key}
+          className={`${styles.dayBtn} ${selectedDayKey === day.key ? styles.dayBtnActive : ""}`}
+          onClick={() => onSelectDay(day.key)}
+        >
+          {day.label} ({day.count})
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function Kanban() {
   const { t } = useTranslation()
-  const [columns, setColumns] = useState(initialColumns)
   const { currentTheme } = usePilesContext()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [memoryQuery, setMemoryQuery] = useState("")
+  const [selectedWeekKey, setSelectedWeekKey] = useState("")
+  const [selectedDayKey, setSelectedDayKey] = useState("all")
 
-  const themeStyles = useMemo(
-    () => (currentTheme ? `${currentTheme}Theme` : ""),
-    [currentTheme]
-  )
-
-  const handleClose = () => {
-    navigate(-1)
-  }
-
-  // Detect platform
+  const themeStyles = useMemo(() => (currentTheme ? `${currentTheme}Theme` : ""), [currentTheme])
   const isMac = window.electron?.isMac
   const osLayoutStyles = isMac ? layoutStyles.macOS : layoutStyles.windows
+
+  const boardQuery = useQuery({
+    queryKey: ["autonomous-kanban-board"],
+    queryFn: () => tipcClient.getAutonomousKanbanBoard(),
+    refetchInterval: 30000,
+  })
+
+  const refreshMutation = useMutation({
+    mutationFn: () => tipcClient.refreshAutonomousKanban(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["autonomous-kanban-board"] })
+      queryClient.invalidateQueries({ queryKey: ["autonomous-kanban-memory"] })
+    },
+  })
+
+  const memoryQueryResult = useQuery({
+    queryKey: ["autonomous-kanban-memory", memoryQuery],
+    queryFn: () =>
+      tipcClient.searchAutonomousKanbanMemory({
+        query: memoryQuery,
+        maxResults: 6,
+      }),
+    enabled: memoryQuery.trim().length >= 3,
+  })
+
+  const timeAwareBoard = useMemo(() => {
+    const board = boardQuery.data
+    if (!board?.columns) return null
+
+    const fallbackTs = board.generatedAt || Date.now()
+    const normalizedColumns = board.columns.map((column) => ({
+      ...column,
+      cards: (column.cards || []).map((card) => {
+        const observedAtTs = toTimestamp(card, fallbackTs)
+        const observedDate = new Date(observedAtTs)
+        const weekStart = startOfWeekMonday(observedDate)
+        const weekKey = toDateKey(weekStart)
+        const dayKey = toDateKey(observedDate)
+        return {
+          ...card,
+          observedAtTs,
+          weekKey,
+          dayKey,
+        }
+      }),
+    }))
+
+    const allCards = normalizedColumns.flatMap((c) => c.cards)
+
+    const weekKeys = Array.from(new Set(allCards.map((card) => card.weekKey))).sort((a, b) =>
+      a > b ? -1 : 1,
+    )
+
+    const weeks = weekKeys.map((key) => ({
+      key,
+      label: buildWeekLabel(key),
+    }))
+
+    return {
+      ...board,
+      columns: normalizedColumns,
+      weeks,
+    }
+  }, [boardQuery.data])
+
+  useEffect(() => {
+    if (!timeAwareBoard?.weeks?.length) {
+      setSelectedWeekKey("")
+      setSelectedDayKey("all")
+      return
+    }
+
+    if (!selectedWeekKey || !timeAwareBoard.weeks.some((week) => week.key === selectedWeekKey)) {
+      const latest = timeAwareBoard.weeks[0]?.key || ""
+      setSelectedWeekKey(latest)
+      setSelectedDayKey("all")
+    }
+  }, [timeAwareBoard, selectedWeekKey])
+
+  const daysOfSelectedWeek = useMemo(() => {
+    if (!selectedWeekKey) return []
+
+    const weekStart = new Date(`${selectedWeekKey}T00:00:00`)
+    const cards = timeAwareBoard?.columns?.flatMap((c) => c.cards) || []
+
+    return Array.from({ length: 7 }).map((_, idx) => {
+      const date = new Date(weekStart)
+      date.setDate(weekStart.getDate() + idx)
+      const key = toDateKey(date)
+      const count = cards.filter((card) => card.weekKey === selectedWeekKey && card.dayKey === key).length
+      return {
+        key,
+        label: DAY_LABELS[idx],
+        count,
+      }
+    })
+  }, [selectedWeekKey, timeAwareBoard])
+
+  useEffect(() => {
+    if (selectedDayKey === "all") return
+    if (!daysOfSelectedWeek.some((d) => d.key === selectedDayKey)) {
+      setSelectedDayKey("all")
+    }
+  }, [daysOfSelectedWeek, selectedDayKey])
+
+  const filteredColumns = useMemo(() => {
+    const columns = timeAwareBoard?.columns || []
+    if (!selectedWeekKey) return columns
+
+    return columns.map((column) => ({
+      ...column,
+      cards: (column.cards || []).filter((card) => {
+        const inWeek = card.weekKey === selectedWeekKey
+        const inDay = selectedDayKey === "all" || card.dayKey === selectedDayKey
+        return inWeek && inDay
+      }),
+    }))
+  }, [timeAwareBoard, selectedWeekKey, selectedDayKey])
+
+  const filteredCardCount = useMemo(
+    () => filteredColumns.reduce((acc, column) => acc + column.cards.length, 0),
+    [filteredColumns],
+  )
+
+  const handleClose = () => navigate(-1)
 
   return (
     <div className={`${layoutStyles.frame} ${themeStyles} ${osLayoutStyles}`}>
@@ -238,89 +314,21 @@ function Kanban() {
         <div className={styles.header}>
           <div className={styles.wrapper}>
             <h1 className={styles.DialogTitle}>
-              <span>Tarefas</span>
+              <span>Kanban Autônomo</span>
             </h1>
             <div className={styles.headerActions}>
-              <button className={styles.headerBtn}>Share</button>
-              <button className={styles.headerBtnIcon}>
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                </svg>
-                <span>Brand Voice</span>
+              <button
+                className={styles.headerBtnIcon}
+                onClick={() => refreshMutation.mutate()}
+                disabled={refreshMutation.isPending}
+                title="Atualizar análise"
+              >
+                <RefreshIcon style={{ width: 16, height: 16 }} />
+                <span>{refreshMutation.isPending ? "Atualizando" : "Atualizar"}</span>
               </button>
-              <div className={styles.viewToggle}>
-                <button className={styles.viewBtn}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <line x1="8" y1="6" x2="21" y2="6" />
-                    <line x1="8" y1="12" x2="21" y2="12" />
-                    <line x1="8" y1="18" x2="21" y2="18" />
-                    <line x1="3" y1="6" x2="3.01" y2="6" />
-                    <line x1="3" y1="12" x2="3.01" y2="12" />
-                    <line x1="3" y1="18" x2="3.01" y2="18" />
-                  </svg>
-                </button>
-                <button className={`${styles.viewBtn} ${styles.active}`}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <rect x="3" y="3" width="7" height="7" />
-                    <rect x="14" y="3" width="7" height="7" />
-                    <rect x="14" y="14" width="7" height="7" />
-                    <rect x="3" y="14" width="7" height="7" />
-                  </svg>
-                </button>
-                <button className={styles.viewBtn}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                    <line x1="8" y1="21" x2="16" y2="21" />
-                    <line x1="12" y1="17" x2="12" y2="21" />
-                  </svg>
-                </button>
-              </div>
               <button className={styles.headerBtnIcon}>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="1" />
-                  <circle cx="19" cy="12" r="1" />
-                  <circle cx="5" cy="12" r="1" />
-                </svg>
-              </button>
-              <div className={styles.headerDivider} />
-              <button className={styles.headerBtnIcon}>
-                <PlusIcon style={{ width: 18, height: 18 }} />
+                <SearchIcon style={{ width: 16, height: 16 }} />
+                <span>Memória</span>
               </button>
             </div>
             <button className={styles.close} aria-label="Close" onClick={handleClose}>
@@ -330,48 +338,64 @@ function Kanban() {
         </div>
 
         <div className={styles.mainContent}>
-          <div className={styles.board}>
-            {columns.map((column) => (
-              <KanbanColumn key={column.id} column={column} />
-            ))}
-          </div>
-        </div>
+          <div className={styles.topFilters}>
+            <input
+              className={styles.searchInput}
+              placeholder="Buscar contexto na memória do agente (mínimo 3 caracteres)..."
+              value={memoryQuery}
+              onChange={(e) => setMemoryQuery(e.target.value)}
+            />
 
-        {/* Floating search button */}
-        <button className={styles.floatingSearch}>
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </button>
+            {timeAwareBoard?.weeks?.length > 0 && (
+              <>
+                <WeekSelector
+                  weeks={timeAwareBoard.weeks}
+                  selectedWeekKey={selectedWeekKey}
+                  onSelectWeek={(weekKey) => {
+                    setSelectedWeekKey(weekKey)
+                    setSelectedDayKey("all")
+                  }}
+                />
+                <DaySelector
+                  days={daysOfSelectedWeek}
+                  selectedDayKey={selectedDayKey}
+                  onSelectDay={setSelectedDayKey}
+                />
+              </>
+            )}
 
-        {/* Development Overlay */}
-        <div className={styles.devOverlay}>
-          <div className={styles.devPopup}>
-            <svg
-              className={styles.devIcon}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-            <h2 className={styles.devTitle}>Em Desenvolvimento</h2>
-            <p className={styles.devDescription}>
-              Esta funcionalidade está sendo construída e estará disponível em breve.
-            </p>
+            {memoryQueryResult.data?.length > 0 && (
+              <div className={styles.searchResults}>
+                {memoryQueryResult.data.map((item) => (
+                  <div key={item.id} className={styles.searchResultItem}>
+                    <strong>{item.filePath}</strong>
+                    <p>{item.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {boardQuery.isLoading ? (
+            <div className={styles.loadingState}>Carregando análise autônoma...</div>
+          ) : (
+            <>
+              <div className={styles.boardWrap}>
+                <div className={styles.board}>
+                  {filteredColumns.map((column) => (
+                    <KanbanColumn key={column.id} column={column} />
+                  ))}
+                </div>
+              </div>
+              <div className={styles.boardStats}>
+                <span>Runs analisadas: {timeAwareBoard?.stats?.runsAnalyzed ?? 0}</span>
+                <span>Cards no recorte: {filteredCardCount}</span>
+                <span>
+                  Última atualização: {timeAwareBoard?.generatedAt ? new Date(timeAwareBoard.generatedAt).toLocaleString() : "-"}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
       <Navigation />

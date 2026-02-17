@@ -85,6 +85,12 @@ function AutoJournal() {
     refetchInterval: 10000, // Refresh every 10 seconds
   })
 
+  const screenSessionStatusQuery = useQuery({
+    queryKey: ["screen-session-recording-status"],
+    queryFn: async () => tipcClient.getScreenSessionRecordingStatus(),
+    refetchInterval: 5000,
+  })
+
   const schedulerStatusQuery = useQuery({
     queryKey: ["auto-journal-scheduler-status"],
     queryFn: async () => tipcClient.getAutoJournalSchedulerStatus(),
@@ -174,6 +180,61 @@ function AutoJournal() {
     },
   })
 
+  const saveScreenSessionSettingsMutation = useMutation({
+    mutationFn: (input) => tipcClient.saveScreenSessionRecordingSettings(input),
+    onSuccess() {
+      queryClient.invalidateQueries({ queryKey: ["screen-session-recording-status"] })
+      queryClient.invalidateQueries({ queryKey: ["auto-journal-settings"] })
+      addNotification({
+        id: Date.now(),
+        message: t("autoJournal.settingsSaved"),
+      })
+    },
+    onError(error) {
+      addNotification({
+        id: Date.now(),
+        type: "error",
+        message: `${t("autoJournal.error")} ${error.message}`,
+      })
+    },
+  })
+
+  const startScreenSessionMutation = useMutation({
+    mutationFn: (input) => tipcClient.startScreenSessionRecording(input),
+    onSuccess() {
+      queryClient.invalidateQueries({ queryKey: ["screen-session-recording-status"] })
+      addNotification({
+        id: Date.now(),
+        message: t("autoJournal.videoRecordingStarted"),
+      })
+    },
+    onError(error) {
+      addNotification({
+        id: Date.now(),
+        type: "error",
+        message: `${t("autoJournal.error")} ${error.message}`,
+      })
+    },
+  })
+
+  const stopScreenSessionMutation = useMutation({
+    mutationFn: () => tipcClient.stopScreenSessionRecording(),
+    onSuccess() {
+      queryClient.invalidateQueries({ queryKey: ["screen-session-recording-status"] })
+      addNotification({
+        id: Date.now(),
+        message: t("autoJournal.videoRecordingStopped"),
+      })
+    },
+    onError(error) {
+      addNotification({
+        id: Date.now(),
+        type: "error",
+        message: `${t("autoJournal.error")} ${error.message}`,
+      })
+    },
+  })
+
   // Default prompts (Dayflow-style)
   const defaultTitlePrompt = `Title guidelines:
 Write titles like you're texting a friend about what you did. Natural, conversational, direct, specific.
@@ -253,6 +314,7 @@ Bad examples:
   const settings = {
     autoJournalEnabled: false,
     autoJournalWindowMinutes: 60,
+    autoJournalSourceMode: "both",
     autoJournalTargetPilePath: "",
     autoJournalAutoSaveEnabled: false,
     autoJournalPrompt: "",
@@ -261,6 +323,8 @@ Bad examples:
     autoJournalSummaryPromptEnabled: false,
     autoJournalSummaryPrompt: "",
     autoJournalIncludeScreenCapture: false,
+    screenSessionRecordingEnabled: false,
+    screenSessionCaptureIntervalSeconds: 5,
     ...(settingsQuery.data || {}),
   }
 
@@ -323,6 +387,13 @@ Bad examples:
     })
   }
 
+  const handleSourceModeChange = (value) => {
+    saveSettingsMutation.mutate({
+      ...settings,
+      autoJournalSourceMode: value,
+    })
+  }
+
   const handleTargetPileChange = (value) => {
     saveSettingsMutation.mutate({
       ...settings,
@@ -376,6 +447,26 @@ Bad examples:
     saveSettingsMutation.mutate({
       ...settings,
       autoJournalSummaryPrompt: value,
+    })
+  }
+
+  const handleScreenSessionEnabledChange = (enabled) => {
+    saveScreenSessionSettingsMutation.mutate({
+      enabled,
+      intervalSeconds:
+        screenSessionStatusQuery.data?.intervalSeconds ||
+        settings.screenSessionCaptureIntervalSeconds ||
+        5,
+    })
+  }
+
+  const handleScreenSessionIntervalChange = (value) => {
+    saveScreenSessionSettingsMutation.mutate({
+      enabled:
+        screenSessionStatusQuery.data?.enabled ??
+        settings.screenSessionRecordingEnabled ??
+        false,
+      intervalSeconds: Number(value),
     })
   }
 
@@ -1026,6 +1117,24 @@ Bad examples:
                   </select>
                 </fieldset>
 
+                <fieldset className={styles.Fieldset}>
+                  <label className={styles.Label}>
+                    {t("autoJournal.sourceMode")}
+                  </label>
+                  <div className={styles.Desc}>
+                    {t("autoJournal.sourceModeDesc")}
+                  </div>
+                  <select
+                    value={settings.autoJournalSourceMode || "both"}
+                    onChange={(e) => handleSourceModeChange(e.target.value)}
+                    className={styles.Select}
+                  >
+                    <option value="audio">{t("autoJournal.sourceAudio")}</option>
+                    <option value="video">{t("autoJournal.sourceVideo")}</option>
+                    <option value="both">{t("autoJournal.sourceBoth")}</option>
+                  </select>
+                </fieldset>
+
                 {/* Target Pile */}
                 <fieldset className={styles.Fieldset}>
                   <label className={styles.Label}>
@@ -1099,6 +1208,130 @@ Bad examples:
                     <Switch.Thumb className={styles.SwitchThumb} />
                   </Switch.Root>
                 </div>
+
+                {/* Continuous screen recording */}
+                <div className={styles.SwitchRow} style={{ marginBottom: "10px" }}>
+                  <div className={styles.SwitchInfo}>
+                    <span className={styles.Label}>
+                      {t("autoJournal.videoRecording")}
+                    </span>
+                    <span className={styles.Desc}>
+                      {t("autoJournal.videoRecordingDesc")}
+                    </span>
+                  </div>
+                  <Switch.Root
+                    className={styles.SwitchRoot}
+                    checked={screenSessionStatusQuery.data?.enabled ?? false}
+                    onCheckedChange={handleScreenSessionEnabledChange}
+                  >
+                    <Switch.Thumb className={styles.SwitchThumb} />
+                  </Switch.Root>
+                </div>
+
+                {screenSessionStatusQuery.data?.enabled && (
+                  <>
+                    <div
+                      style={{
+                        padding: "12px 16px",
+                        backgroundColor: screenSessionStatusQuery.data.running
+                          ? "var(--base-green-transparent, rgba(34, 197, 94, 0.1))"
+                          : "var(--bg-tertiary)",
+                        borderRadius: "8px",
+                        marginBottom: "16px",
+                        border: screenSessionStatusQuery.data.running
+                          ? "1px solid var(--base-green, #22c55e)"
+                          : "1px solid var(--border)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "10px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "0.85rem",
+                            fontWeight: "600",
+                            color: screenSessionStatusQuery.data.running
+                              ? "var(--base-green, #22c55e)"
+                              : "var(--text-secondary)",
+                          }}
+                        >
+                          {screenSessionStatusQuery.data.running
+                            ? t("autoJournal.videoRecordingActive")
+                            : t("autoJournal.videoRecordingInactive")}
+                        </span>
+                        <button
+                          className={styles.ActionBtn}
+                          onClick={() => {
+                            if (screenSessionStatusQuery.data?.running) {
+                              stopScreenSessionMutation.mutate()
+                            } else {
+                              startScreenSessionMutation.mutate({
+                                intervalSeconds:
+                                  screenSessionStatusQuery.data?.intervalSeconds || 5,
+                              })
+                            }
+                          }}
+                          disabled={
+                            startScreenSessionMutation.isPending ||
+                            stopScreenSessionMutation.isPending
+                          }
+                        >
+                          {screenSessionStatusQuery.data.running
+                            ? t("autoJournal.stopVideoRecording")
+                            : t("autoJournal.startVideoRecording")}
+                        </button>
+                      </div>
+                      {screenSessionStatusQuery.data.nextCaptureAt && (
+                        <div
+                          style={{
+                            fontSize: "0.75rem",
+                            color: "var(--text-secondary)",
+                            marginTop: "4px",
+                          }}
+                        >
+                          {t("autoJournal.nextCapture")}:{" "}
+                          {dayjs(screenSessionStatusQuery.data.nextCaptureAt).format(
+                            "HH:mm:ss",
+                          )}
+                        </div>
+                      )}
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--text-tertiary)",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {t("autoJournal.totalFrames")}:{" "}
+                        {screenSessionStatusQuery.data.capturedFrames ?? 0}
+                      </div>
+                    </div>
+
+                    <fieldset className={styles.Fieldset}>
+                      <label className={styles.Label}>
+                        {t("autoJournal.videoInterval")}
+                      </label>
+                      <div className={styles.Desc}>
+                        {t("autoJournal.videoIntervalDesc")}
+                      </div>
+                      <select
+                        value={screenSessionStatusQuery.data?.intervalSeconds ?? 5}
+                        onChange={(e) => handleScreenSessionIntervalChange(e.target.value)}
+                        className={styles.Select}
+                      >
+                        <option value={2}>{t("autoJournal.every2sec")}</option>
+                        <option value={5}>{t("autoJournal.every5sec")}</option>
+                        <option value={10}>{t("autoJournal.every10sec")}</option>
+                        <option value={15}>{t("autoJournal.every15sec")}</option>
+                      </select>
+                    </fieldset>
+                  </>
+                )}
 
                 {/* Periodic Screenshot Status */}
                 {periodicScreenshotQuery.data?.enabled && (

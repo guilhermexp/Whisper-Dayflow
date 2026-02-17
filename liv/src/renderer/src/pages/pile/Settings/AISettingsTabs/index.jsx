@@ -2,13 +2,9 @@ import React, { useEffect, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import styles from './AISettingTabs.module.scss';
 import { useAIContext } from 'renderer/context/AIContext';
-import {
-  usePilesContext,
-  availableThemes,
-} from 'renderer/context/PilesContext';
 import { CardIcon, OllamaIcon, BoxOpenIcon, GlobeIcon, RefreshIcon } from 'renderer/icons';
-import { useIndexContext } from 'renderer/context/IndexContext';
 import { useTranslation } from 'react-i18next';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 const resolveTabFromProvider = (provider) => {
   if (provider === 'ollama') return 'ollama';
@@ -16,25 +12,21 @@ const resolveTabFromProvider = (provider) => {
   return 'openai';
 };
 
+const QUALITY_LABEL = {
+  fast: 'Fastest',
+  balanced: 'Recommended',
+};
+
 export default function AISettingTabs({ APIkey, setCurrentKey }) {
   const { t } = useTranslation();
   const {
-    prompt,
-    setPrompt,
-    updateSettings,
     setBaseUrl,
-    getKey,
-    setKey,
-    deleteKey,
-    model,
-    setModel,
-    openrouterModel,
-    setOpenrouterModel,
     setOpenrouterKey,
     getOpenrouterKey,
     embeddingModel,
     setEmbeddingModel,
-    ollama,
+    ollamaBaseUrl,
+    setOllamaBaseUrl,
     baseUrl,
     pileAIProvider,
     setPileAIProvider,
@@ -45,87 +37,115 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
     resolveTabFromProvider(pileAIProvider)
   );
 
-  // OpenRouter models state
-  const [openrouterModels, setOpenrouterModels] = useState([]);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState({ ok: false, error: '' });
+  const [ollamaModels, setOllamaModels] = useState([]);
+  const [isLoadingOllama, setIsLoadingOllama] = useState(false);
+  const [pullingModel, setPullingModel] = useState('');
+  const [pullProgress, setPullProgress] = useState({});
 
-  // Load OpenRouter key on mount
+
+  const loadOllamaModels = async () => {
+    setIsLoadingOllama(true);
+    try {
+      const [status, models] = await Promise.all([
+        tipcClient.checkOllamaStatus({ baseUrl: ollamaBaseUrl }),
+        tipcClient.listOllamaEmbeddingModels({ baseUrl: ollamaBaseUrl }),
+      ]);
+      setOllamaStatus(status);
+      setOllamaModels(models || []);
+    } catch (error) {
+      setOllamaStatus({ ok: false, error: error?.message || 'Failed to connect to Ollama' });
+      setOllamaModels([]);
+    } finally {
+      setIsLoadingOllama(false);
+    }
+  };
+
   useEffect(() => {
     getOpenrouterKey().then((key) => {
       if (key) setOpenrouterAPIKey(key);
     });
   }, [getOpenrouterKey]);
 
-  // Load cached OpenRouter models on mount
   useEffect(() => {
-    window.electron.ipc.invoke('get-openrouter-models').then((models) => {
-      if (models && models.length > 0) {
-        setOpenrouterModels(models);
-      }
-    });
-  }, []);
-
-  // Fetch OpenRouter models when provider is selected
-  useEffect(() => {
-    if (pileAIProvider === 'openrouter' && openrouterModels.length === 0) {
-      handleFetchOpenrouterModels();
+    if (pileAIProvider === 'ollama') {
+      loadOllamaModels();
     }
   }, [pileAIProvider]);
 
   useEffect(() => {
     setSelectedTab((currentTab) =>
-      currentTab === 'subscription'
+      currentTab === 'subscription' || currentTab === 'ollama'
         ? currentTab
         : resolveTabFromProvider(pileAIProvider)
     );
   }, [pileAIProvider]);
 
-  const handleFetchOpenrouterModels = async () => {
-    setIsLoadingModels(true);
-    try {
-      const models = await window.electron.ipc.invoke('fetch-openrouter-models');
-      if (models && models.length > 0) {
-        setOpenrouterModels(models);
-      }
-    } catch (error) {
-      console.error('Failed to fetch OpenRouter models:', error);
-    } finally {
-      setIsLoadingModels(false);
-    }
-  };
+  useEffect(() => {
+    if (!pullingModel) return;
+    const timer = setInterval(async () => {
+      try {
+        const progress = await tipcClient.getOllamaPullProgress({ model: pullingModel });
+        setPullProgress((prev) => ({ ...prev, [pullingModel]: progress }));
 
-  // Save OpenRouter key when it changes
+        if (progress.status === 'success' || progress.status === 'error') {
+          clearInterval(timer);
+          setPullingModel('');
+          loadOllamaModels();
+        }
+      } catch {
+        // Ignore transient errors during polling
+      }
+    }, 1200);
+
+    return () => clearInterval(timer);
+  }, [pullingModel]);
+
   const handleOpenrouterKeyChange = (e) => {
     const value = e.target.value;
     setOpenrouterAPIKey(value);
     setOpenrouterKey(value);
   };
 
-  const { currentTheme, setTheme } = usePilesContext();
-
   const handleTabChange = (newValue) => {
     setSelectedTab(newValue);
     if (newValue === 'subscription') return;
+    // Ollama tab configures local embeddings for RAG only.
+    // Chat provider remains OpenAI/OpenRouter unless explicitly changed there.
+    if (newValue === 'ollama') return;
     setPileAIProvider(newValue);
   };
 
   const handleInputChange = (setter) => (e) => setter(e.target.value);
 
-  const renderThemes = () => {
-    return Object.entries(availableThemes).map(([theme, colors]) => (
-      <button
-        key={`theme-${theme}`}
-        className={`${styles.theme} ${
-          currentTheme === theme ? styles.current : ''
-        }`}
-        onClick={() => setTheme(theme)}
-      >
-        <div
-          className={styles.color1}
-          style={{ background: colors.primary }}
-        ></div>
-      </button>
-    ));
+  const handlePullModel = async (modelName) => {
+    setPullingModel(modelName);
+    setPullProgress((prev) => ({
+      ...prev,
+      [modelName]: {
+        model: modelName,
+        status: 'pulling',
+        percentage: 0,
+      },
+    }));
+
+    try {
+      await tipcClient.pullOllamaEmbeddingModel({
+        model: modelName,
+        baseUrl: ollamaBaseUrl,
+      });
+    } catch (error) {
+      setPullProgress((prev) => ({
+        ...prev,
+        [modelName]: {
+          model: modelName,
+          status: 'error',
+          error: error?.message || 'Pull failed',
+          percentage: 0,
+        },
+      }));
+      setPullingModel('');
+    }
   };
 
   return (
@@ -182,36 +202,83 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
 
           <div className={styles.group}>
             <fieldset className={styles.fieldset}>
-              <label className={styles.label} htmlFor="ollama-model">
-                {t('settingsDialog.journal.model')}
+              <label className={styles.label} htmlFor="ollama-base-url">
+                Ollama Base URL
               </label>
               <input
-                id="ollama-model"
+                id="ollama-base-url"
                 className={styles.input}
-                onChange={handleInputChange(setModel)}
-                value={model}
-                defaultValue="llama3.1:70b"
-                placeholder="llama3.1:70b"
-              />
-            </fieldset>
-            <fieldset className={styles.fieldset}>
-              <label className={styles.label} htmlFor="ollama-embedding-model">
-                {t('settingsDialog.journal.embeddingModel')}
-              </label>
-              <input
-                id="ollama-embedding-model"
-                className={styles.input}
-                onChange={handleInputChange(setEmbeddingModel)}
-                value={embeddingModel}
-                defaultValue="mxbai-embed-large"
-                placeholder="mxbai-embed-large"
-                disabled
+                onChange={handleInputChange(setOllamaBaseUrl)}
+                value={ollamaBaseUrl}
+                placeholder="http://localhost:11434"
               />
             </fieldset>
           </div>
 
+          <fieldset className={styles.fieldset}>
+            <label className={styles.label} htmlFor="ollama-embedding-model">
+              {t('settingsDialog.journal.embeddingModel')}
+            </label>
+            <select
+              id="ollama-embedding-model"
+              className={styles.input}
+              onChange={handleInputChange(setEmbeddingModel)}
+              value={embeddingModel}
+            >
+              {ollamaModels.map((item) => (
+                <option key={item.name} value={item.name}>
+                  {item.name} ({item.dimensions}d){item.installed ? ' - installed' : ''}
+                </option>
+              ))}
+            </select>
+          </fieldset>
+
+          <div className={styles.ollamaHeader}>
+            <span className={styles.disclaimer}>
+              {ollamaStatus.ok ? 'Ollama conectado' : `Ollama indisponível: ${ollamaStatus.error || 'não conectado'}`}
+            </span>
+            <button className={styles.refreshBtn} onClick={loadOllamaModels} disabled={isLoadingOllama}>
+              <RefreshIcon style={{ width: 14, height: 14 }} />
+              <span>{isLoadingOllama ? 'Atualizando...' : 'Atualizar modelos'}</span>
+            </button>
+          </div>
+
+          <div className={styles.ollamaModelsList}>
+            {ollamaModels.map((item) => {
+              const progress = pullProgress[item.name];
+              const isPulling = pullingModel === item.name && progress?.status === 'pulling';
+
+              return (
+                <div key={item.name} className={styles.ollamaModelRow}>
+                  <div>
+                    <div className={styles.ollamaModelTitle}>{item.name}</div>
+                    <div className={styles.ollamaModelMeta}>
+                      {item.dimensions} dim · {item.sizeLabel} · {QUALITY_LABEL[item.quality]}
+                    </div>
+                    {progress?.status === 'pulling' && (
+                      <div className={styles.ollamaProgress}>
+                        Baixando... {progress?.percentage ?? 0}%
+                      </div>
+                    )}
+                    {progress?.status === 'error' && (
+                      <div className={styles.ollamaError}>Erro: {progress?.error}</div>
+                    )}
+                  </div>
+
+                  <button
+                    className={styles.downloadBtn}
+                    disabled={isPulling || item.installed}
+                    onClick={() => handlePullModel(item.name)}
+                  >
+                    {item.installed ? 'Installed' : isPulling ? 'Downloading...' : 'Download'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
           <div className={styles.disclaimer}>
-            {t('settingsDialog.journal.ollamaDisclaimer')}
+            Recomendação: use `qwen3-embedding:0.6b` para menor uso de CPU/RAM, ou `qwen3-embedding:4b` para melhor qualidade sem custo de API.
           </div>
         </div>
       </Tabs.Content>
@@ -222,38 +289,18 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
             {t('settingsDialog.journal.openaiPitch')}
           </div>
 
-          <div className={styles.group}>
-            <fieldset className={styles.fieldset}>
-              <label className={styles.label} htmlFor="openai-base-url">
-                {t('settingsDialog.journal.baseUrl')}
-              </label>
-              <input
-                id="openai-base-url"
-                className={styles.input}
-                onChange={handleInputChange(setBaseUrl)}
-                value={baseUrl}
-                placeholder="https://api.openai.com/v1"
-              />
-            </fieldset>
-            <fieldset className={styles.fieldset}>
-              <label className={styles.label} htmlFor="openai-model">
-                {t('settingsDialog.journal.model')}
-              </label>
-              <select
-                id="openai-model"
-                className={styles.input}
-                onChange={handleInputChange(setModel)}
-                value={model || 'gpt-5.2'}
-              >
-                <option value="gpt-5.2">gpt-5.2</option>
-                <option value="gpt-5.3">gpt-5.3</option>
-                <option value="gpt-5.1">gpt-5.1</option>
-                <option value="gpt-5">gpt-5</option>
-                <option value="gpt-5-mini">gpt-5-mini</option>
-                <option value="gpt-4o">gpt-4o</option>
-              </select>
-            </fieldset>
-          </div>
+          <fieldset className={styles.fieldset}>
+            <label className={styles.label} htmlFor="openai-base-url">
+              {t('settingsDialog.journal.baseUrl')}
+            </label>
+            <input
+              id="openai-base-url"
+              className={styles.input}
+              onChange={handleInputChange(setBaseUrl)}
+              value={baseUrl}
+              placeholder="https://api.openai.com/v1"
+            />
+          </fieldset>
           <fieldset className={styles.fieldset}>
             <label className={styles.label} htmlFor="openai-api-key">
               {t('settingsDialog.journal.openaiApiKey')}
@@ -278,57 +325,6 @@ export default function AISettingTabs({ APIkey, setCurrentKey }) {
             Use OpenRouter to access multiple AI providers with a single API key.
           </div>
 
-          <fieldset className={styles.fieldset}>
-            <label className={styles.label} htmlFor="openrouter-model">
-              {t('settingsDialog.journal.model')}
-            </label>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              {openrouterModels.length === 0 ? (
-                <span style={{ fontSize: '12px', color: 'var(--secondary)', flex: 1 }}>
-                  {isLoadingModels ? 'Carregando modelos...' : 'Nenhum modelo carregado'}
-                </span>
-              ) : (
-                <select
-                  id="openrouter-model"
-                  className={styles.input}
-                  style={{ flex: 1 }}
-                  onChange={handleInputChange(setOpenrouterModel)}
-                  value={openrouterModel || ''}
-                >
-                  {openrouterModels.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <button
-                style={{
-                  padding: '8px',
-                  background: 'var(--secondary-bg)',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: isLoadingModels ? 'default' : 'pointer',
-                  opacity: isLoadingModels ? 0.5 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                onClick={handleFetchOpenrouterModels}
-                disabled={isLoadingModels}
-                title="Atualizar lista de modelos"
-              >
-                <RefreshIcon
-                  style={{
-                    height: '14px',
-                    width: '14px',
-                    color: 'var(--primary)',
-                    animation: isLoadingModels ? 'spin 1s linear infinite' : 'none',
-                  }}
-                />
-              </button>
-            </div>
-          </fieldset>
           <fieldset className={styles.fieldset}>
             <label className={styles.label} htmlFor="openrouter-api-key">
               OpenRouter API Key

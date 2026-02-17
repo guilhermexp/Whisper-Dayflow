@@ -46,9 +46,41 @@ function formatTime(ms) {
 export default function TimerChip() {
   const [state, setState] = useLocalStorage(STORAGE_KEY, initialState)
   const { addNotification } = useToastsContext()
-  const rafRef = useRef(null)
+  const intervalRef = useRef(null)
 
-  // Timer loop using requestAnimationFrame
+  const startFocusPipeline = async (label, expectedDurationMs) => {
+    try {
+      await tipcClient.startFocusSession({ label, expectedDurationMs })
+    } catch (error) {
+      console.error('[timer] failed to start focus session', error)
+    }
+  }
+
+  const pauseFocusPipeline = async () => {
+    try {
+      await tipcClient.pauseFocusSession({ reason: 'paused' })
+    } catch (error) {
+      console.error('[timer] failed to pause focus session', error)
+    }
+  }
+
+  const resumeFocusPipeline = async (label, expectedDurationMs) => {
+    try {
+      await tipcClient.resumeFocusSession({ label, expectedDurationMs })
+    } catch (error) {
+      console.error('[timer] failed to resume focus session', error)
+    }
+  }
+
+  const stopFocusPipeline = async (reason = 'finished') => {
+    try {
+      await tipcClient.stopFocusSession({ reason })
+    } catch (error) {
+      console.error('[timer] failed to stop focus session', error)
+    }
+  }
+
+  // Timer loop (1s cadence to avoid excessive localStorage writes)
   useEffect(() => {
     if (state.mode !== 'running') return
 
@@ -98,6 +130,9 @@ export default function TimerChip() {
             // Silent fail
           }
 
+          // End focus session and trigger final analysis/publication
+          stopFocusPipeline('finished')
+
           return {
             ...prev,
             mode: 'ready',
@@ -108,14 +143,13 @@ export default function TimerChip() {
 
         return { ...prev, remainingMs }
       })
-
-      rafRef.current = requestAnimationFrame(tick)
     }
 
-    rafRef.current = requestAnimationFrame(tick)
+    tick()
+    intervalRef.current = setInterval(tick, 1000)
 
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [state.mode, setState, addNotification])
 
@@ -151,9 +185,13 @@ export default function TimerChip() {
       startedAt: Date.now(),
       remainingMs: prev.totalMs,
     }))
+    startFocusPipeline(state.label, state.totalMs)
   }
 
-  const pause = () => setState((prev) => ({ ...prev, mode: 'paused' }))
+  const pause = () => {
+    setState((prev) => ({ ...prev, mode: 'paused' }))
+    pauseFocusPipeline()
+  }
 
   const resume = () => {
     setState((prev) => {
@@ -162,6 +200,7 @@ export default function TimerChip() {
       const startAt = now - alreadyElapsed
       return { ...prev, mode: 'running', startedAt: startAt }
     })
+    resumeFocusPipeline(state.label, state.remainingMs)
   }
 
   const reset = () => {
@@ -187,6 +226,7 @@ export default function TimerChip() {
           // Silent fail
         }
       }
+      stopFocusPipeline('cancelled')
       return {
         ...prev,
         mode: 'ready',

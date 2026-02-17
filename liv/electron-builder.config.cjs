@@ -26,6 +26,14 @@ module.exports = {
     "node_modules/@egoist/electron-panel-window/**",
     "node_modules/bindings/**",
     "node_modules/file-uri-to-path/**",
+    "node_modules/sqlite3/**",
+  ],
+  extraResources: [
+    {
+      from: "node_modules/sqlite3",
+      to: "app.asar.unpacked/node_modules/sqlite3",
+      filter: ["**/*"],
+    },
   ],
   win: {
     executableName: "liv",

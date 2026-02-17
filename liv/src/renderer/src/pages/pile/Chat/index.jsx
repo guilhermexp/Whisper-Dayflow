@@ -26,15 +26,8 @@ import Navigation from "../Navigation"
 
 function Chat() {
   const { t } = useTranslation()
-  const { validKey, model, openrouterModel, pileAIProvider } = useAIContext()
+  const { validKey } = useAIContext()
   const { currentTheme, setTheme } = usePilesContext()
-
-  // Get current model display name
-  const currentModelDisplay = useMemo(() => {
-    if (pileAIProvider === "openrouter") return openrouterModel || "openrouter"
-    if (pileAIProvider === "ollama") return model || "ollama"
-    return model || "gpt-5.2"
-  }, [pileAIProvider, model, openrouterModel])
 
   const { getAIResponse, addMessage, resetMessages, relevantEntries } =
     useChat()
@@ -47,11 +40,9 @@ function Chat() {
   const [showContext, setShowContext] = useState(false)
   const [showThemeSelector, setShowThemeSelector] = useState(false)
 
-  // Refs for batching streaming tokens
   const tokenBufferRef = useRef("")
   const flushTimeoutRef = useRef(null)
 
-  // Check if the AI API key is valid
   useEffect(() => {
     const checkApiKeyValid = async () => {
       const valid = await validKey()
@@ -78,30 +69,28 @@ function Chat() {
     }
   }
 
-  // Flush buffered tokens to state
   const flushTokenBuffer = useCallback(() => {
     if (tokenBufferRef.current) {
       const bufferedContent = tokenBufferRef.current
       tokenBufferRef.current = ""
 
-      setHistory((history) => {
-        if (!history || history.length === 0) return []
-        const last = history[history.length - 1]
+      setHistory((messages) => {
+        if (!messages || messages.length === 0) return []
+        const last = messages[messages.length - 1]
         if (last?.role === "system") {
           const currentContent =
             last.content === PENDING_MESSAGE_MARKER ? "" : last.content
           return [
-            ...history.slice(0, -1),
+            ...messages.slice(0, -1),
             { role: "system", content: currentContent + bufferedContent },
           ]
         }
-        return history
+        return messages
       })
     }
     flushTimeoutRef.current = null
   }, [])
 
-  // Batched token appending
   const appendToLastSystemMessage = useCallback(
     (token) => {
       tokenBufferRef.current += token ?? ""
@@ -113,7 +102,6 @@ function Chat() {
     [flushTokenBuffer],
   )
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (flushTimeoutRef.current) {
@@ -129,11 +117,11 @@ function Chat() {
     setQuerying(true)
     setRequestError("")
     setText("")
-    setHistory((history) => [...history, { role: "user", content: message }])
+    setHistory((messages) => [...messages, { role: "user", content: message }])
     try {
       const messages = await addMessage(message)
-      setHistory((history) => [
-        ...history,
+      setHistory((current) => [
+        ...current,
         { role: "system", content: PENDING_MESSAGE_MARKER },
       ])
       await getAIResponse(messages, appendToLastSystemMessage)
@@ -144,8 +132,8 @@ function Chat() {
         error?.message ||
           "Nao foi possivel gerar resposta agora. Tente novamente.",
       )
-      setHistory((history) =>
-        history.filter((m) => m.content !== PENDING_MESSAGE_MARKER),
+      setHistory((messages) =>
+        messages.filter((m) => m.content !== PENDING_MESSAGE_MARKER),
       )
     } finally {
       setQuerying(false)
@@ -154,7 +142,6 @@ function Chat() {
 
   const handleSuggestionClick = (suggestion) => {
     setText(suggestion)
-    // Auto-submit after a brief delay
     setTimeout(() => {
       onSubmit()
     }, 100)
@@ -202,11 +189,6 @@ function Chat() {
 
   const canSubmit = text.trim() !== "" && !querying && aiApiKeyValid
 
-  const osStyles = useMemo(
-    () => (window.electron.isMac ? styles.mac : styles.win),
-    [],
-  )
-
   const themeStyles = useMemo(
     () => (currentTheme ? `${currentTheme}Theme` : ""),
     [currentTheme],
@@ -221,101 +203,83 @@ function Chat() {
     liquid: "#1f2937",
   }
 
-  const handleClose = () => {
-    navigate(-1)
-  }
-
-  // Detect platform
   const isMac = window.electron?.isMac
   const osLayoutStyles = isMac ? layoutStyles.macOS : layoutStyles.windows
-
-  // Show intro when no history
   const showIntro = history.length === 0
 
   return (
     <div className={`${layoutStyles.frame} ${themeStyles} ${osLayoutStyles}`}>
       <div className={layoutStyles.bg}></div>
       <div className={styles.pageContainer}>
-        <div className={styles.scroller}>
-          {/* Minimal header */}
-          <div className={styles.header}>
-            <div className={styles.wrapper}>
-              <h1 className={styles.DialogTitle}>
-                <Status />
-              </h1>
-              <div className={styles.buttons}>
-                {/* Theme Selector */}
-                <div className={styles.buttonGroup}>
-                  <button
-                    type="button"
-                    className={styles.button}
-                    onClick={() => setShowThemeSelector(!showThemeSelector)}
-                    title={t("chat.changeTheme")}
-                    aria-label={t("chat.changeTheme")}
-                  >
-                    <ColorsIcon className={styles.icon} />
-                  </button>
-                  <AnimatePresence>
-                    {showThemeSelector && (
-                      <motion.div
-                        className={styles.themeSelector}
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                      >
-                        {Object.keys(availableThemes).map((theme) => (
-                          <div
-                            key={theme}
-                            className={`${styles.themeOption} ${currentTheme === theme ? styles.active : ""}`}
-                            onClick={() => handleThemeChange(theme)}
-                            style={{ backgroundColor: themeColors[theme] }}
-                            title={theme}
-                          />
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Export */}
+        <div className={styles.header}>
+          <div className={styles.wrapper}>
+            <h1 className={styles.DialogTitle}>
+              <Status />
+            </h1>
+            <div className={styles.headerActions}>
+              <div className={styles.buttonGroup}>
                 <button
                   type="button"
-                  className={`${styles.button} ${history.length === 0 ? styles.disabled : ""}`}
-                  onClick={exportChat}
-                  title={t("chat.exportChat")}
-                  aria-label={t("chat.exportChat")}
-                  disabled={history.length === 0}
+                  className={styles.headerBtnIcon}
+                  onClick={() => setShowThemeSelector(!showThemeSelector)}
+                  title={t("chat.changeTheme")}
+                  aria-label={t("chat.changeTheme")}
                 >
-                  <DownloadIcon className={styles.icon} />
+                  <ColorsIcon className={styles.icon} />
                 </button>
-
-                {/* Clear */}
-                <button
-                  type="button"
-                  className={`${styles.button} ${history.length === 0 ? styles.disabled : ""}`}
-                  onClick={onResetConversation}
-                  title={t("chat.clearChat")}
-                  aria-label={t("chat.clearChat")}
-                  disabled={history.length === 0}
-                >
-                  <RefreshIcon className={styles.icon} />
-                </button>
-
-                {/* Close */}
-                <button
-                  className={`${styles.close} ${osStyles}`}
-                  aria-label="Close Chat"
-                  onClick={handleClose}
-                >
-                  <CrossIcon />
-                </button>
+                <AnimatePresence>
+                  {showThemeSelector && (
+                    <motion.div
+                      className={styles.themeSelector}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                    >
+                      {Object.keys(availableThemes).map((theme) => (
+                        <div
+                          key={theme}
+                          className={`${styles.themeOption} ${currentTheme === theme ? styles.active : ""}`}
+                          onClick={() => handleThemeChange(theme)}
+                          style={{ backgroundColor: themeColors[theme] }}
+                          title={theme}
+                        />
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </div>
-          </div>
 
+              <button
+                type="button"
+                className={`${styles.headerBtnIcon} ${history.length === 0 ? styles.disabled : ""}`}
+                onClick={exportChat}
+                title={t("chat.exportChat")}
+                aria-label={t("chat.exportChat")}
+                disabled={history.length === 0}
+              >
+                <DownloadIcon className={styles.icon} />
+              </button>
+
+              <button
+                type="button"
+                className={`${styles.headerBtnIcon} ${history.length === 0 ? styles.disabled : ""}`}
+                onClick={onResetConversation}
+                title={t("chat.clearChat")}
+                aria-label={t("chat.clearChat")}
+                disabled={history.length === 0}
+              >
+                <RefreshIcon className={styles.icon} />
+              </button>
+            </div>
+            <button className={styles.close} aria-label="Close Chat" onClick={() => navigate(-1)}>
+              <CrossIcon />
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.scroller}>
           <div className={styles.mainContent}>
             <div className={styles.contentColumn}>
-              {/* Context toggle */}
               {relevantEntries.length > 0 && !showIntro && (
                 <motion.button
                   type="button"
@@ -336,7 +300,6 @@ function Chat() {
               )}
 
               <div className={styles.chatStage}>
-                {/* Context Panel */}
                 <AnimatePresence initial={false}>
                   {showContext && relevantEntries.length > 0 && (
                     <motion.aside
@@ -352,9 +315,7 @@ function Chat() {
                       <div className={styles.contextList}>
                         {relevantEntries.map((entry, index) => (
                           <div key={entry.path} className={styles.contextItem}>
-                            <div className={styles.contextIndex}>
-                              {index + 1}
-                            </div>
+                            <div className={styles.contextIndex}>{index + 1}</div>
                             <div className={styles.contextPath}>
                               {entry.path.split("/").pop().replace(".md", "")}
                             </div>
@@ -368,7 +329,6 @@ function Chat() {
                   )}
                 </AnimatePresence>
 
-                {/* Chat Messages or Intro */}
                 <div className={styles.answer}>
                   {showIntro ? (
                     <Intro onSuggestionClick={handleSuggestionClick} />
@@ -380,11 +340,9 @@ function Chat() {
             </div>
           </div>
 
-          {/* Input bar - pill style */}
           <div className={styles.inputBar}>
             <div className={styles.holder}>
               <div className={styles.bar}>
-                {/* Context badge */}
                 {relevantEntries.length > 0 && (
                   <div className={styles.contextBadge}>
                     {relevantEntries.length} {t("chat.relevantEntries")}
@@ -427,9 +385,7 @@ function Chat() {
                   {requestError}
                 </div>
               )}
-              <div className={styles.disclaimer}>
-                {t("chat.disclaimer")} · {currentModelDisplay}
-              </div>
+              <div className={styles.disclaimer}>{t("chat.disclaimer")}</div>
             </div>
           </div>
         </div>
