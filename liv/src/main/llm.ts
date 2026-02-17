@@ -4,9 +4,14 @@ import { enhancementService } from "./services/enhancement-service"
 import { getKey, getOpenrouterKey } from "./pile-utils/store"
 import settings from "electron-settings"
 import type { AutoJournalSummary, RecordingHistoryItem } from "../shared/types"
+import { logWithContext } from "./logger"
+
+const llmLog = logWithContext("LLM")
 
 const DEFAULT_CHAT_MODEL = "gpt-5.2"
 const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.2"
+const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"
+const FALLBACK_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
 
 const normalizePileProvider = (provider?: string) => {
   const supportedProviders = new Set([
@@ -229,18 +234,30 @@ export async function postProcessTranscript(
   const chatProviderId = config.transcriptPostProcessingProviderId
 
   if (chatProviderId === "gemini") {
-    if (!config.geminiApiKey) throw new Error("Gemini API key is required")
+    const geminiApiKey = config.geminiApiKey
+    if (!geminiApiKey) throw new Error("Gemini API key is required")
 
-    const gai = new GoogleGenerativeAI(config.geminiApiKey)
-    const gModel = gai.getGenerativeModel({
-      model: config.geminiModel || "gemini-1.5-flash-002",
-    })
+    const gai = new GoogleGenerativeAI(geminiApiKey)
+    const modelCandidates = Array.from(
+      new Set([config.geminiModel || DEFAULT_GEMINI_MODEL, ...FALLBACK_GEMINI_MODELS]),
+    )
 
-    ensureNotAborted()
-    const result = await gModel.generateContent([prompt], {
-      baseUrl: config.geminiBaseUrl,
-    })
-    return result.response.text().trim()
+    let lastError: unknown = null
+    for (const modelCandidate of modelCandidates) {
+      try {
+        const gModel = gai.getGenerativeModel({ model: modelCandidate })
+        ensureNotAborted()
+        const result = await gModel.generateContent([prompt], {
+          baseUrl: config.geminiBaseUrl,
+        })
+        return result.response.text().trim()
+      } catch (error) {
+        llmLog.warn(`[Gemini] Model ${modelCandidate} failed, trying next...`, error)
+        lastError = error
+      }
+    }
+
+    throw lastError || new Error("Gemini request failed")
   }
 
   ensureNotAborted()
@@ -551,22 +568,35 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
   let debugProvider = provider
 
   const callWithGemini = async (promptText = finalPrompt): Promise<string> => {
-    if (!config.geminiApiKey) {
+    const geminiApiKey = config.geminiApiKey
+    if (!geminiApiKey) {
       throw new Error(
         "Gemini API key is required for auto-journal when provider=gemini",
       )
     }
 
-    const gai = new GoogleGenerativeAI(config.geminiApiKey)
-    const modelId = config.geminiModel || "gemini-1.5-flash-002"
-    debugModel = modelId
-    const gModel = gai.getGenerativeModel({ model: modelId })
+    const gai = new GoogleGenerativeAI(geminiApiKey)
+    const modelCandidates = Array.from(
+      new Set([config.geminiModel || DEFAULT_GEMINI_MODEL, ...FALLBACK_GEMINI_MODELS]),
+    )
 
-    ensureNotAborted()
-    const result = await gModel.generateContent([promptText], {
-      baseUrl: config.geminiBaseUrl,
-    })
-    return result.response.text()
+    let lastError: unknown = null
+    for (const modelCandidate of modelCandidates) {
+      try {
+        debugModel = modelCandidate
+        const gModel = gai.getGenerativeModel({ model: modelCandidate })
+        ensureNotAborted()
+        const result = await gModel.generateContent([promptText], {
+          baseUrl: config.geminiBaseUrl,
+        })
+        return result.response.text()
+      } catch (error) {
+        llmLog.warn(`[Gemini] Model ${modelCandidate} failed, trying next...`, error)
+        lastError = error
+      }
+    }
+
+    throw lastError || new Error("Gemini request failed")
   }
 
   const callWithOpenAICompatible = async (
@@ -714,10 +744,14 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
   const callWithOllama = async (promptText = finalPrompt): Promise<string> => {
     const ollamaModel =
       ((await settings.get("model")) as string | undefined) || "llama3"
+    const ollamaBaseUrl =
+      ((await settings.get("ollamaBaseUrl")) as string | undefined) ||
+      "http://localhost:11434"
+    const normalizedBaseUrl = ollamaBaseUrl.replace(/\/+$/, "")
     debugModel = ollamaModel
 
     ensureNotAborted()
-    const response = await fetch("http://localhost:11434/api/chat", {
+    const response = await fetch(`${normalizedBaseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

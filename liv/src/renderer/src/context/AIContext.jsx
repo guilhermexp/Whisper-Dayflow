@@ -9,7 +9,8 @@ import OpenAI from "openai"
 import { usePilesContext } from "./PilesContext"
 import { useElectronStore } from "renderer/hooks/useElectronStore"
 
-const OLLAMA_URL = "http://localhost:11434/api"
+const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
+const DEFAULT_OLLAMA_CHAT_MODEL = "llama3.1:8b"
 const OPENAI_URL = "https://api.openai.com/v1"
 const OPENROUTER_URL = "https://openrouter.ai/api/v1"
 const DEFAULT_CHAT_MODEL = "gpt-5.2"
@@ -34,12 +35,25 @@ export const AIContextProvider = ({ children }) => {
   )
   const [embeddingModel, setEmbeddingModel] = useElectronStore(
     "embeddingModel",
-    "mxbai-embed-large",
+    "qwen3-embedding:0.6b",
+  )
+  const [ollamaBaseUrl, setOllamaBaseUrl] = useElectronStore(
+    "ollamaBaseUrl",
+    DEFAULT_OLLAMA_BASE_URL,
   )
   const [baseUrl, setBaseUrl] = useElectronStore("baseUrl", OPENAI_URL)
+  const isOpenAIModelName = useCallback(
+    (value) => typeof value === "string" && /^gpt-|^o1|^o3/i.test(value),
+    [],
+  )
 
   useEffect(() => {
     if (pileAIProvider === "subscription") {
+      setPileAIProvider("openai")
+    }
+    // Chat provider should remain OpenAI/OpenRouter.
+    // Ollama is used for local embeddings/RAG by default.
+    if (pileAIProvider === "ollama") {
       setPileAIProvider("openai")
     }
     if (model === "gpt-5.1" || model === "gpt-5.3") {
@@ -48,10 +62,14 @@ export const AIContextProvider = ({ children }) => {
     if (!openrouterModel || openrouterModel === "x-ai/grok-4-fast") {
       setOpenrouterModel(DEFAULT_OPENROUTER_MODEL)
     }
+    if (pileAIProvider === "openai" && (!model || !isOpenAIModelName(model))) {
+      setModel(DEFAULT_CHAT_MODEL)
+    }
   }, [
     pileAIProvider,
     model,
     openrouterModel,
+    isOpenAIModelName,
     setPileAIProvider,
     setModel,
     setOpenrouterModel,
@@ -123,7 +141,12 @@ export const AIContextProvider = ({ children }) => {
         return
       }
 
-      const currentModel = ai.type === "openrouter" ? openrouterModel : model
+      const currentModel =
+        ai.type === "openrouter"
+          ? openrouterModel || DEFAULT_OPENROUTER_MODEL
+          : ai.type === "openai"
+            ? (model && isOpenAIModelName(model) ? model : DEFAULT_CHAT_MODEL)
+            : (model && !isOpenAIModelName(model) ? model : DEFAULT_OLLAMA_CHAT_MODEL)
       console.log("[Chat] Provider:", ai.type)
       console.log("[Chat] Model:", currentModel)
       console.log("[Chat] Context messages:", context.length)
@@ -134,16 +157,26 @@ export const AIContextProvider = ({ children }) => {
 
       try {
         if (ai.type === "ollama") {
-          console.log("[Chat] Using Ollama API at:", OLLAMA_URL)
-          const response = await fetch(`${OLLAMA_URL}/chat`, {
+          const normalizedOllamaBaseUrl = (ollamaBaseUrl || DEFAULT_OLLAMA_BASE_URL).replace(/\/+$/, "")
+          const ollamaModel =
+            model && !isOpenAIModelName(model)
+              ? model
+              : DEFAULT_OLLAMA_CHAT_MODEL
+          console.log("[Chat] Using Ollama API at:", normalizedOllamaBaseUrl)
+          const response = await fetch(`${normalizedOllamaBaseUrl}/api/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model, messages: context }),
+            body: JSON.stringify({ model: ollamaModel, messages: context }),
           })
 
           if (!response.ok) {
-            console.error("[Chat] ❌ Ollama HTTP error:", response.status)
-            throw new Error(`HTTP error! status: ${response.status}`)
+            let details = ""
+            try {
+              const payload = await response.json()
+              details = payload?.error || payload?.message || ""
+            } catch {}
+            console.error("[Chat] ❌ Ollama HTTP error:", response.status, details)
+            throw new Error(`Ollama error ${response.status}${details ? `: ${details}` : ""}`)
           }
 
           const reader = response.body.getReader()
@@ -215,7 +248,7 @@ export const AIContextProvider = ({ children }) => {
         throw error
       }
     },
-    [ai, model, openrouterModel, pileAIProvider],
+    [ai, model, openrouterModel, pileAIProvider, ollamaBaseUrl, isOpenAIModelName],
   )
 
   const prepareCompletionContext = useCallback(
@@ -270,6 +303,8 @@ export const AIContextProvider = ({ children }) => {
     setOpenrouterModel,
     embeddingModel,
     setEmbeddingModel,
+    ollamaBaseUrl,
+    setOllamaBaseUrl,
     generateCompletion,
     prepareCompletionContext,
     pileAIProvider,

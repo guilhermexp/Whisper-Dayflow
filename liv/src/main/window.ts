@@ -16,6 +16,7 @@ import { RendererHandlers } from "./renderer-handlers"
 import { configStore } from "./config"
 import { mediaController } from "./services/media-controller"
 import { logger } from "./logger"
+import { state } from "./state"
 
 const isMacOS = process.platform === "darwin"
 
@@ -239,18 +240,52 @@ export function showPanelWindow() {
   makeKeyWindow(win)
 }
 
+const waitForPanelRendererReady = async (win: BrowserWindow) => {
+  if (win.isDestroyed()) return false
+
+  // If renderer is still loading, wait until navigation finishes.
+  if (win.webContents.isLoadingMainFrame()) {
+    await new Promise<void>((resolve) => {
+      const cleanup = () => {
+        win.webContents.removeListener("did-finish-load", onFinish)
+        resolve()
+      }
+      const onFinish = () => cleanup()
+      win.webContents.once("did-finish-load", onFinish)
+      // Fail-safe in dev/watch mode to avoid hanging forever.
+      setTimeout(cleanup, 1000)
+    })
+  }
+
+  // Give React a brief moment to mount event listeners in panel page.
+  await new Promise((resolve) => setTimeout(resolve, 120))
+  return !win.isDestroyed()
+}
+
 export async function showPanelWindowAndStartRecording() {
   showPanelWindow()
+  const panel = WINDOWS.get("panel")
+  if (!panel || panel.isDestroyed()) return
+
+  const ready = await waitForPanelRendererReady(panel)
+  if (!ready) return
 
   // Mute system audio if enabled
-  console.log("[Window] Calling mediaController.muteSystemAudio()")
+  logger.info("[Window] Calling mediaController.muteSystemAudio()")
   try {
     await mediaController.muteSystemAudio()
   } catch (error) {
-    console.warn("[Window] muteSystemAudio failed, continuing anyway", error)
+    logger.warn("[Window] muteSystemAudio failed, continuing anyway", error)
   }
 
+  // Retry once to avoid dropping start event on freshly-created panel windows.
   getWindowRendererHandlers("panel")?.startRecording.send()
+  setTimeout(() => {
+    if (!state.isRecording && !state.isTranscribing) {
+      logger.info("[Window] Retrying startRecording send")
+      getWindowRendererHandlers("panel")?.startRecording.send()
+    }
+  }, 220)
 }
 
 export function makePanelWindowClosable() {
@@ -278,9 +313,9 @@ export const stopRecordingAndHidePanelWindow = async () => {
   }
 
   // Unmute system audio if we muted it
-  console.log("[Window] Calling mediaController.unmuteSystemAudio()")
+  logger.info("[Window] Calling mediaController.unmuteSystemAudio()")
   await mediaController.unmuteSystemAudio()
-  console.log("[Window] mediaController.unmuteSystemAudio() completed")
+  logger.info("[Window] mediaController.unmuteSystemAudio() completed")
 }
 
 // Timer floating window
