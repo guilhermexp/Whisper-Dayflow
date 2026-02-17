@@ -57,6 +57,40 @@ import {
   deletePeriodicScreenshot,
   getPeriodicScreenshotsDir,
 } from "./services/periodic-screenshot-service"
+import {
+  applyScreenSessionRecordingConfig,
+  getScreenSessionRecordingStatus,
+  getScreenSessionRecordingsDir,
+  listScreenSessionRecordings,
+  startScreenSessionRecording,
+  stopScreenSessionRecording,
+  syncScreenSessionRecordingWithConfig,
+} from "./services/screen-session-recording-service"
+import {
+  getAutonomousKanbanBoard,
+  refreshAutonomousKanban,
+  searchAutonomousKanbanMemory,
+  getAutonomousKanbanStatus,
+  getAutonomousPromptContext,
+} from "./services/autonomous-kanban-service"
+import {
+  getAutonomousProfileBoard,
+  refreshAutonomousProfile,
+  getAutonomousProfileStatus,
+} from "./services/autonomous-profile-service"
+import {
+  checkOllamaStatus,
+  listOllamaEmbeddingModels,
+  pullOllamaEmbeddingModel,
+  getOllamaPullProgress,
+} from "./services/ollama-embedding-service"
+import {
+  getFocusSessionStatus,
+  pauseFocusSession,
+  resumeFocusSession,
+  startFocusSession,
+  stopFocusSession,
+} from "./services/focus-session-service"
 
 const t = tipc.create()
 
@@ -923,6 +957,7 @@ export const router = {
     return {
       autoJournalEnabled: cfg.autoJournalEnabled ?? false,
       autoJournalWindowMinutes: cfg.autoJournalWindowMinutes ?? 60,
+      autoJournalSourceMode: cfg.autoJournalSourceMode ?? "both",
       autoJournalTargetPilePath: cfg.autoJournalTargetPilePath ?? "",
       autoJournalAutoSaveEnabled: cfg.autoJournalAutoSaveEnabled ?? false,
       autoJournalPrompt: cfg.autoJournalPrompt ?? "",
@@ -934,6 +969,10 @@ export const router = {
         cfg.autoJournalSummaryPromptEnabled ?? false,
       autoJournalSummaryPrompt: cfg.autoJournalSummaryPrompt ?? "",
       autoJournalGifDir: GIF_DIR,
+      screenSessionRecordingEnabled: cfg.screenSessionRecordingEnabled ?? false,
+      screenSessionCaptureIntervalSeconds:
+        cfg.screenSessionCaptureIntervalSeconds ?? 5,
+      screenSessionRecordingsDir: getScreenSessionRecordingsDir(),
     }
   }),
 
@@ -941,6 +980,7 @@ export const router = {
     .input<{
       autoJournalEnabled?: boolean
       autoJournalWindowMinutes?: number
+      autoJournalSourceMode?: "audio" | "video" | "both"
       autoJournalTargetPilePath?: string
       autoJournalPrompt?: string
       autoJournalAutoSaveEnabled?: boolean
@@ -961,6 +1001,8 @@ export const router = {
         autoJournalEnabled: willBeEnabled,
         autoJournalWindowMinutes:
           input.autoJournalWindowMinutes ?? cfg.autoJournalWindowMinutes ?? 60,
+        autoJournalSourceMode:
+          input.autoJournalSourceMode ?? cfg.autoJournalSourceMode ?? "both",
         autoJournalTargetPilePath:
           input.autoJournalTargetPilePath ??
           cfg.autoJournalTargetPilePath ??
@@ -997,6 +1039,7 @@ export const router = {
       return {
         autoJournalEnabled: updatedCfg.autoJournalEnabled,
         autoJournalWindowMinutes: updatedCfg.autoJournalWindowMinutes,
+        autoJournalSourceMode: updatedCfg.autoJournalSourceMode,
         autoJournalTargetPilePath: updatedCfg.autoJournalTargetPilePath,
         autoJournalAutoSaveEnabled: updatedCfg.autoJournalAutoSaveEnabled,
         autoJournalIncludeScreenCapture:
@@ -1017,6 +1060,42 @@ export const router = {
     return getSchedulerStatus()
   }),
 
+  getScreenSessionRecordingStatus: t.procedure.action(async () => {
+    return getScreenSessionRecordingStatus()
+  }),
+
+  listScreenSessionRecordings: t.procedure
+    .input<{ limit?: number } | undefined>()
+    .action(async ({ input }) => {
+      return listScreenSessionRecordings(input?.limit)
+    }),
+
+  startScreenSessionRecording: t.procedure
+    .input<{ intervalSeconds?: number } | undefined>()
+    .action(async ({ input }) => {
+      return startScreenSessionRecording({
+        intervalSeconds: input?.intervalSeconds,
+      })
+    }),
+
+  stopScreenSessionRecording: t.procedure.action(async () => {
+    return stopScreenSessionRecording()
+  }),
+
+  saveScreenSessionRecordingSettings: t.procedure
+    .input<{
+      enabled?: boolean
+      intervalSeconds?: number
+    }>()
+    .action(async ({ input }) => {
+      applyScreenSessionRecordingConfig({
+        enabled: input.enabled,
+        intervalSeconds: input.intervalSeconds,
+      })
+      await syncScreenSessionRecordingWithConfig()
+      return getScreenSessionRecordingStatus()
+    }),
+
   /**
    * Persist an auto-journal summary as a new post in the current pile.
    */
@@ -1036,6 +1115,66 @@ export const router = {
         console.error("[auto-journal] Failed to save entry", error)
         throw error
       }
+    }),
+
+  getAutonomousKanbanBoard: t.procedure.action(async () => {
+    return getAutonomousKanbanBoard()
+  }),
+
+  refreshAutonomousKanban: t.procedure.action(async () => {
+    return refreshAutonomousKanban()
+  }),
+
+  searchAutonomousKanbanMemory: t.procedure
+    .input<{ query: string; maxResults?: number }>()
+    .action(async ({ input }) => {
+      return searchAutonomousKanbanMemory(input.query, input.maxResults ?? 6)
+    }),
+
+  getAutonomousKanbanStatus: t.procedure.action(async () => {
+    return getAutonomousKanbanStatus()
+  }),
+
+  getAutonomousProfileBoard: t.procedure.action(async () => {
+    return getAutonomousProfileBoard()
+  }),
+
+  refreshAutonomousProfile: t.procedure.action(async () => {
+    return refreshAutonomousProfile()
+  }),
+
+  getAutonomousProfileStatus: t.procedure.action(async () => {
+    return getAutonomousProfileStatus()
+  }),
+
+  getAutonomousPromptContext: t.procedure
+    .input<{ query: string; maxResults?: number }>()
+    .action(async ({ input }) => {
+      return getAutonomousPromptContext(input.query, input.maxResults ?? 4)
+    }),
+
+  checkOllamaStatus: t.procedure
+    .input<{ baseUrl?: string } | undefined>()
+    .action(async ({ input }) => {
+      return checkOllamaStatus(input?.baseUrl)
+    }),
+
+  listOllamaEmbeddingModels: t.procedure
+    .input<{ baseUrl?: string } | undefined>()
+    .action(async ({ input }) => {
+      return listOllamaEmbeddingModels(input?.baseUrl)
+    }),
+
+  pullOllamaEmbeddingModel: t.procedure
+    .input<{ model: string; baseUrl?: string }>()
+    .action(async ({ input }) => {
+      return pullOllamaEmbeddingModel(input.model, input.baseUrl)
+    }),
+
+  getOllamaPullProgress: t.procedure
+    .input<{ model: string }>()
+    .action(async ({ input }) => {
+      return getOllamaPullProgress(input.model)
     }),
 
   // =========================================================================
@@ -1345,6 +1484,40 @@ export const router = {
     const { isTimerWindowVisible } = await import("./window")
     return isTimerWindowVisible()
   }),
+
+  getFocusSessionStatus: t.procedure.action(async () => {
+    return getFocusSessionStatus()
+  }),
+
+  startFocusSession: t.procedure
+    .input<{ label?: string; expectedDurationMs?: number } | undefined>()
+    .action(async ({ input }) => {
+      return startFocusSession({
+        label: input?.label,
+        expectedDurationMs: input?.expectedDurationMs,
+      })
+    }),
+
+  pauseFocusSession: t.procedure
+    .input<{ reason?: "paused" | "finished" | "cancelled" } | undefined>()
+    .action(async ({ input }) => {
+      return pauseFocusSession({ reason: input?.reason })
+    }),
+
+  resumeFocusSession: t.procedure
+    .input<{ label?: string; expectedDurationMs?: number } | undefined>()
+    .action(async ({ input }) => {
+      return resumeFocusSession({
+        label: input?.label,
+        expectedDurationMs: input?.expectedDurationMs,
+      })
+    }),
+
+  stopFocusSession: t.procedure
+    .input<{ reason?: "paused" | "finished" | "cancelled" } | undefined>()
+    .action(async ({ input }) => {
+      return stopFocusSession({ reason: input?.reason })
+    }),
 
   // Utility to get cross-platform documents folder path
   getDocumentsPath: t.procedure.action(async () => {

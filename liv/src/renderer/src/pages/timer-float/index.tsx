@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useCallback, useLayoutEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback, useLayoutEffect } from 'react'
 import { Play, Pause, Clock3, X } from 'lucide-react'
 import { useLocalStorage } from 'renderer/hooks/useLocalStorage'
 import { addSession } from 'renderer/utils/timer-history'
+import { tipcClient } from 'renderer/lib/tipc-client'
 import './styles.scss'
 
 // Force transparent background on mount
@@ -86,61 +87,30 @@ function ProgressRing({ progress = 0, children }: { progress: number; children: 
 export function Component() {
   useTransparentBackground()
   const [state, setState] = useLocalStorage<TimerState>(STORAGE_KEY, initialState)
-  const rafRef = useRef<number | null>(null)
 
-  // Timer loop
-  useEffect(() => {
-    if (state.mode !== 'running') return
-
-    const tick = () => {
-      setState((prev) => {
-        if (prev.mode !== 'running') return prev
-
-        const now = Date.now()
-        const elapsed = now - (prev.startedAt || now)
-        const remainingMs = clamp(prev.totalMs - elapsed, 0, prev.totalMs)
-
-        if (remainingMs <= 0) {
-          // Play sound
-          try {
-            const audio = new Audio('/sounds/notification.wav')
-            audio.play().catch(() => {})
-          } catch {}
-
-          // Save session
-          try {
-            addSession({
-              project: 'Standalone',
-              label: prev.label,
-              start: new Date(prev.startedAt || now).toISOString(),
-              end: new Date(now).toISOString(),
-              durationMs: prev.totalMs,
-            })
-          } catch {}
-
-          // Hide window via IPC
-          window.electron?.ipcRenderer?.send('timer-finished')
-
-          return {
-            ...prev,
-            mode: 'ready',
-            remainingMs: prev.totalMs,
-            startedAt: null,
-          }
-        }
-
-        return { ...prev, remainingMs }
-      })
-
-      rafRef.current = requestAnimationFrame(tick)
+  const pauseFocusPipeline = useCallback(async () => {
+    try {
+      await tipcClient.pauseFocusSession({ reason: 'paused' })
+    } catch (error) {
+      console.error('[timer-float] failed to pause focus session', error)
     }
+  }, [])
 
-    rafRef.current = requestAnimationFrame(tick)
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+  const resumeFocusPipeline = useCallback(async (label: string, expectedDurationMs: number) => {
+    try {
+      await tipcClient.resumeFocusSession({ label, expectedDurationMs })
+    } catch (error) {
+      console.error('[timer-float] failed to resume focus session', error)
     }
-  }, [state.mode, setState])
+  }, [])
+
+  const stopFocusPipeline = useCallback(async (reason: 'finished' | 'cancelled' | 'paused') => {
+    try {
+      await tipcClient.stopFocusSession({ reason })
+    } catch (error) {
+      console.error('[timer-float] failed to stop focus session', error)
+    }
+  }, [])
 
   // Close window when not running/paused
   useEffect(() => {
@@ -149,16 +119,58 @@ export function Component() {
     }
   }, [state.mode])
 
+  // Local tick counter to trigger re-renders every second so the display
+  // updates even when no cross-window storage events are received.
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    if (state.mode !== 'running') return
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [state.mode])
+
+  const derivedRemainingMs = useMemo(() => {
+    if (state.mode !== 'running' || !state.startedAt) return state.remainingMs
+    const elapsed = Date.now() - state.startedAt
+    return clamp(state.totalMs - elapsed, 0, state.totalMs)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.mode, state.startedAt, state.totalMs, state.remainingMs, tick])
+
+  // Detect timer completion independently of main window
+  useEffect(() => {
+    if (state.mode === 'running' && derivedRemainingMs <= 0) {
+      setState((prev) => {
+        if (prev.startedAt) {
+          try {
+            const elapsed = prev.totalMs
+            if (elapsed > 15000) {
+              addSession({
+                project: 'Standalone',
+                label: prev.label,
+                start: new Date(prev.startedAt).toISOString(),
+                end: new Date().toISOString(),
+                durationMs: elapsed,
+              })
+            }
+          } catch {}
+        }
+        return { ...prev, mode: 'ready', remainingMs: prev.totalMs, startedAt: null }
+      })
+      stopFocusPipeline('finished')
+    }
+  }, [state.mode, derivedRemainingMs, setState, stopFocusPipeline])
+
   const progress = useMemo(() => {
     if (state.mode === 'running' || state.mode === 'paused') {
-      return 1 - state.remainingMs / state.totalMs
+      return 1 - derivedRemainingMs / state.totalMs
     }
     return 0
-  }, [state.mode, state.remainingMs, state.totalMs])
+  }, [state.mode, derivedRemainingMs, state.totalMs])
 
   const pause = useCallback(() => {
     setState((prev) => ({ ...prev, mode: 'paused' }))
-  }, [setState])
+    pauseFocusPipeline()
+  }, [setState, pauseFocusPipeline])
 
   const resume = useCallback(() => {
     setState((prev) => {
@@ -167,7 +179,8 @@ export function Component() {
       const startAt = now - alreadyElapsed
       return { ...prev, mode: 'running', startedAt: startAt }
     })
-  }, [setState])
+    resumeFocusPipeline(state.label, derivedRemainingMs)
+  }, [setState, state.label, derivedRemainingMs, resumeFocusPipeline])
 
   const reset = useCallback(() => {
     setState((prev) => {
@@ -195,7 +208,8 @@ export function Component() {
         startedAt: null,
       }
     })
-  }, [setState])
+    stopFocusPipeline('cancelled')
+  }, [setState, stopFocusPipeline])
 
   // Only render when running or paused
   if (state.mode !== 'running' && state.mode !== 'paused') {
@@ -207,14 +221,14 @@ export function Component() {
       <div className="timer-float-chip">
         {/* Progress ring */}
         <ProgressRing progress={progress}>
-          <span className="ring-minutes">{Math.max(0, Math.round(state.remainingMs / 60000))}</span>
+          <span className="ring-minutes">{Math.max(0, Math.round(derivedRemainingMs / 60000))}</span>
         </ProgressRing>
 
         {/* Clock icon */}
         <Clock3 className="clock-icon" />
 
         {/* Time display */}
-        <span className="time-display">{formatTime(state.remainingMs)}</span>
+        <span className="time-display">{formatTime(derivedRemainingMs)}</span>
 
         {/* Label if exists */}
         {state.label && <span className="timer-label">{state.label}</span>}

@@ -8,8 +8,14 @@ import { historyStore } from "../history-store"
 import { generateAutoJournalSummaryFromHistory } from "../llm"
 import type { AutoJournalRun, RecordingHistoryItem } from "../../shared/types"
 import { saveAutoJournalEntry } from "./auto-journal-entry"
+import { logWithContext } from "../logger"
+
+const autoJournalLog = logWithContext("AutoJournal")
 import pileIndex from "../pile-utils/pileIndex"
 import { listPeriodicScreenshotsInRange } from "./periodic-screenshot-service"
+import { refreshAutonomousKanban } from "./autonomous-kanban-service"
+import { refreshAutonomousProfile } from "./autonomous-profile-service"
+import { listScreenSessionSamplesInRange } from "./screen-session-recording-service"
 
 const RUNS_DIR = path.join(recordingsFolder, "auto-journal", "runs")
 export const GIF_DIR = path.join(recordingsFolder, "auto-journal", "gifs")
@@ -359,8 +365,9 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
 
   try {
     const history = historyStore.readAll()
-    // Filter window items once for reuse (LLM + media)
-    const windowItems: RecordingHistoryItem[] = history
+    const sourceMode = cfg.autoJournalSourceMode ?? "both"
+
+    const audioWindowItems: RecordingHistoryItem[] = history
       .filter(
         (item) =>
           typeof item.createdAt === "number" &&
@@ -371,13 +378,45 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
       )
       .sort((a, b) => a.createdAt - b.createdAt)
 
-    const summary = await generateAutoJournalSummaryFromHistory(history, {
+    const videoSamples = listScreenSessionSamplesInRange(
+      windowStartTs,
+      windowEndTs,
+      800,
+    )
+
+    const videoWindowItems: RecordingHistoryItem[] = videoSamples.map(
+      (sample, index) => ({
+        id: `video-${sample.timestamp}-${index}`,
+        createdAt: sample.timestamp,
+        duration: 1000,
+        transcript: `Visual: ${sample.appName} - ${sample.windowTitle}`,
+        filePath: sample.imagePath,
+        contextScreenshotPath: sample.imagePath,
+        contextCapturedAt: sample.timestamp,
+        contextScreenAppName: sample.appName,
+        contextScreenWindowTitle: sample.windowTitle,
+      }),
+    )
+
+    const summaryInputHistory =
+      sourceMode === "audio"
+        ? audioWindowItems
+        : sourceMode === "video"
+          ? videoWindowItems
+          : [...audioWindowItems, ...videoWindowItems].sort(
+              (a, b) => a.createdAt - b.createdAt,
+            )
+
+    const summary = await generateAutoJournalSummaryFromHistory(
+      summaryInputHistory,
+      {
       windowMinutes: wm,
       promptOverride: cfg.autoJournalPrompt,
-    })
+      },
+    )
 
     // Collect screenshots from recordings
-    const recordingScreenshots = windowItems
+    const recordingScreenshots = audioWindowItems
       .filter((i) => i.contextScreenshotPath && fs.existsSync(i.contextScreenshotPath))
       .map((i) => ({
         path: i.contextScreenshotPath!,
@@ -392,9 +431,31 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
         timestamp: s.capturedAt,
       }))
 
+    const videoFrames = videoSamples
+      .filter((sample) => sample.imagePath && fs.existsSync(sample.imagePath))
+      .map((sample) => ({
+        path: sample.imagePath,
+        timestamp: sample.timestamp,
+      }))
+
     // Combine and sort all screenshots by timestamp
-    const allScreenshots = [...recordingScreenshots, ...periodicScreenshots]
+    const allScreenshots = [
+      ...recordingScreenshots,
+      ...periodicScreenshots,
+      ...videoFrames,
+    ]
       .sort((a, b) => a.timestamp - b.timestamp)
+
+    const MAX_PREVIEW_FRAMES = 240
+    const previewScreenshots =
+      allScreenshots.length > MAX_PREVIEW_FRAMES
+        ? allScreenshots.filter(
+            (_, index) =>
+              index %
+                Math.ceil(allScreenshots.length / MAX_PREVIEW_FRAMES) ===
+              0,
+          )
+        : allScreenshots
 
     const run: AutoJournalRun = {
       id,
@@ -408,7 +469,7 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
     }
 
     // Build animated GIF from all screenshots in window (best-effort, non-blocking)
-    const framePaths = allScreenshots.map((s) => s.path)
+    const framePaths = previewScreenshots.map((s) => s.path)
     if (framePaths.length > 0) {
       try {
         const gifPath = path.join(GIF_DIR, `${id}.gif`)
@@ -431,7 +492,7 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
     // Content exists whenever we had recordings in the time window and the
     // returned summary is not the explicit empty-window placeholder.
     const hasRealContent =
-      windowItems.length > 0 && !isNoRecordingsSummary(summary.summary)
+      summaryInputHistory.length > 0 && !isNoRecordingsSummary(summary.summary)
 
     // Skip saving empty runs entirely - don't clutter the history with "Vazio" entries
     if (!hasRealContent) {
@@ -479,6 +540,15 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
     }
 
     await writeRun(run)
+
+    // Keep kanban boards synchronized with newly generated activity summaries.
+    refreshAutonomousKanban().catch((error) => {
+      autoJournalLog.error("Failed to refresh autonomous kanban", error)
+    })
+    refreshAutonomousProfile().catch((error) => {
+      autoJournalLog.error("Failed to refresh autonomous profile", error)
+    })
+
     return run
   } catch (error: any) {
     console.error(`[auto-journal] Run ${id} failed:`, error?.message || error)
