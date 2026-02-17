@@ -121,7 +121,7 @@ Veja **[CLAUDE.md](CLAUDE.md)** para guia completo de desenvolvimento.
 └─────────────────────────────────────────┘
 ```
 
-**Stack:** Electron 31 | React 18 | TypeScript 5.6 | TailwindCSS | Radix UI | Rust
+**Stack:** Electron 39 | React 19 | TypeScript 5.9 | TailwindCSS | Radix UI | Rust
 
 ---
 
@@ -131,8 +131,9 @@ Veja **[CLAUDE.md](CLAUDE.md)** para guia completo de desenvolvimento.
 |-----------|-----------|
 | **[CLAUDE.md](CLAUDE.md)** | Guia completo de desenvolvimento |
 | **[quickstart.md](quickstart.md)** | Onboarding rápido para desenvolvedores |
-| **[liv/docs/](liv/docs/README.md)** | Documentação técnica |
-| **[liv/specs/](liv/specs/README.md)** | Especificações de features |
+| **[docs/README.md](docs/README.md)** | Documentação técnica |
+| **[specs/README.md](specs/README.md)** | Especificações de features |
+| **[docs/ai_docs/autonomous-agents-kanban-profile-architecture-complete-2026-02-12.md](docs/ai_docs/autonomous-agents-kanban-profile-architecture-complete-2026-02-12.md)** | Arquitetura completa de agentes/Kanban/Profile |
 
 ---
 
@@ -145,7 +146,7 @@ Veja **[CLAUDE.md](CLAUDE.md)** para guia completo de desenvolvimento.
 | Sem áudio | Conceda permissão de Microfone |
 | Vision Assistant não captura | Conceda permissão de Gravação de Tela |
 
-Veja [docs/macos-permissions-troubleshooting.md](liv/docs/macos-permissions-troubleshooting.md) para detalhes.
+Veja [docs/macos-permissions-troubleshooting.md](docs/macos-permissions-troubleshooting.md) para detalhes.
 
 ---
 
@@ -163,4 +164,4 @@ Veja [docs/macos-permissions-troubleshooting.md](liv/docs/macos-permissions-trou
 
 ---
 
-**Versão:** 0.1.8 | **Atualizado:** Dezembro 2024
+**Versão:** 0.1.8 | **Atualizado:** Fevereiro 2026

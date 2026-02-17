@@ -1,8 +1,8 @@
-# Dayflow – Pipeline de Timeline (Notas para Whispo)
+# Dayflow – Pipeline de Timeline (Notas para Liv)
 
 **Objetivo deste documento**
 
-Copiar e entender o pipeline de timeline do Dayflow (baseado em vídeo) para que possamos **reproduzir a mesma ideia usando áudio/transcrições no Whispo**.  
+Copiar e entender o pipeline de timeline do Dayflow (baseado em vídeo) para que possamos **reproduzir a mesma ideia usando áudio/transcrições no Liv**.  
 Aqui está a visão de alto nível do que o Dayflow faz e quais partes podemos reaproveitar quase 1:1.
 
 ---
@@ -168,13 +168,13 @@ No `LLMService`:
 Na prática:
 
 - O Dayflow **não pensa em termos de “batches isolados”**, e sim em **janelas contínuas** da sua atividade, sempre olhando 1h pra trás.
-- Isso é exatamente o tipo de comportamento que queremos replicar com **áudio/transcrições** no Whispo.
+- Isso é exatamente o tipo de comportamento que queremos replicar com **áudio/transcrições** no Liv.
 
 ---
 
-## 4. Como reaproveitar esse pipeline para áudio no Whispo
+## 4. Como reaproveitar esse pipeline para áudio no Liv
 
-A ideia é que o Whispo não precise reinventar o conceito, apenas trocar a fonte de “observations”.
+A ideia é que o Liv não precise reinventar o conceito, apenas trocar a fonte de “observations”.
 
 ### 4.1. O que é específico de vídeo
 
@@ -188,7 +188,7 @@ Tudo isso é específico de vídeo, mas **a camada de LLM não depende de vídeo
 
 ### 4.2. O que podemos copiar 1:1
 
-Para Whispo (áudio/transcrições), podemos reaproveitar:
+Para Liv (áudio/transcrições), podemos reaproveitar:
 
 - **Modelo mental de janela deslizante de 1h**:
   - Buscar transcrições (ou “observations de áudio”) nos últimos N minutos.
@@ -204,7 +204,7 @@ Para Whispo (áudio/transcrições), podemos reaproveitar:
 
 ### 4.3. Adaptação mínima necessária para áudio
 
-Quando formos implementar no Whispo:
+Quando formos implementar no Liv:
 
 1. **Observation = trecho de fala**  
    - Cada `RecordingHistoryItem` (ou sub-trecho) vira uma `Observation`:
@@ -234,16 +234,16 @@ Quando formos implementar no Whispo:
   - Chama Gemini com um **prompt longo de “digital anthropologist”** para gerar/estender cards.
   - Substitui cards na janela [t-1h, t] e gera timelapses por card.
 
-- Whispo (objetivo):
+- Liv (objetivo):
   - Trocar “observations de vídeo” por “observations de áudio/transcrição”.
   - Manter a mesma ideia de **janela deslizante + cards longos que contam a história do dia**.
   - Usar esses cards como base para **entradas automáticas de journal** no Pile.
 
 ---
 
-## 6. OCR / Captura de Tela no Whispo (gancho para implementação)
+## 6. OCR / Captura de Tela no Liv (gancho para implementação)
 
-Este doc é focado no pipeline tipo Dayflow, mas o Whispo já tem um esboço de **context capture com OCR** definido em outro lugar. Para não nos perdermos:
+Este doc é focado no pipeline tipo Dayflow, mas o Liv já tem um esboço de **context capture com OCR** definido em outro lugar. Para não nos perdermos:
 
 - Spec oficial de contexto/OCR:
   - `specs/beautification-enhancement-requirements.md`
@@ -272,7 +272,7 @@ Este doc é focado no pipeline tipo Dayflow, mas o Whispo já tem um esboço de 
 
 - Conclusão de alinhamento:
   - O pipeline tipo Dayflow (janela de 1h + cards) vai consumir **observations** que podem vir:
-    - do áudio (transcrições do Whispo),
+    - do áudio (transcrições do Liv),
     - e opcionalmente de OCR de tela (quando a flag de screen capture estiver ligada).
   - A implementação concreta de screenshot + OCR deve seguir o spec de **beautification/enhancement**, usando o `EnhancementService`/`ContextCapture` como ponto de integração.
   - Este doc continua sendo a referência para:
@@ -290,4 +290,4 @@ Quando começarmos a implementar, a regra é:
 2. Construção de “log de atividade” (áudio + OCR) → seguir este doc de Dayflow pipeline.
 3. A partir daí, gerar cards/journal automático como descrito nas seções anteriores.
 
-Este documento deve ser a referência principal quando formos implementar o pipeline de journaling automático no Whispo seguindo o modelo do Dayflow.
+Este documento deve ser a referência principal quando formos implementar o pipeline de journaling automático no Liv seguindo o modelo do Dayflow.

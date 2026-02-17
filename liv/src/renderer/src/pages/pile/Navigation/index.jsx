@@ -28,57 +28,74 @@ export default function Navigation() {
   return (
     <div className={layoutStyles.bottomNav}>
       <div className={layoutStyles.navPill}>
-        <Link
-          to={homePath}
-          className={`${layoutStyles.iconHolder} ${isActive(homePath) ? layoutStyles.active : ""}`}
-        >
-          <HomeIcon />
-        </Link>
+        <div className={layoutStyles.navGroup}>
+          <Link
+            to={homePath}
+            className={`${layoutStyles.iconHolder} ${isActive(homePath) ? layoutStyles.active : ""}`}
+            aria-label="Home"
+          >
+            <HomeIcon />
+          </Link>
+        </div>
+
         <div className={layoutStyles.divider} />
-        <Link
-          to="/chat"
-          className={`${layoutStyles.iconHolder} ${isActive("/chat") ? layoutStyles.active : ""}`}
-        >
-          <ChatIcon />
-        </Link>
-        <Link
-          to="/search"
-          className={`${layoutStyles.iconHolder} ${isActive("/search") ? layoutStyles.active : ""}`}
-        >
-          <SearchIcon />
-        </Link>
+
+        <div className={layoutStyles.navGroup}>
+          <Link
+            to="/chat"
+            className={`${layoutStyles.iconHolder} ${isActive("/chat") ? layoutStyles.active : ""}`}
+            aria-label="Chat"
+          >
+            <ChatIcon />
+          </Link>
+          <Link
+            to="/search"
+            className={`${layoutStyles.iconHolder} ${isActive("/search") ? layoutStyles.active : ""}`}
+            aria-label="Busca"
+          >
+            <SearchIcon />
+          </Link>
+          <Link
+            to="/auto-journal"
+            className={`${layoutStyles.iconHolder} ${isActive("/auto-journal") ? layoutStyles.active : ""}`}
+            aria-label="Auto Journal"
+          >
+            <EyeIcon />
+          </Link>
+          <Link
+            to="/kanban"
+            className={`${layoutStyles.iconHolder} ${isActive("/kanban") ? layoutStyles.active : ""}`}
+            aria-label="Kanban"
+          >
+            <KanbanIcon />
+          </Link>
+          <Link
+            to="/dashboard"
+            className={`${layoutStyles.iconHolder} ${isActive("/dashboard") ? layoutStyles.active : ""}`}
+            aria-label="Dashboard"
+          >
+            <CardIcon />
+          </Link>
+        </div>
+
         <div className={layoutStyles.divider} />
-        <Link
-          to="/auto-journal"
-          className={`${layoutStyles.iconHolder} ${isActive("/auto-journal") ? layoutStyles.active : ""}`}
-        >
-          <EyeIcon />
-        </Link>
-        <Link
-          to="/kanban"
-          className={`${layoutStyles.iconHolder} ${isActive("/kanban") ? layoutStyles.active : ""}`}
-        >
-          <KanbanIcon />
-        </Link>
-        <Link
-          to="/dashboard"
-          className={`${layoutStyles.iconHolder} ${isActive("/dashboard") ? layoutStyles.active : ""}`}
-        >
-          <CardIcon />
-        </Link>
-        <div className={layoutStyles.divider} />
-        <Link
-          to="/profile"
-          className={`${layoutStyles.iconHolder} ${isActive("/profile") ? layoutStyles.active : ""}`}
-        >
-          <PersonIcon />
-        </Link>
-        <Link
-          to="/settings"
-          className={`${layoutStyles.iconHolder} ${isActive("/settings") ? layoutStyles.active : ""}`}
-        >
-          <SettingsIcon />
-        </Link>
+
+        <div className={layoutStyles.navGroup}>
+          <Link
+            to="/profile"
+            className={`${layoutStyles.iconHolder} ${isActive("/profile") ? layoutStyles.active : ""}`}
+            aria-label="Perfil"
+          >
+            <PersonIcon />
+          </Link>
+          <Link
+            to="/settings"
+            className={`${layoutStyles.iconHolder} ${isActive("/settings") ? layoutStyles.active : ""}`}
+            aria-label="Configurações"
+          >
+            <SettingsIcon />
+          </Link>
+        </div>
       </div>
     </div>
   )

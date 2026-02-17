@@ -160,14 +160,22 @@ class PileEmbeddings {
   // todo: based on which ai is configured this should either
   // use ollama or openai
   async generateEmbedding(document) {
-    const pileAIProvider = await settings.get('pileAIProvider');
+    const ragEmbeddingProvider = await settings.get('ragEmbeddingProvider');
+    const forceLocalRagEmbeddings = await settings.get('forceLocalRagEmbeddings');
     const embeddingModel = await settings.get('embeddingModel');
-    const isOllama = pileAIProvider === 'ollama';
+    const ollamaBaseUrl = await settings.get('ollamaBaseUrl');
+    const isOllama =
+      forceLocalRagEmbeddings !== false &&
+      (typeof ragEmbeddingProvider !== 'string' || ragEmbeddingProvider === 'ollama');
 
     if (isOllama) {
-      const url = 'http://127.0.0.1:11434/api/embed';
+      const normalizedBaseUrl =
+        typeof ollamaBaseUrl === 'string' && ollamaBaseUrl.trim().length > 0
+          ? ollamaBaseUrl.replace(/\/+$/, '')
+          : 'http://127.0.0.1:11434';
+      const url = `${normalizedBaseUrl}/api/embed`;
       const data = {
-        model: 'mxbai-embed-large',
+        model: embeddingModel || 'qwen3-embedding:0.6b',
         input: document,
       };
       try {

@@ -7,6 +7,7 @@ import { markPhase } from "./performance-monitor"
 import { app, Menu } from "electron"
 import path from "path"
 import { electronApp, optimizer } from "@electron-toolkit/utils"
+import settings from "electron-settings"
 import {
   createMainWindow,
   createPanelWindow,
@@ -25,6 +26,15 @@ import { mediaController } from "./services/media-controller"
 import { configStore } from "./config"
 import { startAutoJournalScheduler } from "./services/auto-journal-service"
 import { startPeriodicScreenshotScheduler } from "./services/periodic-screenshot-service"
+import {
+  stopScreenSessionRecording,
+  syncScreenSessionRecordingWithConfig,
+} from "./services/screen-session-recording-service"
+import {
+  ensureDefaultOllamaEmbeddingSetup,
+  DEFAULT_RAG_EMBEDDING_MODEL,
+} from "./services/ollama-embedding-service"
+import { shutdownAutonomousMemory } from "./services/autonomous-memory-service"
 import { ipcMain } from "electron"
 import { warmupParakeetModel } from "./local-transcriber"
 
@@ -203,6 +213,9 @@ app.whenReady().then(() => {
     // Periodic screenshot scheduler (independent of recordings)
     startPeriodicScreenshotScheduler()
 
+    // Continuous screen session recording (timelapse) based on config
+    void syncScreenSessionRecordingWithConfig()
+
     markPhase("schedulers-started")
   }
 
@@ -236,6 +249,62 @@ app.whenReady().then(() => {
       .catch((err) => logger.error("[updater] Init failed:", err))
   }
 
+  // Ensure local RAG embeddings are available by default without user intervention.
+  const performDeferredRagEmbeddingBootstrap = async () => {
+    try {
+      // Read from electron-settings first (canonical source for RAG settings),
+      // then fall back to configStore for backwards compatibility.
+      const cfg = configStore.get()
+
+      const rawBaseUrl = (await settings.get("ollamaBaseUrl")) as string | undefined
+      const baseUrl =
+        (typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0
+          ? rawBaseUrl
+          : cfg.ollamaBaseUrl) || "http://localhost:11434"
+
+      const rawForceLocal = (await settings.get("forceLocalRagEmbeddings")) as boolean | undefined
+      const forceLocal = rawForceLocal ?? cfg.forceLocalRagEmbeddings ?? true
+
+      const rawProvider = (await settings.get("ragEmbeddingProvider")) as string | undefined
+      const embeddingProvider = rawProvider || cfg.ragEmbeddingProvider || "ollama"
+
+      const rawModel = (await settings.get("embeddingModel")) as string | undefined
+      const embeddingModel = rawModel || cfg.embeddingModel || DEFAULT_RAG_EMBEDDING_MODEL
+
+      // Persist defaults into electron-settings so future reads are consistent
+      if (rawProvider == null) await settings.set("ragEmbeddingProvider", embeddingProvider)
+      if (rawForceLocal == null) await settings.set("forceLocalRagEmbeddings", forceLocal)
+      if (rawModel == null) await settings.set("embeddingModel", embeddingModel)
+      if (rawBaseUrl == null) await settings.set("ollamaBaseUrl", baseUrl)
+
+      if (!forceLocal || embeddingProvider !== "ollama") {
+        logger.info(
+          `[RAG] Local embedding bootstrap skipped (forceLocal=${String(forceLocal)}, provider=${embeddingProvider})`,
+        )
+        return
+      }
+
+      logger.info(
+        `[RAG] Ensuring local embedding model '${embeddingModel}' on ${baseUrl}`,
+      )
+      const result = await ensureDefaultOllamaEmbeddingSetup({
+        baseUrl,
+        model: embeddingModel,
+      })
+      if (result.ok) {
+        logger.info(
+          `[RAG] Local embedding model ready (${embeddingModel})${result.alreadyInstalled ? " [already installed]" : " [downloaded now]"}`,
+        )
+      } else {
+        logger.warn(
+          `[RAG] Local embedding bootstrap failed: ${result.reason || "unknown_error"}`,
+        )
+      }
+    } catch (error) {
+      logger.error("[RAG] Local embedding bootstrap error", error)
+    }
+  }
+
   // Defer tray initialization until after window is shown for faster startup
   const performDeferredTrayInit = () => {
     logger.info("[Tray] Starting deferred tray initialization...")
@@ -260,6 +329,9 @@ app.whenReady().then(() => {
       setTimeout(performDeferredSchedulersInit, 150)
       setTimeout(performDeferredFfmpegVerification, 200)
       setTimeout(performDeferredUpdaterInit, 250)
+      setTimeout(() => {
+        void performDeferredRagEmbeddingBootstrap()
+      }, 300)
     })
   } else {
     logger.warn("[App] No primary window found, running deferred initializations immediately")
@@ -269,6 +341,7 @@ app.whenReady().then(() => {
     performDeferredSchedulersInit()
     performDeferredFfmpegVerification()
     performDeferredUpdaterInit()
+    void performDeferredRagEmbeddingBootstrap()
   }
 
   markPhase("background-services-started")
@@ -294,10 +367,12 @@ app.whenReady().then(() => {
 
   app.on("before-quit", () => {
     makePanelWindowClosable()
+    void stopScreenSessionRecording()
   })
 
   app.on("will-quit", () => {
     globalShortcutManager.unregisterAll()
+    shutdownAutonomousMemory()
   })
 })
 

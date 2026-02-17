@@ -210,6 +210,93 @@ export type AutoJournalRun = {
   gifError?: string
 }
 
+export type AutonomousKanbanCard = {
+  id: string
+  title: string
+  lane: "pending" | "suggestions" | "automations"
+  description: string | null
+  bullets: string[]
+  confidence: number
+  status: "open" | "done"
+  sourceRunIds: string[]
+  observedAt?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type AutonomousKanbanColumn = {
+  id: "pending" | "suggestions" | "automations"
+  title: string
+  icon: "lightbulb" | "circle" | "target"
+  color: string
+  cards: AutonomousKanbanCard[]
+}
+
+export type AutonomousKanbanBoard = {
+  generatedAt: number
+  columns: AutonomousKanbanColumn[]
+  stats: {
+    runsAnalyzed: number
+    cardsGenerated: number
+    lastRunAt: number | null
+  }
+}
+
+export type AutonomousProfileCardKind =
+  | "strength"
+  | "risk"
+  | "opportunity"
+  | "meeting"
+  | "business"
+  | "wellbeing"
+
+export type AutonomousProfileWidgetId =
+  | "work_time_daily"
+  | "parallelism"
+  | "engagement_topics"
+  | "meeting_suggestions"
+  | "top_projects"
+  | "top_people"
+  | "business_opportunities"
+  | "focus_risks"
+
+export type AutonomousProfileWidget = {
+  id: AutonomousProfileWidgetId
+  title: string
+  description: string
+}
+
+export type AutonomousProfileCard = {
+  id: string
+  widgetId: AutonomousProfileWidgetId
+  title: string
+  kind: AutonomousProfileCardKind
+  summary: string
+  actions: string[]
+  confidence: number
+  impact: "low" | "medium" | "high"
+  sourceRunIds: string[]
+  observedAt?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type AutonomousProfileBoard = {
+  generatedAt: number
+  availableWidgets: AutonomousProfileWidget[]
+  enabledWidgets: AutonomousProfileWidgetId[]
+  cards: AutonomousProfileCard[]
+  stats: {
+    runsAnalyzed: number
+    cardsGenerated: number
+    lastRunAt: number | null
+    workRatio: number
+    distractionRatio: number
+    idleRatio: number
+    averageContextSwitches: number
+  }
+}
+
 export type SavedRecordingSearch = {
   id: string
   name: string
@@ -256,6 +343,11 @@ export type Config = {
   openrouterApiKey?: string
   openrouterBaseUrl?: string
   openrouterModel?: string
+  ollamaBaseUrl?: string
+  ragEmbeddingProvider?: "ollama" | "openai"
+  forceLocalRagEmbeddings?: boolean
+  embeddingModel?: string
+  profileWidgetsEnabled?: AutonomousProfileWidgetId[]
 
   deepgramApiKey?: string
   deepgramModel?: string // nova-3, nova-2, etc.
@@ -311,6 +403,7 @@ export type Config = {
   autoJournalTargetPilePath?: string
   autoJournalPrompt?: string // Legacy - kept for backwards compatibility
   autoJournalAutoSaveEnabled?: boolean
+  autoJournalSourceMode?: "audio" | "video" | "both"
 
   // Auto-journal prompt customization (Dayflow-style)
   autoJournalTitlePromptEnabled?: boolean
@@ -324,6 +417,10 @@ export type Config = {
   // Periodic Screenshot Capture (independent of recordings)
   periodicScreenshotEnabled?: boolean
   periodicScreenshotIntervalMinutes?: number // 15, 30, 60, 120
+
+  // Continuous Screen Session Recording (timelapse frames + MP4 export)
+  screenSessionRecordingEnabled?: boolean
+  screenSessionCaptureIntervalSeconds?: number // 2, 5, 10, 15
 }
 
 // Periodic screenshot captured independently of recordings
@@ -334,4 +431,28 @@ export type PeriodicScreenshot = {
   windowTitle: string
   appName: string
   ocrText: string
+}
+
+export type ScreenRecordingSessionStatus = {
+  enabled: boolean
+  running: boolean
+  sessionId: string | null
+  startedAt: number | null
+  lastCaptureAt: number | null
+  nextCaptureAt: number | null
+  intervalSeconds: number
+  capturedFrames: number
+}
+
+export type ScreenRecordingSession = {
+  id: string
+  startedAt: number
+  endedAt: number | null
+  status: "recording" | "completed" | "error"
+  intervalSeconds: number
+  capturedFrames: number
+  framesDir: string
+  samplesPath: string
+  videoPath?: string
+  error?: string
 }

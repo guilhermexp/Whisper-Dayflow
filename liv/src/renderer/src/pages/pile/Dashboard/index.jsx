@@ -40,10 +40,10 @@ function Dashboard() {
     () => (currentTheme ? `${currentTheme}Theme` : ""),
     [currentTheme],
   )
-  const osStyles = useMemo(
-    () => (window.electron.isMac ? layoutStyles.mac : layoutStyles.win),
-    [],
-  )
+  const osStyles = useMemo(() => {
+    const isMac = window.electron?.isMac
+    return isMac ? layoutStyles.macOS : layoutStyles.windows
+  }, [])
 
   const [mainTab, setMainTab] = useState("dashboard")
   const [previewSrc, setPreviewSrc] = useState(null)
@@ -169,20 +169,22 @@ function Dashboard() {
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.wrapper}>
-            <div className={styles.DialogTitle}>
+            <h1 className={styles.DialogTitle}>
               <span>{t("dashboard.title")}</span>
+            </h1>
+            <div className={styles.headerActions}>
               <button
                 onClick={() => analyticsQuery.refetch()}
                 disabled={analyticsQuery.isRefetching}
-                className={styles.RefreshButton}
+                className={styles.headerBtnIcon}
+                title={t("common.refresh")}
               >
-                <RefreshIcon
-                  style={{
-                    height: "14px",
-                    width: "14px",
-                    color: "var(--secondary)",
-                  }}
-                />
+                <RefreshIcon style={{ width: 16, height: 16 }} />
+                <span>
+                  {analyticsQuery.isRefetching
+                    ? t("common.loading")
+                    : t("common.refresh")}
+                </span>
               </button>
             </div>
             <button

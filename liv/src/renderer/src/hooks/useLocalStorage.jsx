@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export function useLocalStorage(key, initialValue) {
   const readValue = useCallback(() => {
@@ -28,17 +28,28 @@ export function useLocalStorage(key, initialValue) {
 
       try {
         // Allow value to be a function so we have the same API as useState
-        const newValue = value instanceof Function ? value(storedValue) : value;
-
-        window.localStorage.setItem(key, JSON.stringify(newValue));
-
-        setStoredValue(newValue);
+        setStoredValue((prev) => {
+          const newValue = value instanceof Function ? value(prev) : value;
+          window.localStorage.setItem(key, JSON.stringify(newValue));
+          return newValue;
+        });
       } catch (error) {
         console.warn(`Error setting localStorage key "${key}":`, error);
       }
     },
-    [key, storedValue]
+    [key]
   );
+
+  // Sync state across multiple renderer windows (main + timer-float)
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (event.key !== key) return;
+      setStoredValue(readValue());
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [key, readValue]);
 
   return [storedValue, setValue];
 }

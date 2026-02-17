@@ -1,11 +1,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useAIContext } from 'renderer/context/AIContext';
 import { useIndexContext } from 'renderer/context/IndexContext';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 const RAG_TOP_N = 24;
 const MAX_CONTEXT_ENTRIES = 12;
 const MAX_ENTRY_CHARS = 1500;
 const MAX_TOTAL_CONTEXT_CHARS = 12000;
+const MAX_MEMORY_CONTEXT_CHARS = 5000;
 const MAX_QUERY_CHARS = 2000;
 const MIN_RELEVANCE_SCORE = 0.12;
 
@@ -75,9 +77,20 @@ const useChat = () => {
   const addMessage = useCallback(
     async (message) => {
       const retrievalQuery = buildRetrievalQuery(messages, message);
-      const rawSearchResults = retrievalQuery
-        ? await vectorSearch(retrievalQuery, RAG_TOP_N)
-        : [];
+      const [rawSearchResults, memoryContext] = await Promise.all([
+        retrievalQuery ? vectorSearch(retrievalQuery, RAG_TOP_N) : Promise.resolve([]),
+        retrievalQuery
+          ? tipcClient
+              .getAutonomousPromptContext({
+                query: retrievalQuery,
+                maxResults: 4,
+              })
+              .catch(() => ({
+                memorySection: '',
+                recentSection: '',
+              }))
+          : Promise.resolve({ memorySection: '', recentSection: '' }),
+      ]);
 
       const dedupedResults = [];
       const seenRefs = new Set();
@@ -134,6 +147,26 @@ const useChat = () => {
           ? contextBlocks.join('\n\n---\n\n')
           : 'No highly relevant journal entries found for this question.';
 
+      const memorySection = normalizeText(memoryContext?.memorySection || '').slice(
+        0,
+        MAX_MEMORY_CONTEXT_CHARS
+      );
+      const recentSection = normalizeText(memoryContext?.recentSection || '').slice(
+        0,
+        MAX_MEMORY_CONTEXT_CHARS
+      );
+
+      const persistentMemoryContext =
+        memorySection || recentSection
+          ? [
+              'Persistent memory context (cross-session, semantic + recent):',
+              memorySection ? `\n[Relevant memory]\n${memorySection}` : '',
+              recentSection ? `\n[Recent memory]\n${recentSection}` : '',
+            ]
+              .filter(Boolean)
+              .join('\n')
+          : 'Persistent memory context is currently empty.';
+
       return [
         ...messages,
         {
@@ -141,6 +174,10 @@ const useChat = () => {
           content:
             "Relevant journal context for the user's latest message (most similar first):\n\n" +
             contextText,
+        },
+        {
+          role: 'system',
+          content: persistentMemoryContext,
         },
         { role: 'user', content: message },
       ];
