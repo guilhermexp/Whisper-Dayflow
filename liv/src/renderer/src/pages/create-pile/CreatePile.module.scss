@@ -1,7 +1,7 @@
 // Page Container (matches AutoJournal pattern)
 .pageContainer {
   position: fixed;
-  top: 6px;
+  top: var(--titlebar-height, 6px);
   left: calc(48px + 6px);
   right: 6px;
   bottom: 6px;

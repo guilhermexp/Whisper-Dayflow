@@ -336,6 +336,7 @@ export async function generateAutoJournalSummaryFromHistory(
     windowMinutes?: number
     signal?: AbortSignal
     promptOverride?: string
+    pipeline?: "default" | "video"
   } = {},
 ): Promise<AutoJournalSummary> {
   const config = configStore.get()
@@ -563,7 +564,11 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
   const pileAIProvider = (await settings.get("pileAIProvider")) as
     | string
     | undefined
-  const provider = normalizePileProvider(pileAIProvider)
+  const defaultProvider = normalizePileProvider(pileAIProvider)
+  const provider =
+    options.pipeline === "video"
+      ? normalizePileProvider(config.autoJournalVideoProvider || "gemini")
+      : defaultProvider
   let debugModel = "unknown"
   let debugProvider = provider
 
@@ -576,8 +581,12 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
     }
 
     const gai = new GoogleGenerativeAI(geminiApiKey)
+    const preferredGeminiModel =
+      options.pipeline === "video"
+        ? config.autoJournalVideoModel || DEFAULT_GEMINI_MODEL
+        : config.geminiModel || DEFAULT_GEMINI_MODEL
     const modelCandidates = Array.from(
-      new Set([config.geminiModel || DEFAULT_GEMINI_MODEL, ...FALLBACK_GEMINI_MODELS]),
+      new Set([preferredGeminiModel, ...FALLBACK_GEMINI_MODELS]),
     )
 
     let lastError: unknown = null
@@ -652,7 +661,8 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
     const settingsOpenrouterModel = (await settings.get("openrouterModel")) as
       | string
       | undefined
-    const model =
+    const videoModel = options.pipeline === "video" ? config.autoJournalVideoModel : undefined
+    const defaultModelForProvider =
       effectiveProvider === "custom"
         ? config.customEnhancementModel || DEFAULT_CHAT_MODEL
         : effectiveProvider === "openrouter"
@@ -660,6 +670,7 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
           : effectiveProvider === "groq"
             ? config.groqModel || "llama-3.1-70b-versatile"
             : settingsModel || DEFAULT_CHAT_MODEL
+    const model = videoModel || defaultModelForProvider
     debugModel = model
     debugProvider = effectiveProvider
 
@@ -743,7 +754,11 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
 
   const callWithOllama = async (promptText = finalPrompt): Promise<string> => {
     const ollamaModel =
-      ((await settings.get("model")) as string | undefined) || "llama3"
+      (options.pipeline === "video"
+        ? config.autoJournalVideoModel
+        : undefined) ||
+      ((await settings.get("model")) as string | undefined) ||
+      "llama3"
     const ollamaBaseUrl =
       ((await settings.get("ollamaBaseUrl")) as string | undefined) ||
       "http://localhost:11434"

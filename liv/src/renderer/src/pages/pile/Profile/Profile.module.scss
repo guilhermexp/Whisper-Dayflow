@@ -1,6 +1,6 @@
 .pageContainer {
   position: fixed;
-  top: 6px;
+  top: var(--titlebar-height, 6px);
   left: calc(48px + 6px);
   right: 6px;
   bottom: 6px;
@@ -17,14 +17,19 @@
 }
 
 .header {
-  padding: 0 24px;
-  flex-shrink: 0;
-  z-index: 10;
+  position: fixed;
+  top: 0;
+  left: var(--titlebar-left, 80px);
+  right: var(--titlebar-right, 12px);
+  height: var(--titlebar-height, 38px);
+  z-index: 10001;
+  padding: 0 12px;
+  background: transparent;
   -webkit-app-region: drag;
 }
 
 .wrapper {
-  height: 52px;
+  height: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -51,23 +56,34 @@
 .headerBtnIcon {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  font-size: 13px;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--primary);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 90px;
+  border: none;
+  background: var(--base);
+  color: var(--base-text);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 120ms ease-in-out;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.85;
+  }
 
   &:hover {
-    background: var(--bg-tertiary);
+    background: var(--base-hover);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 
   &:disabled {
-    opacity: 0.65;
+    opacity: 0.45;
     cursor: default;
   }
 }
@@ -75,23 +91,30 @@
 .close {
   position: absolute;
   right: 0;
-  background: transparent;
-  color: var(--secondary);
-  border-radius: 8px;
-  border: none;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
+  border-radius: 90px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--base);
+  border: none;
+  color: var(--base-text);
   cursor: pointer;
-  opacity: 0.65;
-  transition: all 0.15s ease;
+  transition: all 120ms ease-in-out;
   -webkit-app-region: none;
 
   &:hover {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--base-hover);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
   }
 }
 

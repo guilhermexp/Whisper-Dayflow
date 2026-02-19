@@ -280,6 +280,7 @@
     }
   },
   "search": {
+    "title": "search",
     "placeholder": "What are you looking for?",
     "loadingIndex": "Loading index...",
     "threads": "threads",
@@ -569,6 +570,10 @@
     "every2hours": "Every 2 hours",
     "sourceMode": "Auto Journal Source",
     "sourceModeDesc": "Choose whether summaries use audio, screen video, or both.",
+    "videoAiProvider": "Video analysis provider",
+    "videoAiProviderDesc": "Dedicated provider for video/session analysis pipeline.",
+    "videoAiModel": "Video analysis model",
+    "videoAiModelDesc": "Model used only for video-based summaries and cards.",
     "sourceAudio": "Audio only",
     "sourceVideo": "Video only",
     "sourceBoth": "Audio + video",

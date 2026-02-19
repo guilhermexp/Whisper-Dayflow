@@ -280,21 +280,34 @@
 
 .mac {
   .bottomNav {
-    padding-top: 22px;
+    top: 38px;
+    height: calc(100vh - 44px);
   }
 
   .navPill {
-    padding-top: 26px;
+    padding-top: 6px;
   }
 
   .main {
-    --layout-top: 6px;
-    --layout-height: calc(100vh - 12px);
+    --layout-top: 38px;
+    --layout-height: calc(100vh - 44px);
   }
 
-  .header {
-    @media only screen and (max-width: 909px) {
-      padding-left: 70px;
+  // Title bar header - fixed in the canvas strip above panels
+  .main .content .header {
+    position: fixed;
+    top: 0;
+    left: var(--titlebar-left, 80px);
+    right: var(--titlebar-right, 12px);
+    height: var(--titlebar-height, 38px);
+    z-index: 10000;
+    padding: 0 4px;
+    width: auto;
+
+    .headerLeft {
+      height: var(--titlebar-height, 38px);
+      font-size: 12px;
+      opacity: 0.35;
     }
   }
 }
@@ -308,21 +321,33 @@
 // Backward-compatible aliases used by some pages
 .macOS {
   .bottomNav {
-    padding-top: 22px;
+    top: 38px;
+    height: calc(100vh - 44px);
   }
 
   .navPill {
-    padding-top: 26px;
+    padding-top: 6px;
   }
 
   .main {
-    --layout-top: 6px;
-    --layout-height: calc(100vh - 12px);
+    --layout-top: 38px;
+    --layout-height: calc(100vh - 44px);
   }
 
-  .header {
-    @media only screen and (max-width: 909px) {
-      padding-left: 70px;
+  .main .content .header {
+    position: fixed;
+    top: 0;
+    left: var(--titlebar-left, 80px);
+    right: var(--titlebar-right, 12px);
+    height: var(--titlebar-height, 38px);
+    z-index: 10000;
+    padding: 0 4px;
+    width: auto;
+
+    .headerLeft {
+      height: var(--titlebar-height, 38px);
+      font-size: 12px;
+      opacity: 0.35;
     }
   }
 }

@@ -86,6 +86,9 @@ const withDefaults = (config?: Config): Config => {
     autoJournalTargetPilePath: config?.autoJournalTargetPilePath ?? "",
     autoJournalAutoSaveEnabled: config?.autoJournalAutoSaveEnabled ?? false,
     autoJournalSourceMode: config?.autoJournalSourceMode ?? "both",
+    autoJournalVideoProvider: config?.autoJournalVideoProvider ?? "gemini",
+    autoJournalVideoModel:
+      config?.autoJournalVideoModel ?? "gemini-3-flash-preview",
     autoJournalPrompt: config?.autoJournalPrompt ?? "",
     autoJournalIncludeScreenCapture:
       config?.autoJournalIncludeScreenCapture ?? false,
