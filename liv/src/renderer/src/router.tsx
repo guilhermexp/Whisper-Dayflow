@@ -52,6 +52,11 @@ export const router: ReturnType<typeof createBrowserRouter> =
           HydrateFallback,
         },
         {
+          path: "video-recordings",
+          lazy: () => import("./pages/pile/VideoRecordings"),
+          HydrateFallback,
+        },
+        {
           path: "settings",
           lazy: () => import("./pages/pile/Settings"),
           HydrateFallback,

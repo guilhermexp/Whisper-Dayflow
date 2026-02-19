@@ -6,6 +6,7 @@ import {
   SearchIcon,
   EyeIcon,
   CardIcon,
+  DiscIcon,
   SettingsIcon,
   KanbanIcon,
   PersonIcon,
@@ -75,6 +76,13 @@ export default function Navigation() {
             aria-label="Dashboard"
           >
             <CardIcon />
+          </Link>
+          <Link
+            to="/video-recordings"
+            className={`${layoutStyles.iconHolder} ${isActive("/video-recordings") ? layoutStyles.active : ""}`}
+            aria-label="Gravações de vídeo"
+          >
+            <DiscIcon />
           </Link>
         </div>
 

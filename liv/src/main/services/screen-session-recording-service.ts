@@ -223,35 +223,72 @@ async function generateSessionVideo(session: ScreenRecordingSession): Promise<st
 
     const videoPath = getVideoPath(session.id)
     const ptsFactor = Math.max(1, session.intervalSeconds)
+    const baseArgs = [
+      "-y",
+      "-framerate",
+      "1",
+      "-i",
+      path.join(tmpDir, "frame-%05d.jpg"),
+      "-vf",
+      `scale=1280:-2:force_original_aspect_ratio=decrease,setsar=1,setpts=${ptsFactor}*PTS`,
+    ]
 
-    await new Promise<void>((resolve, reject) => {
-      execFile(
-        binaryPath,
-        [
-          "-y",
-          "-framerate",
-          "1",
-          "-i",
-          path.join(tmpDir, "frame-%05d.jpg"),
-          "-vf",
-          `scale=1280:-2:force_original_aspect_ratio=decrease,setsar=1,setpts=${ptsFactor}*PTS`,
+    const tryEncode = async (label: string, extraArgs: string[]) => {
+      if (fs.existsSync(videoPath)) {
+        fs.rmSync(videoPath, { force: true })
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        execFile(
+          binaryPath,
+          [...baseArgs, ...extraArgs, videoPath],
+          (error, _stdout, stderr) => {
+            if (error) {
+              logger.warn(`[ScreenSession] ffmpeg ${label} failed: ${String(error)}`)
+              if (stderr?.trim()) {
+                logger.warn(`[ScreenSession] ffmpeg ${label} stderr: ${stderr.trim()}`)
+              }
+              reject(error)
+              return
+            }
+            resolve()
+          },
+        )
+      })
+
+      return fs.existsSync(videoPath) && fs.statSync(videoPath).size > 0
+    }
+
+    let encoded = false
+    try {
+      encoded = await tryEncode("libx264", [
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+      ])
+    } catch {
+      encoded = false
+    }
+
+    if (!encoded) {
+      try {
+        encoded = await tryEncode("mpeg4", [
           "-c:v",
-          "libx264",
+          "mpeg4",
+          "-q:v",
+          "5",
           "-pix_fmt",
           "yuv420p",
-          videoPath,
-        ],
-        (error) => {
-          if (error) {
-            reject(error)
-          } else {
-            resolve()
-          }
-        },
-      )
-    })
+        ])
+      } catch {
+        encoded = false
+      }
+    }
 
-    if (!fs.existsSync(videoPath) || fs.statSync(videoPath).size <= 0) {
+    if (!encoded) {
       return null
     }
 
