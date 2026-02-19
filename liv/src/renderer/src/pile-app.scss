@@ -31,31 +31,50 @@
   --bg-secondary: rgb(246, 246, 246);
   --bg-tertiary: #dedede;
   --bg-color-secondary-hover: rgb(226, 226, 226);
+
+  /* Islands layout (light mode defaults) */
+  --canvas: #f0f0f0;
+  --panel-border-light: var(--border);
+  --panel-border-subtle: rgba(0, 0, 0, 0.04);
+  --panel-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --island-radius: 14px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --translucent: rgba(0, 0, 0, 0.5);
+    --translucent: rgba(0, 0, 0, 0.6);
     --sidebar-width: 320px;
     --nav-height: 52px;
 
-    --primary: #fff;
-    --secondary: #c1c1c1;
+    /* Dark Islands palette */
+    --canvas: #131217;
+    --primary: #bcbec4;
+    --secondary: #7a7e85;
 
-    --base: #4d88ff;
-    --base-text: hsl(213, 100%, 93%);
-    --base-hover: #82acff;
-    --base-yellow: #776b0e;
-    --base-green: #128212;
-    --base-red: #cb1d1d;
-    --base-red-light: #3d2323;
+    --base: #548af7;
+    --base-text: #ffffff;
+    --base-hover: #6d9df8;
+    --base-yellow: #e8a33e;
+    --base-green: #73b00a;
+    --base-red: #f75464;
+    --base-red-light: #2a1b1b;
 
-    --border: #565656;
+    --active: #548af7;
+    --active-hover: #6d9df8;
+    --active-text: #fff;
 
-    --bg: #171717;
-    --bg-secondary: #373737;
-    --bg-tertiary: #575757;
-    --bg-color-secondary-hover: rgb(108, 108, 108);
+    --border: #25262a;
+
+    --bg: #181a1d;
+    --bg-secondary: #1e2024;
+    --bg-tertiary: #25262a;
+    --bg-color-secondary-hover: #2b2d30;
+
+    /* Islands panel styling */
+    --panel-border-light: rgba(255, 255, 255, 0.06);
+    --panel-border-subtle: rgba(255, 255, 255, 0.03);
+    --panel-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --island-radius: 20px;
 
     /* Theme 1 */
     /* --translucent: rgba(13, 10, 35, 0.5);
@@ -369,6 +388,13 @@ body {
   overflow: hidden;
   font-family: 'Inter', sans-serif;
   color: var(--primary);
+  background-color: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--canvas, var(--bg));
+  }
 }
 
 li {

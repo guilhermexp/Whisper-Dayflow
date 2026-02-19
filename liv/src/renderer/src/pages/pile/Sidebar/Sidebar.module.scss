@@ -27,10 +27,11 @@
 
         .area {
             background: var(--bg-secondary);
-            border-radius: 8px;
+            border-radius: 10px;
             margin: 3px;
-            padding: 4px 6px;
+            padding: 4px 8px;
             user-select: none;
+            border: 1px solid var(--panel-border-subtle, transparent);
         }
     }
 }
