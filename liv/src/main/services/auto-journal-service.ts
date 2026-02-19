@@ -567,6 +567,210 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
   }
 }
 
+export async function runAutoJournalForRange(input: {
+  windowStartTs: number
+  windowEndTs: number
+}) {
+  if (running) {
+    console.log("[auto-journal] Run already in progress, skipping")
+    return null
+  }
+  running = true
+  const startedAt = Date.now()
+  lastRunAt = startedAt
+  const cfg = configStore.get()
+  const windowStartTs = Math.max(0, Math.floor(input.windowStartTs))
+  const windowEndTs = Math.max(windowStartTs, Math.floor(input.windowEndTs))
+  const wm = Math.max(1, Math.ceil((windowEndTs - windowStartTs) / 60000))
+  const id = `${startedAt}`
+
+  console.log(
+    `[auto-journal] Starting explicit range run ${id} (${new Date(windowStartTs).toISOString()} - ${new Date(windowEndTs).toISOString()})`,
+  )
+
+  try {
+    const history = historyStore.readAll()
+    const sourceMode = cfg.autoJournalSourceMode ?? "both"
+
+    const audioWindowItems: RecordingHistoryItem[] = history
+      .filter(
+        (item) =>
+          typeof item.createdAt === "number" &&
+          item.createdAt >= windowStartTs &&
+          item.createdAt <= windowEndTs &&
+          item.transcript &&
+          item.transcript.trim().length > 0,
+      )
+      .sort((a, b) => a.createdAt - b.createdAt)
+
+    const videoSamples = listScreenSessionSamplesInRange(
+      windowStartTs,
+      windowEndTs,
+      800,
+    )
+
+    const videoWindowItems: RecordingHistoryItem[] = videoSamples.map(
+      (sample, index) => ({
+        id: `video-${sample.timestamp}-${index}`,
+        createdAt: sample.timestamp,
+        duration: 1000,
+        transcript: `Visual: ${sample.appName} - ${sample.windowTitle}`,
+        filePath: sample.imagePath,
+        contextScreenshotPath: sample.imagePath,
+        contextCapturedAt: sample.timestamp,
+        contextScreenAppName: sample.appName,
+        contextScreenWindowTitle: sample.windowTitle,
+      }),
+    )
+
+    const summaryInputHistory =
+      sourceMode === "audio"
+        ? audioWindowItems
+        : sourceMode === "video"
+          ? videoWindowItems
+          : [...audioWindowItems, ...videoWindowItems].sort(
+              (a, b) => a.createdAt - b.createdAt,
+            )
+
+    const summary = await generateAutoJournalSummaryFromHistory(
+      summaryInputHistory,
+      {
+        windowMinutes: wm,
+        promptOverride: cfg.autoJournalPrompt,
+      },
+    )
+
+    const recordingScreenshots = audioWindowItems
+      .filter(
+        (i) => i.contextScreenshotPath && fs.existsSync(i.contextScreenshotPath),
+      )
+      .map((i) => ({
+        path: i.contextScreenshotPath!,
+        timestamp: i.createdAt,
+      }))
+
+    const periodicScreenshots = listPeriodicScreenshotsInRange(
+      windowStartTs,
+      windowEndTs,
+    )
+      .filter((s) => fs.existsSync(s.imagePath))
+      .map((s) => ({
+        path: s.imagePath,
+        timestamp: s.capturedAt,
+      }))
+
+    const videoFrames = videoSamples
+      .filter((sample) => sample.imagePath && fs.existsSync(sample.imagePath))
+      .map((sample) => ({
+        path: sample.imagePath,
+        timestamp: sample.timestamp,
+      }))
+
+    const allScreenshots = [
+      ...recordingScreenshots,
+      ...periodicScreenshots,
+      ...videoFrames,
+    ].sort((a, b) => a.timestamp - b.timestamp)
+
+    const MAX_PREVIEW_FRAMES = 240
+    const previewScreenshots =
+      allScreenshots.length > MAX_PREVIEW_FRAMES
+        ? allScreenshots.filter(
+            (_, index) =>
+              index %
+                Math.ceil(allScreenshots.length / MAX_PREVIEW_FRAMES) ===
+              0,
+          )
+        : allScreenshots
+
+    const run: AutoJournalRun = {
+      id,
+      startedAt,
+      finishedAt: Date.now(),
+      status: "success",
+      windowMinutes: wm,
+      summary,
+      screenshotCount: allScreenshots.length,
+      autoSaved: false,
+    }
+
+    const framePaths = previewScreenshots.map((s) => s.path)
+    if (framePaths.length > 0) {
+      try {
+        const gifPath = path.join(GIF_DIR, `${id}.gif`)
+        const generated = await generateGifFromScreenshots(framePaths, gifPath)
+        if (generated.path) {
+          run.previewGifPath = generated.path
+        } else if (generated.error) {
+          run.gifError = generated.error
+        }
+      } catch (error) {
+        console.error("[auto-journal] GIF generation failed:", error)
+        run.gifError = "gif_generation_failed"
+      }
+    }
+
+    const hasRealContent =
+      summaryInputHistory.length > 0 && !isNoRecordingsSummary(summary.summary)
+
+    if (!hasRealContent) {
+      console.log(
+        "[auto-journal] No recordings found in explicit range, skipping run save entirely",
+      )
+      return null
+    }
+
+    if (cfg.autoJournalAutoSaveEnabled) {
+      let pilePath: string | null | undefined = cfg.autoJournalTargetPilePath
+      if (!pilePath || pilePath.trim().length === 0) {
+        pilePath = getFirstPilePath()
+      }
+
+      if (pilePath && pilePath.trim().length > 0) {
+        try {
+          const result = await saveAutoJournalEntry({
+            pilePath,
+            summary: summary.summary,
+            activities: summary.activities || [],
+            windowStartTs: summary.windowStartTs,
+            windowEndTs: summary.windowEndTs,
+            highlight: summary.highlight ?? null,
+          })
+          await addEntryToIndex(pilePath, result.relativePath)
+          run.autoSaved = true
+        } catch (error) {
+          console.error("[auto-journal] Failed to auto-save entry", error)
+        }
+      }
+    }
+
+    await writeRun(run)
+
+    refreshAutonomousKanban().catch((error) => {
+      autoJournalLog.error("Failed to refresh autonomous kanban", error)
+    })
+    refreshAutonomousProfile().catch((error) => {
+      autoJournalLog.error("Failed to refresh autonomous profile", error)
+    })
+
+    return run
+  } catch (error: any) {
+    console.error(`[auto-journal] Range run ${id} failed:`, error?.message || error)
+    const run: AutoJournalRun = {
+      id,
+      startedAt,
+      finishedAt: Date.now(),
+      status: "error",
+      windowMinutes: wm,
+      error: error?.message || String(error),
+    }
+    await writeRun(run)
+    return run
+  } finally {
+    running = false
+  }
+}
+
 export async function listAutoJournalRuns(
   limit = 50,
 ): Promise<AutoJournalRun[]> {

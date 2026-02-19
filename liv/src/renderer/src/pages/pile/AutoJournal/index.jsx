@@ -219,11 +219,14 @@ function AutoJournal() {
 
   const stopScreenSessionMutation = useMutation({
     mutationFn: () => tipcClient.stopScreenSessionRecording(),
-    onSuccess() {
+    onSuccess(result) {
       queryClient.invalidateQueries({ queryKey: ["screen-session-recording-status"] })
+      queryClient.invalidateQueries({ queryKey: ["auto-journal-runs"] })
       addNotification({
         id: Date.now(),
-        message: t("autoJournal.videoRecordingStopped"),
+        message: result?.run
+          ? `${t("autoJournal.videoRecordingStopped")} · análise gerada`
+          : t("autoJournal.videoRecordingStopped"),
       })
     },
     onError(error) {

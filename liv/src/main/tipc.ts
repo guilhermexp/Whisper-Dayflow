@@ -39,6 +39,7 @@ import { screenCaptureService } from "./services/screen-capture-service"
 import {
   listAutoJournalRuns,
   runAutoJournalOnce,
+  runAutoJournalForRange,
   startAutoJournalScheduler,
   stopAutoJournalScheduler,
   restartAutoJournalScheduler,
@@ -940,6 +941,15 @@ export const router = {
       return runAutoJournalOnce(input?.windowMinutes)
     }),
 
+  runAutoJournalForRange: t.procedure
+    .input<{ windowStartTs: number; windowEndTs: number }>()
+    .action(async ({ input }) => {
+      return runAutoJournalForRange({
+        windowStartTs: input.windowStartTs,
+        windowEndTs: input.windowEndTs,
+      })
+    }),
+
   listAutoJournalRuns: t.procedure
     .input<{ limit?: number } | undefined>()
     .action(async ({ input }) => {
@@ -1079,7 +1089,43 @@ export const router = {
     }),
 
   stopScreenSessionRecording: t.procedure.action(async () => {
-    return stopScreenSessionRecording()
+    const session = await stopScreenSessionRecording()
+    let run: Awaited<ReturnType<typeof runAutoJournalOnce>> = null
+
+    if (session?.capturedFrames && session.capturedFrames > 0) {
+      try {
+        const elapsedMs =
+          session.endedAt && session.startedAt
+            ? Math.max(0, session.endedAt - session.startedAt)
+            : 0
+        const windowMinutes = Math.max(1, Math.ceil(elapsedMs / 60000))
+
+        // Ensure manual video stop produces an immediate auto-journal analysis.
+        // If source mode is audio-only, force a temporary video run.
+        const cfg = configStore.get()
+        const sourceMode = cfg.autoJournalSourceMode ?? "both"
+        if (sourceMode === "audio") {
+          configStore.save({ ...cfg, autoJournalSourceMode: "video" })
+          try {
+            run = await runAutoJournalOnce(windowMinutes)
+          } finally {
+            configStore.save(cfg)
+          }
+        } else {
+          run = await runAutoJournalOnce(windowMinutes)
+        }
+      } catch (error) {
+        console.error("[screen-session] Failed to run auto-journal after stop:", error)
+      }
+    }
+
+    return { session, run }
+  }),
+
+  openScreenSessionRecordingsDir: t.procedure.action(async () => {
+    const dir = getScreenSessionRecordingsDir()
+    shell.showItemInFolder(dir)
+    return dir
   }),
 
   saveScreenSessionRecordingSettings: t.procedure
