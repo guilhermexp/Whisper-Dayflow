@@ -28,10 +28,10 @@
   height: 86px;
   background: linear-gradient(
     160deg,
-    rgba(127, 127, 127, 0.16) 0%,
-    rgba(127, 127, 127, 0.06) 100%
+    var(--bg-tertiary) 0%,
+    var(--bg-secondary) 100%
   );
-  border: 1px solid rgba(127, 127, 127, 0.3);
+  border: 1px solid var(--border);
   border-radius: 12px;
   backdrop-filter: blur(8px);
   display: flex;
@@ -60,7 +60,7 @@
 
 .cardLine {
   height: 5px;
-  background: rgba(127, 127, 127, 0.56);
+  background: var(--border);
   border-radius: 999px;
 
   &:nth-child(1) {
@@ -135,8 +135,8 @@
 }
 
 .suggestion {
-  background: rgba(127, 127, 127, 0.1);
-  border: 1px solid rgba(127, 127, 127, 0.3);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   padding: 10px 14px;
   border-radius: 12px;
   font-size: 12px;
@@ -146,8 +146,8 @@
   transition: all 0.16s ease-in-out;
 
   &:hover {
-    background: rgba(127, 127, 127, 0.18);
-    border-color: rgba(127, 127, 127, 0.48);
+    background: var(--bg-tertiary);
+    border-color: var(--secondary);
     color: var(--primary);
     transform: translateY(-1px) scale(1.01);
   }

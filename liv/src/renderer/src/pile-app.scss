@@ -38,6 +38,8 @@
   --panel-border-subtle: rgba(0, 0, 0, 0.04);
   --panel-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   --island-radius: 14px;
+  --titlebar-height: 6px;
+  --titlebar-area: 0px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,7 +49,7 @@
     --nav-height: 52px;
 
     /* Dark Islands palette */
-    --canvas: #131217;
+    --canvas: #151516;
     --primary: #bcbec4;
     --secondary: #7a7e85;
 

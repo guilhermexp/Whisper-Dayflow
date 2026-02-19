@@ -280,6 +280,7 @@
     }
   },
   "search": {
+    "title": "busca",
     "placeholder": "O que você está procurando?",
     "loadingIndex": "Carregando índice...",
     "threads": "threads",
@@ -569,6 +570,10 @@
     "every2hours": "A cada 2 horas",
     "sourceMode": "Fonte do Auto Diário",
     "sourceModeDesc": "Escolha se o resumo usa áudio, vídeo de tela ou ambos.",
+    "videoAiProvider": "Provider da análise de vídeo",
+    "videoAiProviderDesc": "Provider dedicado para o pipeline de análise de vídeo/sessão.",
+    "videoAiModel": "Modelo da análise de vídeo",
+    "videoAiModelDesc": "Modelo usado apenas em resumos e cards baseados em vídeo.",
     "sourceAudio": "Somente áudio",
     "sourceVideo": "Somente vídeo",
     "sourceBoth": "Áudio + vídeo",

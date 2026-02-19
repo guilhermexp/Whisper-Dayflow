@@ -968,6 +968,9 @@ export const router = {
       autoJournalEnabled: cfg.autoJournalEnabled ?? false,
       autoJournalWindowMinutes: cfg.autoJournalWindowMinutes ?? 60,
       autoJournalSourceMode: cfg.autoJournalSourceMode ?? "both",
+      autoJournalVideoProvider: cfg.autoJournalVideoProvider ?? "gemini",
+      autoJournalVideoModel:
+        cfg.autoJournalVideoModel ?? "gemini-3-flash-preview",
       autoJournalTargetPilePath: cfg.autoJournalTargetPilePath ?? "",
       autoJournalAutoSaveEnabled: cfg.autoJournalAutoSaveEnabled ?? false,
       autoJournalPrompt: cfg.autoJournalPrompt ?? "",
@@ -991,6 +994,14 @@ export const router = {
       autoJournalEnabled?: boolean
       autoJournalWindowMinutes?: number
       autoJournalSourceMode?: "audio" | "video" | "both"
+      autoJournalVideoProvider?:
+        | "openai"
+        | "groq"
+        | "gemini"
+        | "openrouter"
+        | "ollama"
+        | "custom"
+      autoJournalVideoModel?: string
       autoJournalTargetPilePath?: string
       autoJournalPrompt?: string
       autoJournalAutoSaveEnabled?: boolean
@@ -1013,6 +1024,14 @@ export const router = {
           input.autoJournalWindowMinutes ?? cfg.autoJournalWindowMinutes ?? 60,
         autoJournalSourceMode:
           input.autoJournalSourceMode ?? cfg.autoJournalSourceMode ?? "both",
+        autoJournalVideoProvider:
+          input.autoJournalVideoProvider ??
+          cfg.autoJournalVideoProvider ??
+          "gemini",
+        autoJournalVideoModel:
+          input.autoJournalVideoModel ??
+          cfg.autoJournalVideoModel ??
+          "gemini-3-flash-preview",
         autoJournalTargetPilePath:
           input.autoJournalTargetPilePath ??
           cfg.autoJournalTargetPilePath ??
@@ -1050,6 +1069,8 @@ export const router = {
         autoJournalEnabled: updatedCfg.autoJournalEnabled,
         autoJournalWindowMinutes: updatedCfg.autoJournalWindowMinutes,
         autoJournalSourceMode: updatedCfg.autoJournalSourceMode,
+        autoJournalVideoProvider: updatedCfg.autoJournalVideoProvider,
+        autoJournalVideoModel: updatedCfg.autoJournalVideoModel,
         autoJournalTargetPilePath: updatedCfg.autoJournalTargetPilePath,
         autoJournalAutoSaveEnabled: updatedCfg.autoJournalAutoSaveEnabled,
         autoJournalIncludeScreenCapture:

@@ -16,6 +16,19 @@ export function Component() {
   const navigation = useNavigation();
   const lastPathRef = useRef(location.pathname);
 
+  // Set platform titlebar CSS variables globally
+  useEffect(() => {
+    if (window.electron?.isMac) {
+      document.documentElement.style.setProperty('--titlebar-height', '38px');
+      document.documentElement.style.setProperty('--titlebar-left', '80px');
+      document.documentElement.style.setProperty('--titlebar-right', '12px');
+    } else {
+      document.documentElement.style.setProperty('--titlebar-height', '42px');
+      document.documentElement.style.setProperty('--titlebar-left', '12px');
+      document.documentElement.style.setProperty('--titlebar-right', '140px');
+    }
+  }, []);
+
   // Track if we're navigating to a DIFFERENT route (not just reloading same route)
   const isNavigating = navigation.state === 'loading' &&
     navigation.location?.pathname !== location.pathname;
@@ -37,6 +50,19 @@ export function Component() {
                 <TagsContextProvider>
                   <TimelineContextProvider>
                     <LinksContextProvider>
+                      {/* Global title bar drag region (macOS) */}
+                      {window.electron?.isMac && (
+                        <div style={{
+                          position: 'fixed',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 'var(--titlebar-height, 0px)',
+                          WebkitAppRegion: 'drag',
+                          zIndex: 9998,
+                          pointerEvents: 'auto',
+                        } as any} />
+                      )}
                       <Suspense fallback={null}>
                         {/* Hide content during navigation to prevent flash */}
                         <div style={{

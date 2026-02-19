@@ -410,8 +410,9 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
     const summary = await generateAutoJournalSummaryFromHistory(
       summaryInputHistory,
       {
-      windowMinutes: wm,
-      promptOverride: cfg.autoJournalPrompt,
+        windowMinutes: wm,
+        promptOverride: cfg.autoJournalPrompt,
+        pipeline: sourceMode === "video" ? "video" : "default",
       },
     )
 
@@ -637,6 +638,7 @@ export async function runAutoJournalForRange(input: {
       {
         windowMinutes: wm,
         promptOverride: cfg.autoJournalPrompt,
+        pipeline: sourceMode === "video" ? "video" : "default",
       },
     )
 

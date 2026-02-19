@@ -318,6 +318,8 @@ Bad examples:
     autoJournalEnabled: false,
     autoJournalWindowMinutes: 60,
     autoJournalSourceMode: "both",
+    autoJournalVideoProvider: "gemini",
+    autoJournalVideoModel: "gemini-3-flash-preview",
     autoJournalTargetPilePath: "",
     autoJournalAutoSaveEnabled: false,
     autoJournalPrompt: "",
@@ -401,6 +403,34 @@ Bad examples:
     saveSettingsMutation.mutate({
       ...settings,
       autoJournalTargetPilePath: value,
+    })
+  }
+
+  const handleVideoProviderChange = (value) => {
+    const nextModel =
+      value === "gemini"
+        ? "gemini-3-flash-preview"
+        : value === "openai"
+          ? "gpt-5.2"
+          : value === "openrouter"
+            ? "openai/gpt-5.2"
+            : value === "groq"
+              ? "llama-3.1-70b-versatile"
+              : value === "ollama"
+                ? "llama3.1:8b"
+                : settings.autoJournalVideoModel || ""
+
+    saveSettingsMutation.mutate({
+      ...settings,
+      autoJournalVideoProvider: value,
+      autoJournalVideoModel: nextModel,
+    })
+  }
+
+  const handleVideoModelChange = (value) => {
+    saveSettingsMutation.mutate({
+      ...settings,
+      autoJournalVideoModel: value,
     })
   }
 
@@ -1136,6 +1166,42 @@ Bad examples:
                     <option value="video">{t("autoJournal.sourceVideo")}</option>
                     <option value="both">{t("autoJournal.sourceBoth")}</option>
                   </select>
+                </fieldset>
+
+                <fieldset className={styles.Fieldset}>
+                  <label className={styles.Label}>
+                    {t("autoJournal.videoAiProvider")}
+                  </label>
+                  <div className={styles.Desc}>
+                    {t("autoJournal.videoAiProviderDesc")}
+                  </div>
+                  <select
+                    value={settings.autoJournalVideoProvider || "gemini"}
+                    onChange={(e) => handleVideoProviderChange(e.target.value)}
+                    className={styles.Select}
+                  >
+                    <option value="gemini">Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="groq">Groq</option>
+                    <option value="ollama">Ollama</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </fieldset>
+
+                <fieldset className={styles.Fieldset}>
+                  <label className={styles.Label}>
+                    {t("autoJournal.videoAiModel")}
+                  </label>
+                  <div className={styles.Desc}>
+                    {t("autoJournal.videoAiModelDesc")}
+                  </div>
+                  <input
+                    className={styles.Input}
+                    value={settings.autoJournalVideoModel || ""}
+                    onChange={(e) => handleVideoModelChange(e.target.value)}
+                    placeholder="gemini-3-flash-preview"
+                  />
                 </fieldset>
 
                 {/* Target Pile */}

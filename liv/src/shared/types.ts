@@ -404,6 +404,14 @@ export type Config = {
   autoJournalPrompt?: string // Legacy - kept for backwards compatibility
   autoJournalAutoSaveEnabled?: boolean
   autoJournalSourceMode?: "audio" | "video" | "both"
+  autoJournalVideoProvider?:
+    | "openai"
+    | "groq"
+    | "gemini"
+    | "openrouter"
+    | "ollama"
+    | "custom"
+  autoJournalVideoModel?: string
 
   // Auto-journal prompt customization (Dayflow-style)
   autoJournalTitlePromptEnabled?: boolean
