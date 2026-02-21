@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { configStore } from "./config"
 import { enhancementService } from "./services/enhancement-service"
-import { getKey, getOpenrouterKey } from "./pile-utils/store"
+import { getKey, getOpenrouterKey, getGeminiKey, getGroqKey, getCustomKey } from "./pile-utils/store"
 import settings from "electron-settings"
 import type { AutoJournalSummary, RecordingHistoryItem } from "../shared/types"
 import { logWithContext } from "./logger"
@@ -573,7 +573,7 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
   let debugProvider = provider
 
   const callWithGemini = async (promptText = finalPrompt): Promise<string> => {
-    const geminiApiKey = config.geminiApiKey
+    const geminiApiKey = await getGeminiKey() || config.geminiApiKey
     if (!geminiApiKey) {
       throw new Error(
         "Gemini API key is required for auto-journal when provider=gemini",
@@ -632,9 +632,9 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
     } else if (effectiveProvider === "openrouter") {
       apiKey = await getOpenrouterKey()
     } else if (effectiveProvider === "custom") {
-      apiKey = config.customEnhancementApiKey || null
+      apiKey = await getCustomKey() || config.customEnhancementApiKey || null
     } else if (effectiveProvider === "groq") {
-      apiKey = config.groqApiKey || null
+      apiKey = await getGroqKey() || config.groqApiKey || null
     }
 
     // Read base URL from electron-settings for openai (same as Chat/AIContext)

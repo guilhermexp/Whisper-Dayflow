@@ -297,6 +297,97 @@ export type AutonomousProfileBoard = {
   }
 }
 
+// ======= Life OS / Telos Framework =======
+
+export type LifeDimension = {
+  id: string
+  name: string
+  icon: string
+  color: string
+  targetPercent: number
+  description: string
+  keywords: string[]
+  createdAt: number
+}
+
+export type LifeGoal = {
+  id: string
+  title: string
+  description: string
+  dimensionId: string
+  deadline: number | null
+  priority: number
+  keyResults: string[]
+  status: "active" | "completed" | "paused"
+  createdAt: number
+  updatedAt: number
+}
+
+export type LifePrinciple = {
+  id: string
+  text: string
+  category: "time" | "health" | "work" | "social" | "general"
+  active: boolean
+  createdAt: number
+}
+
+export type WisdomEntry = {
+  id: string
+  text: string
+  source: "manual" | "auto"
+  sourceRunId?: string
+  createdAt: number
+}
+
+export type LifeContext = {
+  mission: string
+  dimensions: LifeDimension[]
+  goals: LifeGoal[]
+  principles: LifePrinciple[]
+  wisdom: WisdomEntry[]
+  updatedAt: number
+}
+
+export type DimensionScore = {
+  dimensionId: string
+  actualPercent: number
+  targetPercent: number
+  gap: number
+  trend: "improving" | "stable" | "declining"
+  matchedActivities: number
+}
+
+export type GoalProgress = {
+  goalId: string
+  matchedActivities: Array<{
+    runId: string
+    activityTitle: string
+    ts: number
+  }>
+  velocityPerWeek: number
+  status: "on-track" | "at-risk" | "stalled"
+}
+
+export type PrincipleViolation = {
+  principleId: string
+  violations: Array<{
+    description: string
+    ts: number
+    activityTitle: string
+  }>
+}
+
+export type LifeAnalysis = {
+  generatedAt: number
+  windowDays: number
+  alignmentScore: number
+  dimensionScores: DimensionScore[]
+  goalProgress: GoalProgress[]
+  principleViolations: PrincipleViolation[]
+  synthesis: string
+  suggestions: string[]
+}
+
 export type SavedRecordingSearch = {
   id: string
   name: string

@@ -35,6 +35,7 @@ import {
   DEFAULT_RAG_EMBEDDING_MODEL,
 } from "./services/ollama-embedding-service"
 import { shutdownAutonomousMemory } from "./services/autonomous-memory-service"
+import { setGeminiKey, getGeminiKey, setGroqKey, getGroqKey, setDeepgramKey, getDeepgramKey, setCustomKey, getCustomKey } from "./pile-utils/store"
 import { ipcMain } from "electron"
 import { warmupParakeetModel } from "./local-transcriber"
 
@@ -182,6 +183,31 @@ app.whenReady().then(() => {
   }
 
   markPhase("shortcuts-registered")
+
+  // Migrate plain-text API keys to encrypted storage
+  const migrateApiKeysToEncryptedStore = async () => {
+    const cfg = configStore.get()
+    const migrations: Array<{ label: string; plainKey: string | undefined; getter: () => Promise<string | null>; setter: (k: string) => Promise<boolean>; configField: string }> = [
+      { label: "Gemini", plainKey: cfg.geminiApiKey, getter: getGeminiKey, setter: setGeminiKey, configField: "geminiApiKey" },
+      { label: "Groq", plainKey: cfg.groqApiKey, getter: getGroqKey, setter: setGroqKey, configField: "groqApiKey" },
+      { label: "Deepgram", plainKey: cfg.deepgramApiKey, getter: getDeepgramKey, setter: setDeepgramKey, configField: "deepgramApiKey" },
+      { label: "Custom", plainKey: cfg.customEnhancementApiKey, getter: getCustomKey, setter: setCustomKey, configField: "customEnhancementApiKey" },
+    ]
+
+    for (const m of migrations) {
+      if (m.plainKey && m.plainKey.trim()) {
+        const existing = await m.getter()
+        if (!existing) {
+          const ok = await m.setter(m.plainKey.trim())
+          if (ok) {
+            logger.info(`[KeyMigration] Migrated ${m.label} key to encrypted store`)
+            configStore.save({ [m.configField]: "" } as any)
+          }
+        }
+      }
+    }
+  }
+  migrateApiKeysToEncryptedStore().catch((err) => logger.error("[KeyMigration] Failed:", err))
 
   // Initialize media controller
   const config = configStore.get()

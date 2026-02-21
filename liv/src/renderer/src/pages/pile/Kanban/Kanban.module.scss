@@ -252,6 +252,13 @@
   padding: 12px;
   min-height: 0;
   max-height: 100%;
+  transition: border-color 0.15s ease;
+  border: 2px solid transparent;
+}
+
+.columnDropTarget {
+  border-color: var(--secondary);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .columnHeader {
@@ -336,9 +343,23 @@
   gap: 8px;
   border: 1px solid var(--border);
   transition: all 0.2s ease;
+  cursor: grab;
 
   &:hover {
     border-color: var(--secondary);
+  }
+
+  &:active {
+    cursor: grabbing;
+    opacity: 0.7;
+  }
+}
+
+.cardDone {
+  opacity: 0.55;
+
+  .cardTitle {
+    text-decoration: line-through;
   }
 }
 
@@ -378,6 +399,48 @@
   padding-top: 2px;
 }
 
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cardActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--secondary);
+  opacity: 0;
+  transition: all 0.15s ease;
+
+  .card:hover & {
+    opacity: 0.7;
+  }
+
+  &:hover {
+    background: var(--bg-secondary);
+    color: var(--primary);
+    opacity: 1 !important;
+  }
+}
+
+.cardActionBtnActive {
+  color: #22c55e;
+  opacity: 1 !important;
+}
+
+.cardActionBtnDanger {
+  &:hover {
+    color: #ef4444;
+  }
+}
+
 .tag {
   display: inline-flex;
   align-items: center;
@@ -407,6 +470,123 @@
   color: var(--secondary);
   font-size: 12px;
   flex-wrap: wrap;
+}
+
+// --- Modal ---
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20000;
+}
+
+.modalContent {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 24px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary);
+  margin: 0 0 16px;
+}
+
+.modalLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--secondary);
+  margin-bottom: 12px;
+}
+
+.modalInput {
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--primary);
+  padding: 0 10px;
+  font-size: 13px;
+  outline: none;
+
+  &:focus {
+    border-color: var(--secondary);
+  }
+}
+
+.modalTextarea {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--primary);
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+
+  &:focus {
+    border-color: var(--secondary);
+  }
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.modalBtnCancel {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--bg-secondary);
+    color: var(--primary);
+  }
+}
+
+.modalBtnSave {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--base);
+  color: var(--base-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--base-hover);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
 }
 
 @media (max-width: 1100px) {
