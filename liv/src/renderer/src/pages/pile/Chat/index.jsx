@@ -29,8 +29,14 @@ function Chat() {
   const { validKey } = useAIContext()
   const { currentTheme, setTheme } = usePilesContext()
 
-  const { getAIResponse, addMessage, resetMessages, relevantEntries } =
-    useChat()
+  const {
+    getAIResponse,
+    addMessage,
+    resetMessages,
+    relevantEntries,
+    toolCalls,
+    isNanobotActive,
+  } = useChat()
   const navigate = useNavigate()
   const [text, setText] = useState("")
   const [querying, setQuerying] = useState(false)
@@ -215,6 +221,9 @@ function Chat() {
           <div className={styles.wrapper}>
             <h1 className={styles.DialogTitle}>
               <Status />
+              {isNanobotActive && (
+                <span className={styles.agentBadge}>Agent</span>
+              )}
             </h1>
             <div className={styles.headerActions}>
               <div className={styles.buttonGroup}>
@@ -341,6 +350,15 @@ function Chat() {
           </div>
 
           <div className={styles.inputBar}>
+            {querying && toolCalls.length > 0 && (
+              <div className={styles.toolCallsBar}>
+                {toolCalls.map((tc, i) => (
+                  <span key={i} className={styles.toolCallBadge}>
+                    {typeof tc === 'string' ? tc : tc.name}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className={styles.holder}>
               <div className={styles.bar}>
                 {relevantEntries.length > 0 && (

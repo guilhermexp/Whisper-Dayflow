@@ -28,9 +28,15 @@ const buildRetrievalQuery = (messages, message) => {
 };
 
 const useChat = () => {
-  const { generateCompletion, prompt } = useAIContext();
+  const {
+    generateCompletion,
+    prompt,
+    isNanobotActive,
+    generateNanobotCompletion,
+  } = useAIContext();
   const { vectorSearch, getThreadsAsText, latestThreads } = useIndexContext();
   const [relevantEntries, setRelevantEntries] = useState([]);
+  const [toolCalls, setToolCalls] = useState([]);
 
   const latestThreadsBlock = useMemo(
     () =>
@@ -193,7 +199,48 @@ const useChat = () => {
     [generateCompletion]
   );
 
-  return { addMessage, getAIResponse, resetMessages, relevantEntries };
+  /**
+   * Nanobot-aware message handler.
+   * When nanobot is active, sends message directly to the agent
+   * (skipping RAG pipeline — the agent has its own tools for context).
+   * Falls back to the regular RAG + LLM path otherwise.
+   */
+  const addMessageNanobot = useCallback(
+    async (message) => {
+      setToolCalls([]);
+      // Return a minimal messages array for history tracking
+      return [
+        ...messages,
+        { role: 'user', content: message },
+      ];
+    },
+    [messages]
+  );
+
+  const getAIResponseNanobot = useCallback(
+    async (msgs, callback = () => {}) => {
+      setMessages(msgs);
+      const userMessage = msgs[msgs.length - 1]?.content || '';
+      const result = await generateNanobotCompletion(
+        userMessage,
+        callback,
+        (tc) => setToolCalls((prev) => [...prev, tc]),
+      );
+      if (result?.toolsUsed?.length > 0) {
+        setToolCalls(result.toolsUsed.map((name) => ({ name, status: 'done' })));
+      }
+    },
+    [generateNanobotCompletion]
+  );
+
+  return {
+    addMessage: isNanobotActive ? addMessageNanobot : addMessage,
+    getAIResponse: isNanobotActive ? getAIResponseNanobot : getAIResponse,
+    resetMessages,
+    relevantEntries,
+    toolCalls,
+    isNanobotActive,
+  };
 };
 
 export default useChat;

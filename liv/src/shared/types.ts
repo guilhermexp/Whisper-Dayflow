@@ -520,6 +520,10 @@ export type Config = {
   // Continuous Screen Session Recording (timelapse frames + MP4 export)
   screenSessionRecordingEnabled?: boolean
   screenSessionCaptureIntervalSeconds?: number // 2, 5, 10, 15
+
+  // Nanobot Agent
+  nanobotEnabled?: boolean
+  nanobotModel?: string
 }
 
 // Periodic screenshot captured independently of recordings
@@ -555,3 +559,40 @@ export type ScreenRecordingSession = {
   videoPath?: string
   error?: string
 }
+
+// ======= Nanobot Agent Types =======
+
+export type NanobotStatus = {
+  state: "stopped" | "starting" | "connected" | "error"
+  port: number
+  uptime: number
+  error: string | null
+}
+
+export type NanobotMessage = {
+  content: string
+  sessionKey: string
+  toolsUsed: string[]
+}
+
+export type NanobotToolCallEvent = {
+  name: string
+  args: Record<string, unknown>
+  result?: string
+  status: "pending" | "running" | "done" | "error"
+}
+
+/** WebSocket message from renderer → main → gateway */
+export type NanobotWsInbound = {
+  type: "user_message"
+  content: string
+  session_id: string
+}
+
+/** WebSocket message from gateway → main → renderer */
+export type NanobotWsOutbound =
+  | { type: "token"; data: string }
+  | { type: "tool_call"; data: { name: string; args: Record<string, unknown> } }
+  | { type: "tool_result"; data: { name: string; result: string } }
+  | { type: "done"; data: { content: string; tools_used: string[] } }
+  | { type: "error"; data: { message: string } }

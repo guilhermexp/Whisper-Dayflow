@@ -282,6 +282,65 @@ export const AIContextProvider = ({ children }) => {
     }
   }, [pileAIProvider])
 
+  // --- Nanobot agent mode ---
+  const [nanobotEnabled, setNanobotEnabled] = useState(false)
+  const [nanobotStatus, setNanobotStatus] = useState(null)
+
+  // Check nanobot status on mount and periodically
+  useEffect(() => {
+    let cancelled = false
+    const checkNanobot = async () => {
+      try {
+        const config = await window.electron.ipcRenderer.invoke("getConfig")
+        if (cancelled) return
+        setNanobotEnabled(config?.nanobotEnabled === true)
+
+        if (config?.nanobotEnabled) {
+          const status = await window.electron.ipcRenderer.invoke("getNanobotStatus")
+          if (!cancelled) setNanobotStatus(status)
+        }
+      } catch {
+        // IPC not available yet
+      }
+    }
+    checkNanobot()
+    const interval = setInterval(checkNanobot, 10_000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
+
+  /**
+   * Generate completion via nanobot WebSocket streaming.
+   * Falls back to direct LLM if nanobot is not connected.
+   */
+  const generateNanobotCompletion = useCallback(
+    async (content, callback, onToolCall) => {
+      // Use tipc to send message and get response
+      // For now, use HTTP endpoint (non-streaming) as MVP
+      // WebSocket streaming will be added in a follow-up
+      try {
+        const result = await window.electron.ipcRenderer.invoke(
+          "sendNanobotMessage",
+          { content, sessionId: "liv:chat" },
+        )
+        if (result?.content) {
+          // Simulate streaming by sending the full response as one token
+          callback(result.content)
+        }
+        return result
+      } catch (err) {
+        console.error("[AIContext] Nanobot message error:", err)
+        throw err
+      }
+    },
+    [],
+  )
+
+  const isNanobotActive =
+    nanobotEnabled && nanobotStatus?.state === "connected"
+
   const AIContextValue = {
     ai,
     baseUrl,
@@ -309,6 +368,11 @@ export const AIContextProvider = ({ children }) => {
     prepareCompletionContext,
     pileAIProvider,
     setPileAIProvider,
+    // Nanobot
+    nanobotEnabled,
+    isNanobotActive,
+    nanobotStatus,
+    generateNanobotCompletion,
   }
 
   return (

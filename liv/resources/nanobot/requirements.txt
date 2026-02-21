@@ -1,0 +1,16 @@
+# Nanobot gateway dependencies
+# Install: pip install -r requirements.txt
+
+# Core nanobot (from local reference or pip)
+# nanobot>=0.1.0
+
+# HTTP gateway
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+websockets>=14.0
+
+# LLM provider (used by nanobot internally)
+litellm>=1.55.0
+
+# HTTP client for Liv callback server
+httpx>=0.28.0

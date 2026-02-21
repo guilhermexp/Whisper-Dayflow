@@ -1,7 +1,7 @@
 import fs from "fs"
 import path from "path"
 import crypto from "crypto"
-import { recordingsFolder } from "../config"
+import { recordingsFolder, dataFolder } from "../config"
 import { logger } from "../logger"
 import type { AutoJournalRun, AutonomousKanbanBoard, AutonomousKanbanCard, AutonomousKanbanColumn } from "../../shared/types"
 import {
@@ -394,6 +394,25 @@ export async function refreshAutonomousKanban(): Promise<AutonomousKanbanBoard> 
           `Padrão durável detectado: ${automations[0].title}.`,
           { persistent: true, section: "Stable Patterns" },
         )
+      }
+
+      // Write summary to nanobot workspace for agent context
+      try {
+        const nanobotMemoryDir = path.join(dataFolder, "nanobot-workspace", "memory")
+        if (fs.existsSync(nanobotMemoryDir)) {
+          const summaryPath = path.join(nanobotMemoryDir, "KANBAN_SUMMARY.md")
+          const lines = [`# Kanban Summary (${new Date().toISOString()})`, ""]
+          for (const col of board.columns) {
+            lines.push(`## ${col.title} (${col.cards.length})`)
+            for (const card of col.cards.slice(0, 10)) {
+              lines.push(`- [${card.status}] ${card.title}`)
+            }
+            lines.push("")
+          }
+          fs.writeFileSync(summaryPath, lines.join("\n"), "utf-8")
+        }
+      } catch {
+        // Nanobot workspace may not exist yet — skip
       }
 
       return board

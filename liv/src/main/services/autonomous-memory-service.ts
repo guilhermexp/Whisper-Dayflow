@@ -339,6 +339,20 @@ const syncAllMemoryFiles = async () => {
   for (const file of dailyFiles) {
     await syncFile(file)
   }
+
+  // Sync nanobot workspace memory files (if nanobot is enabled)
+  try {
+    const { dataFolder } = await import("../config")
+    const nanobotWorkspace = path.join(dataFolder, "nanobot-workspace", "memory")
+    if (fs.existsSync(nanobotWorkspace)) {
+      const nanobotMemory = path.join(nanobotWorkspace, "MEMORY.md")
+      const nanobotHistory = path.join(nanobotWorkspace, "HISTORY.md")
+      if (fs.existsSync(nanobotMemory)) await syncFile(nanobotMemory)
+      if (fs.existsSync(nanobotHistory)) await syncFile(nanobotHistory)
+    }
+  } catch {
+    // Nanobot workspace may not exist yet — skip silently
+  }
 }
 
 const cosineSimilarity = (a: number[], b: number[]) => {
