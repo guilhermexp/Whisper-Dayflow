@@ -1,0 +1,90 @@
+[
+  {
+    "id": "auto-journal-hourly",
+    "name": "Auto-Journal Hourly",
+    "enabled": true,
+    "schedule": {
+      "kind": "every",
+      "every_ms": 3600000
+    },
+    "payload": {
+      "kind": "agent_turn",
+      "message": "Execute auto-journal para a ultima hora. Use liv_journal(action='trigger'). Analise o resultado e atualize o kanban com tarefas pendentes detectadas. Escreva um resumo na memoria."
+    },
+    "state": {
+      "status": "idle",
+      "next_run_ms": 0,
+      "last_run_ms": 0,
+      "error": null
+    },
+    "created_at_ms": 0,
+    "updated_at_ms": 0,
+    "delete_after_run": false
+  },
+  {
+    "id": "daily-review",
+    "name": "Daily Review",
+    "enabled": true,
+    "schedule": {
+      "kind": "cron",
+      "expr": "0 22 * * *"
+    },
+    "payload": {
+      "kind": "agent_turn",
+      "message": "Gere revisao diaria. Leia runs do auto-journal de hoje com liv_journal(action='list'), mudancas no kanban com liv_kanban(action='get'), e entradas do journal. Escreva resumo consolidado na memoria. Identifique prioridades de amanha."
+    },
+    "state": {
+      "status": "idle",
+      "next_run_ms": 0,
+      "last_run_ms": 0,
+      "error": null
+    },
+    "created_at_ms": 0,
+    "updated_at_ms": 0,
+    "delete_after_run": false
+  },
+  {
+    "id": "weekly-life-analysis",
+    "name": "Weekly Life Analysis",
+    "enabled": true,
+    "schedule": {
+      "kind": "cron",
+      "expr": "0 20 * * 0"
+    },
+    "payload": {
+      "kind": "agent_turn",
+      "message": "Execute analise semanal do Life OS com janela de 7 dias. Use liv_life_os(action='refresh_analysis', window_days=7). Revise dimensoes, metas e principios. Escreva insights na memoria."
+    },
+    "state": {
+      "status": "idle",
+      "next_run_ms": 0,
+      "last_run_ms": 0,
+      "error": null
+    },
+    "created_at_ms": 0,
+    "updated_at_ms": 0,
+    "delete_after_run": false
+  },
+  {
+    "id": "profile-refresh",
+    "name": "Profile Refresh",
+    "enabled": true,
+    "schedule": {
+      "kind": "every",
+      "every_ms": 14400000
+    },
+    "payload": {
+      "kind": "agent_turn",
+      "message": "Atualize insights do perfil. Use liv_profile(action='refresh'). Verifique padroes novos em tempo de trabalho, topicos e riscos de foco."
+    },
+    "state": {
+      "status": "idle",
+      "next_run_ms": 0,
+      "last_run_ms": 0,
+      "error": null
+    },
+    "created_at_ms": 0,
+    "updated_at_ms": 0,
+    "delete_after_run": false
+  }
+]

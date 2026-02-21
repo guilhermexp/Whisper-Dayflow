@@ -233,8 +233,13 @@ app.whenReady().then(() => {
   const performDeferredSchedulersInit = () => {
     logger.info("[Schedulers] Starting deferred schedulers initialization...")
 
-    // Auto-journal scheduler (manual runs still available via IPC)
-    startAutoJournalScheduler()
+    // Auto-journal scheduler (skip if nanobot cron handles it)
+    const cfg = configStore.get()
+    if (cfg.nanobotEnabled) {
+      logger.info("[Schedulers] Nanobot enabled — skipping auto-journal setInterval (nanobot cron handles it)")
+    } else {
+      startAutoJournalScheduler()
+    }
 
     // Periodic screenshot scheduler (independent of recordings)
     startPeriodicScreenshotScheduler()
@@ -331,6 +336,31 @@ app.whenReady().then(() => {
     }
   }
 
+  // Defer nanobot agent initialization until after window is shown
+  const performDeferredNanobotInit = async () => {
+    const cfg = configStore.get()
+    if (!cfg.nanobotEnabled) {
+      logger.info("[Nanobot] Disabled in config, skipping init")
+      return
+    }
+    logger.info("[Nanobot] Starting deferred nanobot agent initialization...")
+    try {
+      const { startNanobotCallbackServer } = await import("./services/nanobot-callback-server")
+      const callbackPort = await startNanobotCallbackServer()
+
+      const { nanobotBridge } = await import("./services/nanobot-bridge-service")
+      const { initClients } = await import("./services/nanobot-gateway-client")
+
+      await nanobotBridge.start(callbackPort)
+      initClients(nanobotBridge.port)
+
+      logger.info(`[Nanobot] Agent ready on port ${nanobotBridge.port}, callback on port ${callbackPort}`)
+      markPhase("nanobot-ready")
+    } catch (err) {
+      logger.error("[Nanobot] Init failed:", err)
+    }
+  }
+
   // Defer tray initialization until after window is shown for faster startup
   const performDeferredTrayInit = () => {
     logger.info("[Tray] Starting deferred tray initialization...")
@@ -358,6 +388,9 @@ app.whenReady().then(() => {
       setTimeout(() => {
         void performDeferredRagEmbeddingBootstrap()
       }, 300)
+      setTimeout(() => {
+        void performDeferredNanobotInit()
+      }, 400)
     })
   } else {
     logger.warn("[App] No primary window found, running deferred initializations immediately")
@@ -368,6 +401,7 @@ app.whenReady().then(() => {
     performDeferredFfmpegVerification()
     performDeferredUpdaterInit()
     void performDeferredRagEmbeddingBootstrap()
+    void performDeferredNanobotInit()
   }
 
   markPhase("background-services-started")
@@ -399,6 +433,13 @@ app.whenReady().then(() => {
   app.on("will-quit", () => {
     globalShortcutManager.unregisterAll()
     shutdownAutonomousMemory()
+    // Stop nanobot if running
+    import("./services/nanobot-bridge-service").then(({ nanobotBridge }) => {
+      void nanobotBridge.stop()
+    }).catch(() => {})
+    import("./services/nanobot-gateway-client").then(({ destroyClients }) => {
+      destroyClients()
+    }).catch(() => {})
   })
 })
 

@@ -330,6 +330,10 @@ function Settings() {
                     <AIIcon style={{ height: "16px", width: "16px" }} />
                     {t("settingsDialog.tabs.enhancement")}
                   </Tabs.Trigger>
+                  <Tabs.Trigger value="agent" className={styles.TabTrigger}>
+                    <AIIcon style={{ height: "16px", width: "16px" }} />
+                    Agent
+                  </Tabs.Trigger>
                 </Tabs.List>
 
                 {/* Journal Tab */}
@@ -1515,6 +1519,14 @@ function Settings() {
                     </div>
                   )}
                 </Tabs.Content>
+
+                {/* Agent Tab */}
+                <Tabs.Content value="agent">
+                  <AgentSettingsTab
+                    livConfig={livConfigQuery.data}
+                    saveLivConfig={saveLivConfigMutation.mutateAsync}
+                  />
+                </Tabs.Content>
               </Tabs.Root>
             </div>
           </div>
@@ -1747,6 +1759,215 @@ function Settings() {
         </div>
         <Navigation />
       </div>
+  )
+}
+
+// --- Agent Settings Tab (Nanobot) ---
+
+function AgentSettingsTab({ livConfig, saveLivConfig }) {
+  const { nanobotStatus, isNanobotActive } = useAIContext()
+  const [memory, setMemory] = useState("")
+  const [cronJobs, setCronJobs] = useState([])
+  const [loadingMemory, setLoadingMemory] = useState(false)
+
+  const nanobotEnabled = livConfig?.nanobotEnabled ?? false
+
+  const toggleNanobot = async () => {
+    await saveLivConfig({ nanobotEnabled: !nanobotEnabled })
+    if (!nanobotEnabled) {
+      // Just enabled — restart will happen on next app launch or via IPC
+      try {
+        await tipcClient.restartNanobot()
+      } catch {
+        // May fail if not yet initialized
+      }
+    }
+  }
+
+  const loadMemory = async () => {
+    setLoadingMemory(true)
+    try {
+      const content = await tipcClient.getNanobotMemory()
+      setMemory(content || "(empty)")
+    } catch {
+      setMemory("(could not load)")
+    }
+    setLoadingMemory(false)
+  }
+
+  const loadCronJobs = async () => {
+    try {
+      const jobs = await tipcClient.getNanobotCronJobs()
+      setCronJobs(jobs || [])
+    } catch {
+      setCronJobs([])
+    }
+  }
+
+  useEffect(() => {
+    if (isNanobotActive) {
+      loadCronJobs()
+    }
+  }, [isNanobotActive])
+
+  const statusColor =
+    nanobotStatus?.state === "connected"
+      ? "#22c55e"
+      : nanobotStatus?.state === "starting"
+        ? "#eab308"
+        : nanobotStatus?.state === "error"
+          ? "#ef4444"
+          : "#6b7280"
+
+  const statusLabel =
+    nanobotStatus?.state === "connected"
+      ? "Conectado"
+      : nanobotStatus?.state === "starting"
+        ? "Iniciando..."
+        : nanobotStatus?.state === "error"
+          ? `Erro: ${nanobotStatus.error || "desconhecido"}`
+          : "Desconectado"
+
+  return (
+    <div style={{ padding: "4px 0" }}>
+      {/* Enable/disable toggle */}
+      <fieldset className={styles.Fieldset}>
+        <label className={styles.Label}>Agente Nanobot</label>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span style={{ fontSize: "13px", color: "var(--secondary)" }}>
+            Ativar agente inteligente com ferramentas, cron e memoria
+          </span>
+          <Switch checked={nanobotEnabled} onCheckedChange={toggleNanobot} />
+        </div>
+      </fieldset>
+
+      {/* Status */}
+      {nanobotEnabled && (
+        <fieldset className={styles.Fieldset}>
+          <label className={styles.Label}>Status</label>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "13px",
+            }}
+          >
+            <div
+              style={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                background: statusColor,
+              }}
+            />
+            <span>{statusLabel}</span>
+            {nanobotStatus?.uptime > 0 && (
+              <span style={{ color: "var(--secondary)", fontSize: "11px" }}>
+                (uptime: {Math.floor(nanobotStatus.uptime / 60)}min)
+              </span>
+            )}
+          </div>
+        </fieldset>
+      )}
+
+      {/* Memory viewer */}
+      {isNanobotActive && (
+        <fieldset className={styles.Fieldset}>
+          <label className={styles.Label}>
+            Memoria do Agente
+            <button
+              className={styles.Button}
+              style={{
+                marginLeft: "8px",
+                fontSize: "11px",
+                padding: "2px 8px",
+              }}
+              onClick={loadMemory}
+              disabled={loadingMemory}
+            >
+              {loadingMemory ? "..." : "Carregar"}
+            </button>
+          </label>
+          {memory && (
+            <pre
+              style={{
+                fontSize: "11px",
+                background: "rgba(0,0,0,0.2)",
+                padding: "10px",
+                borderRadius: "8px",
+                maxHeight: "200px",
+                overflow: "auto",
+                whiteSpace: "pre-wrap",
+                color: "var(--secondary)",
+                lineHeight: "1.5",
+              }}
+            >
+              {memory}
+            </pre>
+          )}
+        </fieldset>
+      )}
+
+      {/* Cron jobs */}
+      {isNanobotActive && cronJobs.length > 0 && (
+        <fieldset className={styles.Fieldset}>
+          <label className={styles.Label}>Cron Jobs</label>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+            }}
+          >
+            {cronJobs.map((job) => (
+              <div
+                key={job.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontSize: "12px",
+                  padding: "6px 10px",
+                  background: "rgba(0,0,0,0.15)",
+                  borderRadius: "6px",
+                }}
+              >
+                <span style={{ fontWeight: 500 }}>{job.name}</span>
+                <span
+                  style={{
+                    color: job.enabled ? "#22c55e" : "#6b7280",
+                    fontSize: "10px",
+                  }}
+                >
+                  {job.enabled ? "ativo" : "desativado"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
+      {/* Info */}
+      <div
+        style={{
+          fontSize: "11px",
+          color: "var(--secondary)",
+          padding: "12px 0",
+          textAlign: "center",
+          opacity: 0.7,
+        }}
+      >
+        O agente usa o mesmo provedor de IA configurado na aba Journal.
+        Requer Python 3.10+ instalado.
+      </div>
+    </div>
   )
 }
 

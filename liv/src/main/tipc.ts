@@ -1666,6 +1666,49 @@ export const router = {
   getDocumentsPath: t.procedure.action(async () => {
     return app.getPath("documents")
   }),
+
+  // ===== Nanobot Agent =====
+
+  getNanobotStatus: t.procedure.action(async () => {
+    const { nanobotBridge } = await import("./services/nanobot-bridge-service")
+    return nanobotBridge.status
+  }),
+
+  restartNanobot: t.procedure.action(async () => {
+    const { nanobotBridge } = await import("./services/nanobot-bridge-service")
+    await nanobotBridge.restart()
+    return nanobotBridge.status
+  }),
+
+  sendNanobotMessage: t.procedure
+    .input<{ content: string; sessionId?: string }>()
+    .action(async ({ input }) => {
+      const { getHttpClient } = await import("./services/nanobot-gateway-client")
+      const client = getHttpClient()
+      if (!client) throw new Error("Nanobot not connected")
+      return client.sendMessage(input.content, input.sessionId)
+    }),
+
+  getNanobotMemory: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) return ""
+    return client.getMemory()
+  }),
+
+  resetNanobotMemory: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) throw new Error("Nanobot not connected")
+    await client.resetMemory()
+  }),
+
+  getNanobotCronJobs: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) return []
+    return client.listCronJobs()
+  }),
 }
 
 export type Router = typeof router
