@@ -73,12 +73,24 @@ import {
   searchAutonomousKanbanMemory,
   getAutonomousKanbanStatus,
   getAutonomousPromptContext,
+  createKanbanCard,
+  updateKanbanCard,
+  deleteKanbanCard,
+  moveKanbanCard,
 } from "./services/autonomous-kanban-service"
 import {
   getAutonomousProfileBoard,
   refreshAutonomousProfile,
   getAutonomousProfileStatus,
 } from "./services/autonomous-profile-service"
+import {
+  getLifeContext,
+  updateLifeContext,
+  getLifeAnalysis,
+  refreshLifeAnalysis,
+  addWisdomEntry,
+  deleteWisdomEntry,
+} from "./services/autonomous-life-service"
 import {
   checkOllamaStatus,
   listOllamaEmbeddingModels,
@@ -1202,6 +1214,34 @@ export const router = {
     return getAutonomousKanbanStatus()
   }),
 
+  createKanbanCard: t.procedure
+    .input<{ columnId: string; title: string; description?: string; bullets?: string[] }>()
+    .action(async ({ input }) => {
+      return createKanbanCard(input.columnId, {
+        title: input.title,
+        description: input.description,
+        bullets: input.bullets,
+      })
+    }),
+
+  updateKanbanCard: t.procedure
+    .input<{ cardId: string; updates: { title?: string; description?: string; bullets?: string[]; status?: "open" | "done"; lane?: "pending" | "suggestions" | "automations" } }>()
+    .action(async ({ input }) => {
+      return updateKanbanCard(input.cardId, input.updates)
+    }),
+
+  deleteKanbanCard: t.procedure
+    .input<{ cardId: string }>()
+    .action(async ({ input }) => {
+      return deleteKanbanCard(input.cardId)
+    }),
+
+  moveKanbanCard: t.procedure
+    .input<{ cardId: string; toColumnId: string; position?: number }>()
+    .action(async ({ input }) => {
+      return moveKanbanCard(input.cardId, input.toColumnId, input.position)
+    }),
+
   getAutonomousProfileBoard: t.procedure.action(async () => {
     return getAutonomousProfileBoard()
   }),
@@ -1213,6 +1253,42 @@ export const router = {
   getAutonomousProfileStatus: t.procedure.action(async () => {
     return getAutonomousProfileStatus()
   }),
+
+  // =========================================================================
+  // LIFE OS / TELOS FRAMEWORK
+  // =========================================================================
+
+  getLifeContext: t.procedure.action(async () => {
+    return getLifeContext()
+  }),
+
+  saveLifeContext: t.procedure
+    .input<{ context: import("../shared/types").LifeContext }>()
+    .action(async ({ input }) => {
+      return updateLifeContext(input.context)
+    }),
+
+  getLifeAnalysis: t.procedure.action(async () => {
+    return getLifeAnalysis()
+  }),
+
+  refreshLifeAnalysis: t.procedure
+    .input<{ windowDays?: number } | undefined>()
+    .action(async ({ input }) => {
+      return refreshLifeAnalysis(input?.windowDays ?? 14)
+    }),
+
+  addWisdomEntry: t.procedure
+    .input<{ text: string; source: "manual" | "auto"; sourceRunId?: string }>()
+    .action(async ({ input }) => {
+      return addWisdomEntry(input)
+    }),
+
+  deleteWisdomEntry: t.procedure
+    .input<{ entryId: string }>()
+    .action(async ({ input }) => {
+      return deleteWisdomEntry(input.entryId)
+    }),
 
   getAutonomousPromptContext: t.procedure
     .input<{ query: string; maxResults?: number }>()

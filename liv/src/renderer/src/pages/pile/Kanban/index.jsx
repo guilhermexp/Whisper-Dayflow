@@ -1,7 +1,13 @@
 import styles from "./Kanban.module.scss"
 import layoutStyles from "../PileLayout.module.scss"
-import { CrossIcon, PlusIcon, RefreshIcon, SearchIcon } from "renderer/icons"
-import { useEffect, useMemo, useState } from "react"
+import { CrossIcon, PlusIcon, RefreshIcon, SearchIcon, EditIcon, TrashIcon } from "renderer/icons"
+
+const CheckIcon = (props) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { usePilesContext } from "renderer/context/PilesContext"
@@ -47,9 +53,85 @@ const buildWeekLabel = (weekStartKey) => {
   return `${start.toLocaleDateString("pt-BR")} - ${end.toLocaleDateString("pt-BR")}`
 }
 
-function KanbanCard({ card, columnColor }) {
+// --- Card Modal (Create / Edit) ---
+
+function CardModal({ mode, initialData, columnId, onSave, onCancel }) {
+  const [title, setTitle] = useState(initialData?.title || "")
+  const [description, setDescription] = useState(initialData?.description || "")
+  const [bulletsText, setBulletsText] = useState((initialData?.bullets || []).join("\n"))
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!title.trim()) return
+    const bullets = bulletsText.split("\n").map((b) => b.trim()).filter(Boolean)
+    onSave({ title: title.trim(), description: description.trim() || undefined, bullets: bullets.length > 0 ? bullets : undefined })
+  }
+
   return (
-    <div className={styles.card}>
+    <div className={styles.modalOverlay} onClick={onCancel}>
+      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <h3 className={styles.modalTitle}>
+          {mode === "create" ? "Novo Card" : "Editar Card"}
+        </h3>
+        <form onSubmit={handleSubmit}>
+          <label className={styles.modalLabel}>
+            Titulo
+            <input
+              className={styles.modalInput}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Titulo do card"
+              autoFocus
+            />
+          </label>
+          <label className={styles.modalLabel}>
+            Descricao
+            <input
+              className={styles.modalInput}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descricao (opcional)"
+            />
+          </label>
+          <label className={styles.modalLabel}>
+            Bullets (1 por linha)
+            <textarea
+              className={styles.modalTextarea}
+              value={bulletsText}
+              onChange={(e) => setBulletsText(e.target.value)}
+              placeholder="Um item por linha"
+              rows={3}
+            />
+          </label>
+          <div className={styles.modalActions}>
+            <button type="button" className={styles.modalBtnCancel} onClick={onCancel}>
+              Cancelar
+            </button>
+            <button type="submit" className={styles.modalBtnSave} disabled={!title.trim()}>
+              Salvar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// --- Kanban Card ---
+
+function KanbanCard({ card, columnColor, onEdit, onDelete, onToggleDone, onDragStart }) {
+  const isDone = card.status === "done"
+
+  return (
+    <div
+      className={`${styles.card} ${isDone ? styles.cardDone : ""}`}
+      draggable="true"
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", card.id)
+        e.dataTransfer.effectAllowed = "move"
+        onDragStart?.(card.id)
+      }}
+    >
       <h3 className={styles.cardTitle}>{card.title}</h3>
       {card.bullets?.length > 0 && (
         <ul className={styles.cardBullets}>
@@ -62,14 +144,41 @@ function KanbanCard({ card, columnColor }) {
       <div className={styles.cardFooter}>
         <div className={styles.tag} style={{ "--tag-color": columnColor }}>
           <span className={styles.tagIcon} style={{ borderColor: columnColor }} />
-          <span className={styles.tagLabel}>{Math.round((card.confidence || 0) * 100)}% confiança</span>
+          <span className={styles.tagLabel}>{Math.round((card.confidence || 0) * 100)}% confianca</span>
+        </div>
+        <div className={styles.cardActions}>
+          <button
+            className={`${styles.cardActionBtn} ${isDone ? styles.cardActionBtnActive : ""}`}
+            onClick={(e) => { e.stopPropagation(); onToggleDone(card.id, isDone ? "open" : "done") }}
+            title={isDone ? "Reabrir" : "Concluir"}
+          >
+            <CheckIcon style={{ width: 14, height: 14 }} />
+          </button>
+          <button
+            className={styles.cardActionBtn}
+            onClick={(e) => { e.stopPropagation(); onEdit(card) }}
+            title="Editar"
+          >
+            <EditIcon style={{ width: 14, height: 14 }} />
+          </button>
+          <button
+            className={`${styles.cardActionBtn} ${styles.cardActionBtnDanger}`}
+            onClick={(e) => { e.stopPropagation(); onDelete(card.id) }}
+            title="Excluir"
+          >
+            <TrashIcon style={{ width: 14, height: 14 }} />
+          </button>
         </div>
       </div>
     </div>
   )
 }
 
-function KanbanColumn({ column }) {
+// --- Kanban Column ---
+
+function KanbanColumn({ column, onCreateCard, onEditCard, onDeleteCard, onToggleDone, onDragStart, onDrop }) {
+  const [dragOver, setDragOver] = useState(false)
+
   const getColumnIcon = (icon, color) => {
     switch (icon) {
       case "lightbulb":
@@ -109,7 +218,17 @@ function KanbanColumn({ column }) {
   }
 
   return (
-    <div className={styles.column}>
+    <div
+      className={`${styles.column} ${dragOver ? styles.columnDropTarget : ""}`}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(true) }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDragOver(false)
+        const cardId = e.dataTransfer.getData("text/plain")
+        if (cardId) onDrop(cardId, column.id)
+      }}
+    >
       <div className={styles.columnHeader}>
         <div className={styles.columnTitleArea}>
           {getColumnIcon(column.icon, column.color)}
@@ -117,14 +236,26 @@ function KanbanColumn({ column }) {
           <span className={styles.columnCount}>{column.cards.length}</span>
         </div>
         <div className={styles.columnActions}>
-          <button className={styles.columnAction} title="Novo card (em breve)">
+          <button
+            className={styles.columnAction}
+            title="Novo card"
+            onClick={() => onCreateCard(column.id)}
+          >
             <PlusIcon style={{ width: 18, height: 18 }} />
           </button>
         </div>
       </div>
       <div className={styles.cardList}>
         {column.cards.map((card) => (
-          <KanbanCard key={card.id} card={card} columnColor={column.color} />
+          <KanbanCard
+            key={card.id}
+            card={card}
+            columnColor={column.color}
+            onEdit={onEditCard}
+            onDelete={onDeleteCard}
+            onToggleDone={onToggleDone}
+            onDragStart={onDragStart}
+          />
         ))}
       </div>
     </div>
@@ -178,6 +309,14 @@ function Kanban() {
   const [selectedWeekKey, setSelectedWeekKey] = useState("")
   const [selectedDayKey, setSelectedDayKey] = useState("all")
 
+  // Modal state
+  const [modalMode, setModalMode] = useState(null) // null | "create" | "edit"
+  const [modalColumnId, setModalColumnId] = useState(null)
+  const [modalCard, setModalCard] = useState(null)
+
+  // Drag state
+  const [draggingCardId, setDraggingCardId] = useState(null)
+
   const themeStyles = useMemo(() => (currentTheme ? `${currentTheme}Theme` : ""), [currentTheme])
   const isMac = window.electron?.isMac
   const osLayoutStyles = isMac ? layoutStyles.macOS : layoutStyles.windows
@@ -196,6 +335,34 @@ function Kanban() {
     },
   })
 
+  const createCardMutation = useMutation({
+    mutationFn: (params) => tipcClient.createKanbanCard(params),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["autonomous-kanban-board"], data)
+    },
+  })
+
+  const updateCardMutation = useMutation({
+    mutationFn: (params) => tipcClient.updateKanbanCard(params),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["autonomous-kanban-board"], data)
+    },
+  })
+
+  const deleteCardMutation = useMutation({
+    mutationFn: (params) => tipcClient.deleteKanbanCard(params),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["autonomous-kanban-board"], data)
+    },
+  })
+
+  const moveCardMutation = useMutation({
+    mutationFn: (params) => tipcClient.moveKanbanCard(params),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["autonomous-kanban-board"], data)
+    },
+  })
+
   const memoryQueryResult = useQuery({
     queryKey: ["autonomous-kanban-memory", memoryQuery],
     queryFn: () =>
@@ -205,6 +372,54 @@ function Kanban() {
       }),
     enabled: memoryQuery.trim().length >= 3,
   })
+
+  // --- CRUD handlers ---
+
+  const handleOpenCreate = useCallback((columnId) => {
+    setModalMode("create")
+    setModalColumnId(columnId)
+    setModalCard(null)
+  }, [])
+
+  const handleOpenEdit = useCallback((card) => {
+    setModalMode("edit")
+    setModalCard(card)
+    setModalColumnId(null)
+  }, [])
+
+  const handleModalSave = useCallback((data) => {
+    if (modalMode === "create" && modalColumnId) {
+      createCardMutation.mutate({ columnId: modalColumnId, ...data })
+    } else if (modalMode === "edit" && modalCard) {
+      updateCardMutation.mutate({ cardId: modalCard.id, updates: data })
+    }
+    setModalMode(null)
+    setModalCard(null)
+    setModalColumnId(null)
+  }, [modalMode, modalColumnId, modalCard, createCardMutation, updateCardMutation])
+
+  const handleModalCancel = useCallback(() => {
+    setModalMode(null)
+    setModalCard(null)
+    setModalColumnId(null)
+  }, [])
+
+  const handleDeleteCard = useCallback((cardId) => {
+    if (window.confirm("Excluir este card?")) {
+      deleteCardMutation.mutate({ cardId })
+    }
+  }, [deleteCardMutation])
+
+  const handleToggleDone = useCallback((cardId, newStatus) => {
+    updateCardMutation.mutate({ cardId, updates: { status: newStatus } })
+  }, [updateCardMutation])
+
+  const handleDrop = useCallback((cardId, toColumnId) => {
+    setDraggingCardId(null)
+    moveCardMutation.mutate({ cardId, toColumnId })
+  }, [moveCardMutation])
+
+  // --- Time-aware board ---
 
   const timeAwareBoard = useMemo(() => {
     const board = boardQuery.data
@@ -314,21 +529,21 @@ function Kanban() {
         <div className={styles.header}>
           <div className={styles.wrapper}>
             <h1 className={styles.DialogTitle}>
-              <span>Kanban Autônomo</span>
+              <span>Kanban Autonomo</span>
             </h1>
             <div className={styles.headerActions}>
               <button
                 className={styles.headerBtnIcon}
                 onClick={() => refreshMutation.mutate()}
                 disabled={refreshMutation.isPending}
-                title="Atualizar análise"
+                title="Atualizar analise"
               >
                 <RefreshIcon style={{ width: 16, height: 16 }} />
                 <span>{refreshMutation.isPending ? "Atualizando" : "Atualizar"}</span>
               </button>
               <button className={styles.headerBtnIcon}>
                 <SearchIcon style={{ width: 16, height: 16 }} />
-                <span>Memória</span>
+                <span>Memoria</span>
               </button>
             </div>
             <button className={styles.close} aria-label="Close" onClick={handleClose}>
@@ -341,7 +556,7 @@ function Kanban() {
           <div className={styles.topFilters}>
             <input
               className={styles.searchInput}
-              placeholder="Buscar contexto na memória do agente (mínimo 3 caracteres)..."
+              placeholder="Buscar contexto na memoria do agente (minimo 3 caracteres)..."
               value={memoryQuery}
               onChange={(e) => setMemoryQuery(e.target.value)}
             />
@@ -377,13 +592,22 @@ function Kanban() {
           </div>
 
           {boardQuery.isLoading ? (
-            <div className={styles.loadingState}>Carregando análise autônoma...</div>
+            <div className={styles.loadingState}>Carregando analise autonoma...</div>
           ) : (
             <>
               <div className={styles.boardWrap}>
                 <div className={styles.board}>
                   {filteredColumns.map((column) => (
-                    <KanbanColumn key={column.id} column={column} />
+                    <KanbanColumn
+                      key={column.id}
+                      column={column}
+                      onCreateCard={handleOpenCreate}
+                      onEditCard={handleOpenEdit}
+                      onDeleteCard={handleDeleteCard}
+                      onToggleDone={handleToggleDone}
+                      onDragStart={setDraggingCardId}
+                      onDrop={handleDrop}
+                    />
                   ))}
                 </div>
               </div>
@@ -391,13 +615,24 @@ function Kanban() {
                 <span>Runs analisadas: {timeAwareBoard?.stats?.runsAnalyzed ?? 0}</span>
                 <span>Cards no recorte: {filteredCardCount}</span>
                 <span>
-                  Última atualização: {timeAwareBoard?.generatedAt ? new Date(timeAwareBoard.generatedAt).toLocaleString() : "-"}
+                  Ultima atualizacao: {timeAwareBoard?.generatedAt ? new Date(timeAwareBoard.generatedAt).toLocaleString() : "-"}
                 </span>
               </div>
             </>
           )}
         </div>
       </div>
+
+      {modalMode && (
+        <CardModal
+          mode={modalMode}
+          initialData={modalMode === "edit" ? modalCard : null}
+          columnId={modalColumnId}
+          onSave={handleModalSave}
+          onCancel={handleModalCancel}
+        />
+      )}
+
       <Navigation />
     </div>
   )

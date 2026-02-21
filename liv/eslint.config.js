@@ -4,9 +4,11 @@ export default [
     ignores: [
       "node_modules/**",
       "out/**",
+      "**/out/**",
       "dist/**",
       "resources/**",
       "liv-rs/**",
+      ".auto-claude/**",
     ],
   },
   {

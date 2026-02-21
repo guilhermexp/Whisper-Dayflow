@@ -42,6 +42,38 @@ export default function TranscriptionSettingsTabs() {
   const [openrouterModels, setOpenrouterModels] = useState([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
+  // Encrypted key state (read from secure store, not config.json)
+  const [geminiKey, setGeminiKeyState] = useState('');
+  const [groqKey, setGroqKeyState] = useState('');
+  const [deepgramKey, setDeepgramKeyState] = useState('');
+  const [customKey, setCustomKeyState] = useState('');
+
+  // Load encrypted keys on mount
+  useEffect(() => {
+    window.electron.ipc.invoke('get-gemini-key').then((k) => { if (k) setGeminiKeyState(k); });
+    window.electron.ipc.invoke('get-groq-key').then((k) => { if (k) setGroqKeyState(k); });
+    window.electron.ipc.invoke('get-deepgram-key').then((k) => { if (k) setDeepgramKeyState(k); });
+    window.electron.ipc.invoke('get-custom-key').then((k) => { if (k) setCustomKeyState(k); });
+  }, []);
+
+  const handleEncryptedKeyChange = (provider) => (e) => {
+    const value = e.target.value;
+    const ipcMap = {
+      gemini: { setter: setGeminiKeyState, ipc: 'set-gemini-key', deleteIpc: 'delete-gemini-key' },
+      groq: { setter: setGroqKeyState, ipc: 'set-groq-key', deleteIpc: 'delete-groq-key' },
+      deepgram: { setter: setDeepgramKeyState, ipc: 'set-deepgram-key', deleteIpc: 'delete-deepgram-key' },
+      custom: { setter: setCustomKeyState, ipc: 'set-custom-key', deleteIpc: 'delete-custom-key' },
+    };
+    const entry = ipcMap[provider];
+    if (!entry) return;
+    entry.setter(value);
+    if (value.trim()) {
+      window.electron.ipc.invoke(entry.ipc, value.trim());
+    } else {
+      window.electron.ipc.invoke(entry.deleteIpc);
+    }
+  };
+
   // Load cached OpenRouter models on mount
   useEffect(() => {
     window.electron.ipc.invoke('get-openrouter-models').then((models) => {
@@ -438,8 +470,8 @@ export default function TranscriptionSettingsTabs() {
                       <input
                         className={styles.input}
                         type="password"
-                        value={config.groqApiKey || ''}
-                        onChange={handleInputChange('groqApiKey')}
+                        value={groqKey}
+                        onChange={handleEncryptedKeyChange('groq')}
                         placeholder="gsk_..."
                       />
                     </fieldset>
@@ -496,8 +528,8 @@ export default function TranscriptionSettingsTabs() {
                       <input
                         className={styles.input}
                         type="password"
-                        value={config.deepgramApiKey || ''}
-                        onChange={handleInputChange('deepgramApiKey')}
+                        value={deepgramKey}
+                        onChange={handleEncryptedKeyChange('deepgram')}
                         placeholder="Token..."
                       />
                     </fieldset>
@@ -554,8 +586,8 @@ export default function TranscriptionSettingsTabs() {
                       <input
                         className={styles.input}
                         type="password"
-                        value={config.geminiApiKey || ''}
-                        onChange={handleInputChange('geminiApiKey')}
+                        value={geminiKey}
+                        onChange={handleEncryptedKeyChange('gemini')}
                         placeholder="AIza..."
                       />
                     </fieldset>

@@ -82,6 +82,138 @@ export async function setOpenrouterModels(models: string[]): Promise<boolean> {
   }
 }
 
+// Gemini key functions
+export async function getGeminiKey(): Promise<string | null> {
+  try {
+    const encryptedKey = await settings.get('geminiKey');
+    if (!encryptedKey || typeof encryptedKey !== 'string') return null;
+    return safeStorage.decryptString(Buffer.from(encryptedKey, 'base64'));
+  } catch (error) {
+    console.error('Error retrieving Gemini key:', error);
+    return null;
+  }
+}
+
+export async function setGeminiKey(secretKey: string): Promise<boolean> {
+  try {
+    const encryptedKey = safeStorage.encryptString(secretKey);
+    await settings.set('geminiKey', encryptedKey.toString('base64'));
+    return true;
+  } catch (error) {
+    console.error('Error setting Gemini key:', error);
+    return false;
+  }
+}
+
+export async function deleteGeminiKey(): Promise<boolean> {
+  try {
+    await settings.unset('geminiKey');
+    return true;
+  } catch (error) {
+    console.error('Error deleting Gemini key:', error);
+    return false;
+  }
+}
+
+// Groq key functions
+export async function getGroqKey(): Promise<string | null> {
+  try {
+    const encryptedKey = await settings.get('groqKey');
+    if (!encryptedKey || typeof encryptedKey !== 'string') return null;
+    return safeStorage.decryptString(Buffer.from(encryptedKey, 'base64'));
+  } catch (error) {
+    console.error('Error retrieving Groq key:', error);
+    return null;
+  }
+}
+
+export async function setGroqKey(secretKey: string): Promise<boolean> {
+  try {
+    const encryptedKey = safeStorage.encryptString(secretKey);
+    await settings.set('groqKey', encryptedKey.toString('base64'));
+    return true;
+  } catch (error) {
+    console.error('Error setting Groq key:', error);
+    return false;
+  }
+}
+
+export async function deleteGroqKey(): Promise<boolean> {
+  try {
+    await settings.unset('groqKey');
+    return true;
+  } catch (error) {
+    console.error('Error deleting Groq key:', error);
+    return false;
+  }
+}
+
+// Deepgram key functions
+export async function getDeepgramKey(): Promise<string | null> {
+  try {
+    const encryptedKey = await settings.get('deepgramKey');
+    if (!encryptedKey || typeof encryptedKey !== 'string') return null;
+    return safeStorage.decryptString(Buffer.from(encryptedKey, 'base64'));
+  } catch (error) {
+    console.error('Error retrieving Deepgram key:', error);
+    return null;
+  }
+}
+
+export async function setDeepgramKey(secretKey: string): Promise<boolean> {
+  try {
+    const encryptedKey = safeStorage.encryptString(secretKey);
+    await settings.set('deepgramKey', encryptedKey.toString('base64'));
+    return true;
+  } catch (error) {
+    console.error('Error setting Deepgram key:', error);
+    return false;
+  }
+}
+
+export async function deleteDeepgramKey(): Promise<boolean> {
+  try {
+    await settings.unset('deepgramKey');
+    return true;
+  } catch (error) {
+    console.error('Error deleting Deepgram key:', error);
+    return false;
+  }
+}
+
+// Custom provider key functions
+export async function getCustomKey(): Promise<string | null> {
+  try {
+    const encryptedKey = await settings.get('customKey');
+    if (!encryptedKey || typeof encryptedKey !== 'string') return null;
+    return safeStorage.decryptString(Buffer.from(encryptedKey, 'base64'));
+  } catch (error) {
+    console.error('Error retrieving Custom key:', error);
+    return null;
+  }
+}
+
+export async function setCustomKey(secretKey: string): Promise<boolean> {
+  try {
+    const encryptedKey = safeStorage.encryptString(secretKey);
+    await settings.set('customKey', encryptedKey.toString('base64'));
+    return true;
+  } catch (error) {
+    console.error('Error setting Custom key:', error);
+    return false;
+  }
+}
+
+export async function deleteCustomKey(): Promise<boolean> {
+  try {
+    await settings.unset('customKey');
+    return true;
+  } catch (error) {
+    console.error('Error deleting Custom key:', error);
+    return false;
+  }
+}
+
 export async function fetchOpenrouterModels(): Promise<string[]> {
   try {
     const response = await fetch('https://openrouter.ai/api/v1/models', {

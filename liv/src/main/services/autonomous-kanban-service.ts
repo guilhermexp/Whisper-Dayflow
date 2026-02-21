@@ -339,6 +339,19 @@ export async function refreshAutonomousKanban(): Promise<AutonomousKanbanBoard> 
 
   const doRefresh = async (): Promise<AutonomousKanbanBoard> => {
     try {
+      // Preserve manually created cards before regenerating
+      const existingBoard = loadPersistedBoard()
+      const manualCards: AutonomousKanbanCard[] = []
+      if (existingBoard) {
+        for (const column of existingBoard.columns) {
+          for (const card of column.cards) {
+            if (card.id.startsWith("manual-")) {
+              manualCards.push(card)
+            }
+          }
+        }
+      }
+
       await initializeAutonomousMemory()
       const runs = loadRuns(240)
 
@@ -353,9 +366,21 @@ export async function refreshAutonomousKanban(): Promise<AutonomousKanbanBoard> 
         columns: buildColumns(cards),
         stats: {
           runsAnalyzed: runs.length,
-          cardsGenerated: cards.length,
+          cardsGenerated: cards.length + manualCards.length,
           lastRunAt: runs[0]?.finishedAt ?? null,
         },
+      }
+
+      // Re-insert manual cards into their respective columns
+      for (const manual of manualCards) {
+        const column = board.columns.find((c) => c.id === manual.lane)
+        if (column) {
+          column.cards.unshift(manual)
+        } else {
+          // Fallback to pending if original lane no longer exists
+          const pendingCol = board.columns.find((c) => c.id === "pending")
+          if (pendingCol) pendingCol.cards.unshift(manual)
+        }
       }
 
       persistBoard(board)
@@ -385,6 +410,117 @@ export async function getAutonomousKanbanBoard(): Promise<AutonomousKanbanBoard>
   const persisted = loadPersistedBoard()
   if (persisted) return persisted
   return refreshAutonomousKanban()
+}
+
+// --- CRUD helpers ---
+
+async function loadAndMutateBoard(
+  mutator: (board: AutonomousKanbanBoard) => void,
+): Promise<AutonomousKanbanBoard> {
+  let board = loadPersistedBoard()
+  if (!board) {
+    board = await refreshAutonomousKanban()
+  }
+  mutator(board)
+  persistBoard(board)
+  return board
+}
+
+const findCardInBoard = (board: AutonomousKanbanBoard, cardId: string) => {
+  for (const column of board.columns) {
+    const idx = column.cards.findIndex((c) => c.id === cardId)
+    if (idx !== -1) return { column, idx }
+  }
+  return null
+}
+
+export async function createKanbanCard(
+  columnId: string,
+  data: { title: string; description?: string; bullets?: string[] },
+): Promise<AutonomousKanbanBoard> {
+  return loadAndMutateBoard((board) => {
+    const column = board.columns.find((c) => c.id === columnId)
+    if (!column) throw new Error(`Column "${columnId}" not found`)
+
+    const card: AutonomousKanbanCard = {
+      id: `manual-${hashId(data.title + Date.now())}`,
+      title: data.title,
+      lane: column.id as AutonomousKanbanCard["lane"],
+      description: data.description || null,
+      bullets: data.bullets || [],
+      confidence: 1.0,
+      status: "open",
+      sourceRunIds: [],
+      observedAt: Date.now(),
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    }
+
+    column.cards.unshift(card)
+  })
+}
+
+export async function updateKanbanCard(
+  cardId: string,
+  updates: {
+    title?: string
+    description?: string
+    bullets?: string[]
+    status?: "open" | "done"
+    lane?: AutonomousKanbanCard["lane"]
+  },
+): Promise<AutonomousKanbanBoard> {
+  return loadAndMutateBoard((board) => {
+    const found = findCardInBoard(board, cardId)
+    if (!found) throw new Error(`Card "${cardId}" not found`)
+
+    const card = found.column.cards[found.idx]
+
+    if (updates.title !== undefined) card.title = updates.title
+    if (updates.description !== undefined) card.description = updates.description || null
+    if (updates.bullets !== undefined) card.bullets = updates.bullets
+    if (updates.status !== undefined) card.status = updates.status
+    card.updatedAt = nowIso()
+
+    // Move to different column if lane changed
+    if (updates.lane && updates.lane !== found.column.id) {
+      const targetColumn = board.columns.find((c) => c.id === updates.lane)
+      if (targetColumn) {
+        found.column.cards.splice(found.idx, 1)
+        card.lane = updates.lane
+        targetColumn.cards.unshift(card)
+      }
+    }
+  })
+}
+
+export async function deleteKanbanCard(cardId: string): Promise<AutonomousKanbanBoard> {
+  return loadAndMutateBoard((board) => {
+    const found = findCardInBoard(board, cardId)
+    if (!found) throw new Error(`Card "${cardId}" not found`)
+    found.column.cards.splice(found.idx, 1)
+  })
+}
+
+export async function moveKanbanCard(
+  cardId: string,
+  toColumnId: string,
+  position?: number,
+): Promise<AutonomousKanbanBoard> {
+  return loadAndMutateBoard((board) => {
+    const found = findCardInBoard(board, cardId)
+    if (!found) throw new Error(`Card "${cardId}" not found`)
+
+    const targetColumn = board.columns.find((c) => c.id === toColumnId)
+    if (!targetColumn) throw new Error(`Column "${toColumnId}" not found`)
+
+    const [card] = found.column.cards.splice(found.idx, 1)
+    card.lane = targetColumn.id as AutonomousKanbanCard["lane"]
+    card.updatedAt = nowIso()
+
+    const insertAt = position !== undefined ? Math.min(position, targetColumn.cards.length) : 0
+    targetColumn.cards.splice(insertAt, 0, card)
+  })
 }
 
 export async function searchAutonomousKanbanMemory(query: string, maxResults = 6) {

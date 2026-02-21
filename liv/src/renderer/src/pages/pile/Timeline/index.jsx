@@ -1,10 +1,10 @@
 import styles from "./Timeline.module.scss"
 import layoutStyles from "../PileLayout.module.scss"
-import { useState, useMemo } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useState, useMemo, useCallback } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router-dom"
 import { tipcClient } from "renderer/lib/tipc-client"
-import { ChevronLeftIcon, ChevronRightIcon, EditIcon, CrossIcon } from "renderer/icons"
+import { ChevronLeftIcon, ChevronRightIcon, EditIcon, CrossIcon, PlusIcon } from "renderer/icons"
 import dayjs from "dayjs"
 import { useTranslation } from "react-i18next"
 import { usePilesContext } from "renderer/context/PilesContext"
@@ -13,9 +13,14 @@ import Navigation from "../Navigation"
 function Timeline() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { currentTheme } = usePilesContext()
   const [selectedDate, setSelectedDate] = useState(dayjs())
   const [selectedActivityId, setSelectedActivityId] = useState(null)
+  const [kanbanToast, setKanbanToast] = useState(null)
+  const [showRangePicker, setShowRangePicker] = useState(false)
+  const [rangeStart, setRangeStart] = useState("")
+  const [rangeEnd, setRangeEnd] = useState("")
 
   const themeStyles = useMemo(
     () => (currentTheme ? `${currentTheme}Theme` : ""),
@@ -25,6 +30,42 @@ function Timeline() {
     () => (window.electron.isMac ? layoutStyles.mac : layoutStyles.win),
     []
   )
+
+  const createKanbanCardMutation = useMutation({
+    mutationFn: (params) => tipcClient.createKanbanCard(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["autonomous-kanban-board"] })
+      setKanbanToast("Card criado no Kanban!")
+      setTimeout(() => setKanbanToast(null), 2500)
+    },
+  })
+
+  const rangeAnalysisMutation = useMutation({
+    mutationFn: (params) => tipcClient.runAutoJournalForRange(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auto-journal-runs"] })
+      setShowRangePicker(false)
+      setKanbanToast("Analise de periodo iniciada!")
+      setTimeout(() => setKanbanToast(null), 2500)
+    },
+  })
+
+  const handleRangeAnalysis = useCallback(() => {
+    if (!rangeStart || !rangeEnd) return
+    const startTs = new Date(rangeStart + "T00:00:00").getTime()
+    const endTs = new Date(rangeEnd + "T23:59:59").getTime()
+    if (startTs >= endTs) return
+    rangeAnalysisMutation.mutate({ windowStartTs: startTs, windowEndTs: endTs })
+  }, [rangeStart, rangeEnd, rangeAnalysisMutation])
+
+  const handleCreateKanbanCard = useCallback((activity) => {
+    createKanbanCardMutation.mutate({
+      columnId: "pending",
+      title: activity.title,
+      description: activity.summary || undefined,
+      bullets: activity.detailedSummary?.map((d) => d.description).filter(Boolean) || undefined,
+    })
+  }, [createKanbanCardMutation])
 
   // Query runs
   const runsQuery = useQuery({
@@ -117,6 +158,12 @@ function Timeline() {
             <div className={styles.DialogTitle}>
               <span>{t("timeline.title")}</span>
             </div>
+            <button
+              className={styles.rangeBtn}
+              onClick={() => setShowRangePicker(!showRangePicker)}
+            >
+              Analisar Periodo
+            </button>
             <div
               className={styles.close}
               onClick={() => navigate("/")}
@@ -126,6 +173,26 @@ function Timeline() {
             </div>
           </div>
         </div>
+
+        {showRangePicker && (
+          <div className={styles.rangePicker}>
+            <label className={styles.rangeLabel}>
+              Inicio
+              <input type="date" className={styles.rangeInput} value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
+            </label>
+            <label className={styles.rangeLabel}>
+              Fim
+              <input type="date" className={styles.rangeInput} value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
+            </label>
+            <button
+              className={styles.rangeSubmit}
+              onClick={handleRangeAnalysis}
+              disabled={!rangeStart || !rangeEnd || rangeAnalysisMutation.isPending}
+            >
+              {rangeAnalysisMutation.isPending ? "Analisando..." : "Gerar"}
+            </button>
+          </div>
+        )}
 
         {/* Main Content */}
         <div className={styles.mainContent}>
@@ -223,6 +290,14 @@ function Timeline() {
                 <button className={styles.editBtn}>
                   <EditIcon />
                 </button>
+                <button
+                  className={styles.editBtn}
+                  title="Criar card no Kanban"
+                  onClick={() => handleCreateKanbanCard(selectedActivity)}
+                  disabled={createKanbanCardMutation.isPending}
+                >
+                  <PlusIcon style={{ width: 14, height: 14 }} />
+                </button>
               </div>
             </div>
 
@@ -274,6 +349,10 @@ function Timeline() {
           </div>
         </div>
       </div>
+
+      {kanbanToast && (
+        <div className={styles.toast}>{kanbanToast}</div>
+      )}
 
       <Navigation />
     </div>

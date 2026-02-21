@@ -6,8 +6,9 @@ import {
   SettingsIcon,
   TrashIcon,
   EditIcon,
+  PlusIcon,
 } from "renderer/icons"
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import Markdown from "react-markdown"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router-dom"
@@ -67,6 +68,46 @@ function AutoJournal() {
     () => (window.electron.isMac ? layoutStyles.mac : layoutStyles.win),
     [],
   )
+
+  // Kanban card creation from activities
+  const createKanbanCardMutation = useMutation({
+    mutationFn: (params) => tipcClient.createKanbanCard(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["autonomous-kanban-board"] })
+      addNotification({ text: "Card criado no Kanban!", type: "success" })
+    },
+  })
+
+  const handleCreateKanbanCard = useCallback((activity) => {
+    createKanbanCardMutation.mutate({
+      columnId: "pending",
+      title: activity.title,
+      description: activity.summary || undefined,
+      bullets: activity.detailedSummary?.map((d) => d.description).filter(Boolean) || undefined,
+    })
+  }, [createKanbanCardMutation])
+
+  // Range analysis state
+  const [showRangePicker, setShowRangePicker] = useState(false)
+  const [rangeStart, setRangeStart] = useState("")
+  const [rangeEnd, setRangeEnd] = useState("")
+
+  const rangeAnalysisMutation = useMutation({
+    mutationFn: (params) => tipcClient.runAutoJournalForRange(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auto-journal-runs"] })
+      setShowRangePicker(false)
+      addNotification({ text: "Analise de periodo iniciada!", type: "success" })
+    },
+  })
+
+  const handleRangeAnalysis = useCallback(() => {
+    if (!rangeStart || !rangeEnd) return
+    const startTs = new Date(rangeStart + "T00:00:00").getTime()
+    const endTs = new Date(rangeEnd + "T23:59:59").getTime()
+    if (startTs >= endTs) return
+    rangeAnalysisMutation.mutate({ windowStartTs: startTs, windowEndTs: endTs })
+  }, [rangeStart, rangeEnd, rangeAnalysisMutation])
 
   // Queries
   const runsQuery = useQuery({
@@ -673,16 +714,43 @@ Bad examples:
                     <div className={styles.GenerateCard}>
                       <div className={styles.GenerateHeader}>
                         <span>{t("autoJournal.generateDescription")}</span>
-                        <button
-                          onClick={handleRunNow}
-                          disabled={runNowMutation.isPending}
-                          className={styles.ActionBtn}
-                        >
-                          {runNowMutation.isPending
-                            ? t("autoJournal.generating")
-                            : t("autoJournal.generateNow")}
-                        </button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            onClick={handleRunNow}
+                            disabled={runNowMutation.isPending}
+                            className={styles.ActionBtn}
+                          >
+                            {runNowMutation.isPending
+                              ? t("autoJournal.generating")
+                              : t("autoJournal.generateNow")}
+                          </button>
+                          <button
+                            onClick={() => setShowRangePicker(!showRangePicker)}
+                            className={styles.ActionBtn}
+                          >
+                            Periodo
+                          </button>
+                        </div>
                       </div>
+                      {showRangePicker && (
+                        <div className={styles.rangePicker}>
+                          <label className={styles.rangeLabel}>
+                            Inicio
+                            <input type="date" className={styles.rangeInput} value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
+                          </label>
+                          <label className={styles.rangeLabel}>
+                            Fim
+                            <input type="date" className={styles.rangeInput} value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
+                          </label>
+                          <button
+                            className={styles.ActionBtn}
+                            onClick={handleRangeAnalysis}
+                            disabled={!rangeStart || !rangeEnd || rangeAnalysisMutation.isPending}
+                          >
+                            {rangeAnalysisMutation.isPending ? "Analisando..." : "Gerar"}
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Run List - Timeline/Calendar style */}
@@ -845,6 +913,15 @@ Bad examples:
                                             {t(`timeline.${act.category.toLowerCase()}`)}
                                           </span>
                                         )}
+                                        <button
+                                          className={styles.kanbanBtn}
+                                          title="Criar card no Kanban"
+                                          onClick={() => handleCreateKanbanCard(act)}
+                                          disabled={createKanbanCardMutation.isPending}
+                                        >
+                                          <PlusIcon style={{ width: 12, height: 12 }} />
+                                          <span>Kanban</span>
+                                        </button>
                                       </div>
                                     </div>
 

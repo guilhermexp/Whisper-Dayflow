@@ -57,6 +57,12 @@ function Settings() {
   const saveLivConfigMutation = useSaveConfigMutation()
   const [expandedSection, setExpandedSection] = useState(null)
 
+  // Encrypted custom key state
+  const [encryptedCustomKey, setEncryptedCustomKey] = useState('')
+  useEffect(() => {
+    window.electron.ipc.invoke('get-custom-key').then((k) => { if (k) setEncryptedCustomKey(k) })
+  }, [])
+
   // Prompt editor states
   const [promptEditorOpen, setPromptEditorOpen] = useState(false)
   const [editingPrompt, setEditingPrompt] = useState(null)
@@ -963,15 +969,16 @@ function Settings() {
                                 <input
                                   className={styles.Input}
                                   type="password"
-                                  value={
-                                    livConfigQuery.data
-                                      .customEnhancementApiKey || ""
-                                  }
-                                  onChange={(e) =>
-                                    saveLivConfig({
-                                      customEnhancementApiKey: e.target.value,
-                                    })
-                                  }
+                                  value={encryptedCustomKey}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    setEncryptedCustomKey(val)
+                                    if (val.trim()) {
+                                      window.electron.ipc.invoke('set-custom-key', val.trim())
+                                    } else {
+                                      window.electron.ipc.invoke('delete-custom-key')
+                                    }
+                                  }}
                                   placeholder="sk-..."
                                 />
                               </fieldset>

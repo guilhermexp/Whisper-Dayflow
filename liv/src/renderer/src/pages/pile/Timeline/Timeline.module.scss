@@ -961,4 +961,102 @@
   }
 }
 
+.rangeBtn {
+  margin-left: auto;
+  margin-right: 36px;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-app-region: none;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--bg-secondary);
+    color: var(--primary);
+  }
+}
+
+.rangePicker {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 8px 20px;
+  flex-shrink: 0;
+}
+
+.rangeLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--secondary);
+}
+
+.rangeInput {
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--primary);
+  padding: 0 8px;
+  font-size: 12px;
+  outline: none;
+  color-scheme: dark;
+
+  &:focus {
+    border-color: var(--secondary);
+  }
+}
+
+.rangeSubmit {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 6px;
+  border: none;
+  background: var(--base);
+  color: var(--base-text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--base-hover);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-secondary);
+  color: var(--primary);
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 20000;
+  animation: toastFadeIn 0.2s ease;
+}
+
+@keyframes toastFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 // .floatingNav unused (nav handled by layout)
