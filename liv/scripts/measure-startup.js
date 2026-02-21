@@ -89,7 +89,7 @@ const measureStartup = (isColdStart) => {
     if (existsSync(path.join(livDir, "out", "main", "index.js"))) {
       appPath = path.join(livDir, "out", "main", "index.js")
     } else {
-      reject(new Error("App not built. Run 'npm run build' first."))
+      reject(new Error("App not built. Run 'pnpm build' first."))
       return
     }
 

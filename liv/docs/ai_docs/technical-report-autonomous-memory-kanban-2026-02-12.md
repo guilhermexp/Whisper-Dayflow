@@ -170,7 +170,7 @@ Isso evita indisponibilidade da busca semântica por falha local transitória.
 
 ### 6.1 Build/type safety
 
-- `npm run typecheck` executado com sucesso após as alterações.
+- `pnpm run typecheck` executado com sucesso após as alterações.
 
 ### 6.2 Runtime local Ollama
 
