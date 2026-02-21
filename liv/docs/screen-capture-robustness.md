@@ -400,7 +400,7 @@ try {
 
 ```bash
 # 1. Start app
-npm run dev
+pnpm dev
 
 # 2. Habilitar screen capture
 Settings > Auto Journal > "Incluir contexto da tela" = ON
@@ -422,7 +422,7 @@ Hold Ctrl → Record → Release
 
 ```bash
 # 1. Start app com screen capture habilitado
-npm run dev
+pnpm dev
 
 # 2. Durante gravação, coloque Mac em sleep
 ⌘ + Option + Eject (ou ⌘ + Option + Power)
@@ -445,7 +445,7 @@ Press any key
 
 ```bash
 # 1. Start app com screen capture habilitado
-npm run dev
+pnpm dev
 
 # 2. Lock screen durante captura
 Control + Command + Q
@@ -472,7 +472,7 @@ System Settings > Privacy & Security > Screen Recording >
   Desabilitar "Liv"
 
 # 2. Tentar capturar
-npm run dev
+pnpm dev
 # Grave transcrição com screen capture habilitado
 
 # Expected logs:
@@ -506,7 +506,7 @@ npm run dev
 ```bash
 # 1. Conectar display externo
 # 2. Start app com screen capture habilitado
-npm run dev
+pnpm dev
 
 # 3. Gravar transcrição
 # Expected: Captura display primário corretamente

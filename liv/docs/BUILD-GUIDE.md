@@ -4,7 +4,7 @@
 
 ```bash
 cd /Users/guilhermevarela/Documents/Projetos/Whisper-Dayflow/liv
-npm run build:mac
+pnpm build:mac
 ```
 
 O app será gerado em:
@@ -47,18 +47,18 @@ O app usa **ad-hoc signing** (assinatura local sem certificado Apple Developer).
 
 | Comando | Descrição |
 |---------|-----------|
-| `npm run dev` | Modo desenvolvimento (hot reload) |
-| `npm run build` | Build sem empacotamento |
-| `npm run build:mac` | Build + empacotamento macOS |
-| `npm run build:win` | Build + empacotamento Windows |
-| `npm run build:linux` | Build + empacotamento Linux |
+| `pnpm run dev` | Modo desenvolvimento (hot reload) |
+| `pnpm run build` | Build sem empacotamento |
+| `pnpm build:mac` | Build + empacotamento macOS |
+| `pnpm run build:win` | Build + empacotamento Windows |
+| `pnpm run build:linux` | Build + empacotamento Linux |
 
 ## Troubleshooting
 
 ### Erro de TypeScript
 Se aparecer erro de compilação, verifique:
 ```bash
-npm run typecheck
+pnpm run typecheck
 ```
 
 ### Erro: Identificador duplicado
@@ -94,7 +94,7 @@ brew install ffmpeg
 ```bash
 # Limpar build anterior e rebuildar
 rm -rf dist out
-npm run build:mac
+pnpm build:mac
 ```
 
 ### Erro: Unable to preload CSS (assets://app/assets/...)
@@ -133,7 +133,7 @@ open /Applications/Liv.app
 ```bash
 # Remove artefatos anteriores e faz build limpo
 rm -rf dist out
-npm run build:mac
+pnpm build:mac
 
 # Instala
 pkill -9 -f "Liv" 2>/dev/null

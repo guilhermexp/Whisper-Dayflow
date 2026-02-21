@@ -13,9 +13,9 @@
 **Run Commands:**
 ```bash
 # No test scripts available
-npm run typecheck          # Type checking only
-npm run typecheck:node     # Main process type checking
-npm run typecheck:web      # Renderer type checking
+pnpm run typecheck          # Type checking only
+pnpm run typecheck:node     # Main process type checking
+pnpm run typecheck:web      # Renderer type checking
 ```
 
 ## Test File Organization
@@ -33,7 +33,7 @@ npm run typecheck:web      # Renderer type checking
 **Current Approach:**
 - Type-driven development - TypeScript types enforce correctness at compile time
 - Manual testing via `pnpm dev` local development
-- Build validation via `npm run typecheck && electron-vite build`
+- Build validation via `pnpm run typecheck && electron-vite build`
 
 ## Mocking
 

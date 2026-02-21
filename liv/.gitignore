@@ -1,18 +1,51 @@
-node_modules
-dist
-out
-.DS_Store
-*.log*
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+out/
+*.tsbuildinfo
+
+# Rust build
 target/
-bin/
+resources/bin/
 
-# Auto Claude data directory
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.log.*
+build.log
+
+# Lock files (pnpm is the only package manager)
+package-lock.json
+bun.lock
+yarn.lock
+
+# Temporary/generated images
+ChatGPT Image *.png
+scripts/Captura de Tela *.png
+*.dmg
+*.blockmap
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Claude/AI tooling
 .auto-claude/
-
-# Auto Claude generated files
 .auto-claude-security.json
 .auto-claude-status
 .claude_settings.json
 .worktrees/
 .security-key
 logs/security/
+
+# Environment
+.env
+.env.*

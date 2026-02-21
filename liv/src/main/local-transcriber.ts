@@ -85,7 +85,7 @@ const runChildProcess = (
 
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(command)) {
-      const err = new Error(`Local inference binary not found at ${command}. Reinstall the app or run \`npm run build-rs\` in development.`)
+      const err = new Error(`Local inference binary not found at ${command}. Reinstall the app or run \`pnpm run build-rs\` in development.`)
       reject(err)
       return
     }
