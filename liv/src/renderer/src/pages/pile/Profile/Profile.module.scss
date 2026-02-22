@@ -169,6 +169,31 @@
   gap: 6px;
 }
 
+.overviewLayout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.overviewSidebar {
+  min-height: 0;
+}
+
+.overviewSidebar .overviewControlPanel {
+  position: sticky;
+  top: 0;
+  max-height: calc(100vh - 170px);
+  overflow: auto;
+}
+
+.overviewMain {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .overviewHeaderTopRow {
   display: flex;
   align-items: center;
@@ -230,6 +255,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .widgetChip {
@@ -257,6 +288,12 @@
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  max-height: 84px;
+  overflow: auto;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .weekBtn,
@@ -282,6 +319,16 @@
 }
 
 @media only screen and (max-width: 980px) {
+  .overviewLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .overviewSidebar .overviewControlPanel {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
   .overviewHeaderTopRow {
     flex-direction: column;
     align-items: stretch;
