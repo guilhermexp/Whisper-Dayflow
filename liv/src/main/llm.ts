@@ -372,7 +372,7 @@ export async function generateAutoJournalSummaryFromHistory(
     return {
       windowStartTs,
       windowEndTs,
-      summary: "No recordings found in the selected time window.",
+      summary: "Nenhuma transcrição encontrada na janela de tempo selecionada.",
       activities: [],
     }
   }
@@ -491,6 +491,8 @@ You are analyzing a user's voice transcriptions to create a structured activity 
 Your job is to synthesize these transcripts into meaningful activity blocks.
 
 **IMPORTANT: Generate ALL content (titles, summaries, descriptions) in PORTUGUESE (Brazilian Portuguese).**
+**NEVER write any sentence in English.**
+**If there are no useful transcriptions, return empty activities and a short Portuguese summary saying there was no usable content.**
 
 ## GOLDEN RULE: Aim for 1-3 activity blocks per time window (fewer is better)
 
@@ -833,6 +835,11 @@ Return ONLY one valid JSON object using this exact shape:
   ]
 }
 
+IMPORTANT:
+- Generate ALL strings in Portuguese (Brazilian Portuguese).
+- NEVER write content in English.
+- If there is no useful content, return activities as [].
+
 Window start: ${windowStartTs}
 Window end: ${windowEndTs}
 Input transcriptions:
@@ -908,7 +915,7 @@ ${logText}
   const summary =
     typeof parsed.summary === "string" && parsed.summary.trim().length
       ? parsed.summary.trim()
-      : "No summary generated."
+      : "Resumo não gerado."
 
   const validCategories = ["Work", "Personal", "Distraction", "Idle"]
 

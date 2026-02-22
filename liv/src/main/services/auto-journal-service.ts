@@ -6,7 +6,11 @@ import { createRequire } from "module"
 import { configStore, recordingsFolder } from "../config"
 import { historyStore } from "../history-store"
 import { generateAutoJournalSummaryFromHistory } from "../llm"
-import type { AutoJournalRun, RecordingHistoryItem } from "../../shared/types"
+import type {
+  AutoJournalActivity,
+  AutoJournalRun,
+  RecordingHistoryItem,
+} from "../../shared/types"
 import { saveAutoJournalEntry } from "./auto-journal-entry"
 import { logWithContext } from "../logger"
 
@@ -172,10 +176,85 @@ let running = false
 let nextRunAt: number | null = null
 let lastRunAt: number | null = null
 
-function isNoRecordingsSummary(summary: string | undefined): boolean {
-  if (!summary) return true
-  const normalized = summary.trim().toLowerCase()
-  return normalized.includes("no recordings found in the selected time window")
+const EMPTY_CONTENT_PATTERNS = [
+  "no recordings found",
+  "no recording found",
+  "no transcriptions",
+  "no transcript",
+  "no summary generated",
+  "tempo sem registro",
+  "sem registro",
+  "nao houve transcricoes",
+  "não houve transcrições",
+  "nenhuma transcricao",
+  "nenhuma transcrição",
+  "nenhum registro",
+  "sem transcricao",
+  "sem transcrição",
+]
+
+const normalizeForMatch = (text: string) =>
+  text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+
+function containsEmptyContentMarker(text: string | undefined): boolean {
+  if (!text || !text.trim()) return true
+  const normalized = normalizeForMatch(text)
+  return EMPTY_CONTENT_PATTERNS.some((pattern) =>
+    normalized.includes(normalizeForMatch(pattern)),
+  )
+}
+
+function sanitizeActivities(
+  activities: AutoJournalActivity[] | undefined,
+): AutoJournalActivity[] {
+  if (!Array.isArray(activities) || activities.length === 0) return []
+
+  return activities.filter((activity) => {
+    const title = activity.title?.trim() || ""
+    const summary = activity.summary?.trim() || ""
+    const hasDetails =
+      Array.isArray(activity.detailedSummary) &&
+      activity.detailedSummary.some(
+        (entry) =>
+          typeof entry.description === "string" &&
+          entry.description.trim().length > 0 &&
+          !containsEmptyContentMarker(entry.description),
+      )
+
+    // Drop placeholder activities that only state there was no data.
+    if (
+      !hasDetails &&
+      (!title || containsEmptyContentMarker(title)) &&
+      (!summary || containsEmptyContentMarker(summary))
+    ) {
+      return false
+    }
+
+    return true
+  })
+}
+
+function hasMeaningfulAutoJournalContent(params: {
+  summaryText: string | undefined
+  activities: AutoJournalActivity[]
+  transcriptionCount: number
+  sourceMode: "audio" | "video" | "both"
+}): boolean {
+  const { summaryText, activities, transcriptionCount, sourceMode } = params
+
+  if (sourceMode !== "video" && transcriptionCount <= 0) {
+    return false
+  }
+
+  const hasSummaryText =
+    Boolean(summaryText && summaryText.trim().length > 0) &&
+    !containsEmptyContentMarker(summaryText)
+  const hasActivities = activities.length > 0
+  return hasSummaryText || hasActivities
 }
 
 /**
@@ -490,15 +569,18 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
       `[auto-journal] Run ${id} completed successfully in ${Date.now() - startedAt}ms`,
     )
 
-    // Content exists whenever we had recordings in the time window and the
-    // returned summary is not the explicit empty-window placeholder.
-    const hasRealContent =
-      summaryInputHistory.length > 0 && !isNoRecordingsSummary(summary.summary)
+    const cleanActivities = sanitizeActivities(summary.activities || [])
+    const hasRealContent = hasMeaningfulAutoJournalContent({
+      summaryText: summary.summary,
+      activities: cleanActivities,
+      transcriptionCount: audioWindowItems.length,
+      sourceMode,
+    })
 
     // Skip saving empty runs entirely - don't clutter the history with "Vazio" entries
     if (!hasRealContent) {
       console.log(
-        "[auto-journal] No recordings found in window, skipping run save entirely",
+        "[auto-journal] No meaningful content in window, skipping run save entirely",
       )
       return null
     }
@@ -518,7 +600,7 @@ export async function runAutoJournalOnce(windowMinutes?: number) {
           const result = await saveAutoJournalEntry({
             pilePath,
             summary: summary.summary,
-            activities: summary.activities || [],
+            activities: cleanActivities,
             windowStartTs: summary.windowStartTs,
             windowEndTs: summary.windowEndTs,
             highlight: summary.highlight ?? null,
@@ -712,12 +794,17 @@ export async function runAutoJournalForRange(input: {
       }
     }
 
-    const hasRealContent =
-      summaryInputHistory.length > 0 && !isNoRecordingsSummary(summary.summary)
+    const cleanActivities = sanitizeActivities(summary.activities || [])
+    const hasRealContent = hasMeaningfulAutoJournalContent({
+      summaryText: summary.summary,
+      activities: cleanActivities,
+      transcriptionCount: audioWindowItems.length,
+      sourceMode,
+    })
 
     if (!hasRealContent) {
       console.log(
-        "[auto-journal] No recordings found in explicit range, skipping run save entirely",
+        "[auto-journal] No meaningful content in explicit range, skipping run save entirely",
       )
       return null
     }
@@ -733,7 +820,7 @@ export async function runAutoJournalForRange(input: {
           const result = await saveAutoJournalEntry({
             pilePath,
             summary: summary.summary,
-            activities: summary.activities || [],
+            activities: cleanActivities,
             windowStartTs: summary.windowStartTs,
             windowEndTs: summary.windowEndTs,
             highlight: summary.highlight ?? null,

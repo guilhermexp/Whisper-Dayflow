@@ -27,21 +27,51 @@ import layoutStyles from "../PileLayout.module.scss"
 import Toasts from "../Toasts"
 import Navigation from "../Navigation"
 
-const isNoRecordingsSummary = (summaryText) => {
-  if (!summaryText) return true
-  return summaryText
+const EMPTY_CONTENT_PATTERNS = [
+  "no recordings found",
+  "no recording found",
+  "no transcriptions",
+  "no transcript",
+  "no summary generated",
+  "tempo sem registro",
+  "sem registro",
+  "nao houve transcricoes",
+  "não houve transcrições",
+  "nenhuma transcricao",
+  "nenhuma transcrição",
+  "nenhum registro",
+  "sem transcricao",
+  "sem transcrição",
+]
+
+const normalizeForMatch = (text) =>
+  (text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase()
-    .includes("no recordings found in the selected time window")
+
+const hasEmptyContentMarker = (text) => {
+  const normalized = normalizeForMatch(text)
+  if (!normalized) return true
+  return EMPTY_CONTENT_PATTERNS.some((pattern) =>
+    normalized.includes(normalizeForMatch(pattern)),
+  )
 }
 
 const hasRunContent = (run) => {
   const summaryText = run?.summary?.summary
-  const hasActivities = (run?.summary?.activities?.length || 0) > 0
+  const validActivities =
+    run?.summary?.activities?.filter((activity) => {
+      const title = activity?.title || ""
+      const summary = activity?.summary || ""
+      return !hasEmptyContentMarker(title) || !hasEmptyContentMarker(summary)
+    }) || []
+  const hasActivities = validActivities.length > 0
   const hasSummaryText = Boolean(summaryText && summaryText.trim().length > 0)
 
   if (!hasSummaryText && !hasActivities) return false
-  return !isNoRecordingsSummary(summaryText)
+  return !hasEmptyContentMarker(summaryText) || hasActivities
 }
 
 function AutoJournal() {
