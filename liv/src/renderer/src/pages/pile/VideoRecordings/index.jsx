@@ -23,6 +23,7 @@ const FILTERS = [
   { id: "distraction", label: "Distractions" },
   { id: "idle", label: "Idle time" },
 ]
+const TIMELINE_VERTICAL_OFFSET = 24
 
 function floorToHour(ts) {
   const d = new Date(ts)
@@ -285,6 +286,7 @@ function VideoRecordings() {
   const rangeMs = Math.max(60 * 60 * 1000, timelineBounds.endTs - timelineBounds.startTs)
   const rangeMinutes = rangeMs / 60000
   const timelineHeight = Math.max(680, Math.round(rangeMinutes * 1.8))
+  const timelineCanvasHeight = timelineHeight + TIMELINE_VERTICAL_OFFSET * 2
 
   const ticks = useMemo(
     () => buildTicks(timelineBounds.startTs, timelineBounds.endTs, 30),
@@ -302,7 +304,7 @@ function VideoRecordings() {
       return {
         session,
         run,
-        top,
+        top: TIMELINE_VERTICAL_OFFSET + top,
         height,
         category,
         title: getSessionTitle(session, run),
@@ -389,14 +391,14 @@ function VideoRecordings() {
             </div>
 
             <div className={styles.timelineViewport}>
-              <div className={styles.timelineCanvas} style={{ height: `${timelineHeight}px` }}>
+              <div className={styles.timelineCanvas} style={{ height: `${timelineCanvasHeight}px` }}>
                 {ticks.map((tick) => {
                   const top = ((tick.ts - timelineBounds.startTs) / rangeMs) * timelineHeight
                   return (
                     <div
                       key={tick.ts}
                       className={`${styles.tickRow} ${tick.major ? styles.tickMajor : styles.tickMinor}`}
-                      style={{ top: `${top}px` }}
+                      style={{ top: `${TIMELINE_VERTICAL_OFFSET + top}px` }}
                     >
                       <div className={styles.tickLabel}>{formatClock(tick.ts)}</div>
                       <div className={styles.tickLine} />
@@ -404,7 +406,13 @@ function VideoRecordings() {
                   )
                 })}
 
-                <div className={styles.axisLine} />
+                <div
+                  className={styles.axisLine}
+                  style={{
+                    top: `${TIMELINE_VERTICAL_OFFSET}px`,
+                    bottom: `${TIMELINE_VERTICAL_OFFSET}px`,
+                  }}
+                />
 
                 {positionedBlocks.map((block) => {
                   const isSelected = block.session.id === selectedSession?.id
