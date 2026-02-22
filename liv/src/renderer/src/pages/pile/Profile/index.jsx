@@ -255,9 +255,18 @@ function OverviewTab({ boardQuery, configQuery, saveConfigMutation, lifeAnalysis
 
             {timeAwareBoard?.weeks?.length > 0 && (
               <div className={styles.filters}>
-                <WidgetToggleBar availableWidgets={timeAwareBoard.availableWidgets || []} enabledWidgets={effectiveEnabledWidgets} onToggle={toggleWidget} />
-                <WeekSelector weeks={timeAwareBoard.weeks} selectedWeekKey={selectedWeekKey} onSelectWeek={(k) => { setSelectedWeekKey(k); setSelectedDayKey("all") }} />
-                <DaySelector days={daysOfSelectedWeek} selectedDayKey={selectedDayKey} onSelectDay={setSelectedDayKey} />
+                <div className={styles.filterSection}>
+                  <span className={styles.filterSectionLabel}>Temas</span>
+                  <WidgetToggleBar availableWidgets={timeAwareBoard.availableWidgets || []} enabledWidgets={effectiveEnabledWidgets} onToggle={toggleWidget} />
+                </div>
+                <div className={styles.filterSection}>
+                  <span className={styles.filterSectionLabel}>Período</span>
+                  <WeekSelector weeks={timeAwareBoard.weeks} selectedWeekKey={selectedWeekKey} onSelectWeek={(k) => { setSelectedWeekKey(k); setSelectedDayKey("all") }} />
+                </div>
+                <div className={styles.filterSection}>
+                  <span className={styles.filterSectionLabel}>Dia</span>
+                  <DaySelector days={daysOfSelectedWeek} selectedDayKey={selectedDayKey} onSelectDay={setSelectedDayKey} />
+                </div>
               </div>
             )}
           </div>

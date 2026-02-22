@@ -160,13 +160,13 @@
 
 .overviewControlPanel {
   flex-shrink: 0;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
-  padding: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+  padding: 10px 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 .overviewLayout {
@@ -196,21 +196,23 @@
 
 .overviewHeaderTopRow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .overviewScoreCluster {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .overviewScoreLabel {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--secondary);
-  font-weight: 550;
+  font-weight: 520;
+  line-height: 1.2;
+  max-width: 120px;
 }
 
 .headerBtnIcon {
@@ -235,8 +237,10 @@
 }
 
 .overviewRefreshBtn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  width: 100%;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   color: var(--primary);
 
   &:hover {
@@ -248,13 +252,27 @@
 .filters {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.filterSection {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
+.filterSectionLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--secondary);
+  opacity: 0.8;
+}
+
 .widgetBar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
   max-height: 220px;
   overflow: auto;
 
@@ -264,31 +282,37 @@
 }
 
 .widgetChip {
-  flex-shrink: 0;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--secondary);
-  border-radius: 999px;
-  padding: 6px 11px;
+  border-radius: 8px;
+  padding: 7px 8px;
   font-size: 11px;
-  font-weight: 520;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  &:hover { color: var(--primary); background: var(--bg-tertiary); }
+  line-height: 1.3;
+  &:hover { color: var(--primary); background: rgba(255, 255, 255, 0.06); }
 }
 
 .widgetChipActive {
   color: var(--primary);
-  border-color: rgba(255, 255, 255, 0.26);
+  border-color: rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.08);
 }
 
 .weekSelector,
 .daySelector {
-  display: flex;
+  display: grid;
   gap: 6px;
-  flex-wrap: wrap;
-  max-height: 84px;
+  grid-template-columns: 1fr;
+}
+
+.daySelector {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-height: 110px;
   overflow: auto;
 
   &::-webkit-scrollbar {
@@ -298,17 +322,18 @@
 
 .weekBtn,
 .dayBtn {
-  flex-shrink: 0;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--secondary);
-  border-radius: 999px;
-  padding: 5px 10px;
-  font-size: 11px;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 10px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  &:hover { color: var(--primary); background: var(--bg-tertiary); }
+  white-space: nowrap;
+  &:hover { color: var(--primary); background: rgba(255, 255, 255, 0.06); }
 }
 
 .weekBtnActive,
@@ -330,12 +355,15 @@
   }
 
   .overviewHeaderTopRow {
-    flex-direction: column;
     align-items: stretch;
   }
 
   .overviewScoreCluster {
-    justify-content: center;
+    justify-content: flex-start;
+  }
+
+  .daySelector {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .headerBtnIcon {
