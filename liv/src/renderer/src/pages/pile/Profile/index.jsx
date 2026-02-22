@@ -247,7 +247,7 @@ function OverviewTab({ boardQuery, configQuery, saveConfigMutation, lifeAnalysis
       {timeAwareBoard?.weeks?.length > 0 && (
         <div className={styles.overviewControlPanel}>
           <div className={styles.overviewTopRow}>
-            <button className={styles.headerBtnIcon} onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>
+            <button className={`${styles.headerBtnIcon} ${styles.overviewRefreshBtn}`} onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>
               <RefreshIcon style={{ width: 14, height: 14 }} />
               <span>{refreshMutation.isPending ? "Atualizando..." : "Atualizar Insights"}</span>
             </button>
