@@ -237,29 +237,28 @@ function OverviewTab({ boardQuery, configQuery, saveConfigMutation, lifeAnalysis
 
   return (
     <div className={styles.tabContent}>
-      {lifeAnalysis && (
-        <div className={styles.alignmentHeader}>
-          <AlignmentRing score={lifeAnalysis.alignmentScore} />
-          <span className={styles.alignmentLabel}>Score de Alinhamento</span>
+      <div className={styles.overviewControlPanel}>
+        <div className={styles.overviewHeaderTopRow}>
+          {lifeAnalysis && (
+            <div className={styles.overviewScoreCluster}>
+              <AlignmentRing score={lifeAnalysis.alignmentScore} size={74} />
+              <span className={styles.overviewScoreLabel}>Score de Alinhamento</span>
+            </div>
+          )}
+          <button className={`${styles.headerBtnIcon} ${styles.overviewRefreshBtn}`} onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>
+            <RefreshIcon style={{ width: 14, height: 14 }} />
+            <span>{refreshMutation.isPending ? "Atualizando..." : "Atualizar Insights"}</span>
+          </button>
         </div>
-      )}
 
-      {timeAwareBoard?.weeks?.length > 0 && (
-        <div className={styles.overviewControlPanel}>
-          <div className={styles.overviewTopRow}>
-            <button className={`${styles.headerBtnIcon} ${styles.overviewRefreshBtn}`} onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>
-              <RefreshIcon style={{ width: 14, height: 14 }} />
-              <span>{refreshMutation.isPending ? "Atualizando..." : "Atualizar Insights"}</span>
-            </button>
-          </div>
-
+        {timeAwareBoard?.weeks?.length > 0 && (
           <div className={styles.filters}>
             <WidgetToggleBar availableWidgets={timeAwareBoard.availableWidgets || []} enabledWidgets={effectiveEnabledWidgets} onToggle={toggleWidget} />
             <WeekSelector weeks={timeAwareBoard.weeks} selectedWeekKey={selectedWeekKey} onSelectWeek={(k) => { setSelectedWeekKey(k); setSelectedDayKey("all") }} />
             <DaySelector days={daysOfSelectedWeek} selectedDayKey={selectedDayKey} onSelectDay={setSelectedDayKey} />
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {boardQuery.isLoading ? (
         <div className={styles.loadingState}>Gerando perfil autonomo...</div>
