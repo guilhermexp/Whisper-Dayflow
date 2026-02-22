@@ -237,45 +237,51 @@ function OverviewTab({ boardQuery, configQuery, saveConfigMutation, lifeAnalysis
 
   return (
     <div className={styles.tabContent}>
-      <div className={styles.overviewControlPanel}>
-        <div className={styles.overviewHeaderTopRow}>
-          {lifeAnalysis && (
-            <div className={styles.overviewScoreCluster}>
-              <AlignmentRing score={lifeAnalysis.alignmentScore} size={74} />
-              <span className={styles.overviewScoreLabel}>Score de Alinhamento</span>
+      <div className={styles.overviewLayout}>
+        <aside className={styles.overviewSidebar}>
+          <div className={styles.overviewControlPanel}>
+            <div className={styles.overviewHeaderTopRow}>
+              {lifeAnalysis && (
+                <div className={styles.overviewScoreCluster}>
+                  <AlignmentRing score={lifeAnalysis.alignmentScore} size={74} />
+                  <span className={styles.overviewScoreLabel}>Score de Alinhamento</span>
+                </div>
+              )}
+              <button className={`${styles.headerBtnIcon} ${styles.overviewRefreshBtn}`} onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>
+                <RefreshIcon style={{ width: 14, height: 14 }} />
+                <span>{refreshMutation.isPending ? "Atualizando..." : "Atualizar Insights"}</span>
+              </button>
             </div>
+
+            {timeAwareBoard?.weeks?.length > 0 && (
+              <div className={styles.filters}>
+                <WidgetToggleBar availableWidgets={timeAwareBoard.availableWidgets || []} enabledWidgets={effectiveEnabledWidgets} onToggle={toggleWidget} />
+                <WeekSelector weeks={timeAwareBoard.weeks} selectedWeekKey={selectedWeekKey} onSelectWeek={(k) => { setSelectedWeekKey(k); setSelectedDayKey("all") }} />
+                <DaySelector days={daysOfSelectedWeek} selectedDayKey={selectedDayKey} onSelectDay={setSelectedDayKey} />
+              </div>
+            )}
+          </div>
+        </aside>
+
+        <section className={styles.overviewMain}>
+          {boardQuery.isLoading ? (
+            <div className={styles.loadingState}>Gerando perfil autonomo...</div>
+          ) : (
+            <>
+              <div className={styles.contentScroll}>
+                {sections.map((s) => (<InsightSection key={s.key} title={s.title} cards={s.cards} />))}
+                {!filteredCards.length && <div className={styles.emptyState}>Nenhum insight no recorte selecionado.</div>}
+              </div>
+              <footer className={styles.statsBar}>
+                <span>Runs: {timeAwareBoard?.stats?.runsAnalyzed ?? 0}</span>
+                <span>Cards: {filteredCards.length}</span>
+                <span>Foco: {((timeAwareBoard?.stats?.workRatio || 0) * 100).toFixed(0)}%</span>
+                <span>Distracao: {((timeAwareBoard?.stats?.distractionRatio || 0) * 100).toFixed(0)}%</span>
+              </footer>
+            </>
           )}
-          <button className={`${styles.headerBtnIcon} ${styles.overviewRefreshBtn}`} onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>
-            <RefreshIcon style={{ width: 14, height: 14 }} />
-            <span>{refreshMutation.isPending ? "Atualizando..." : "Atualizar Insights"}</span>
-          </button>
-        </div>
-
-        {timeAwareBoard?.weeks?.length > 0 && (
-          <div className={styles.filters}>
-            <WidgetToggleBar availableWidgets={timeAwareBoard.availableWidgets || []} enabledWidgets={effectiveEnabledWidgets} onToggle={toggleWidget} />
-            <WeekSelector weeks={timeAwareBoard.weeks} selectedWeekKey={selectedWeekKey} onSelectWeek={(k) => { setSelectedWeekKey(k); setSelectedDayKey("all") }} />
-            <DaySelector days={daysOfSelectedWeek} selectedDayKey={selectedDayKey} onSelectDay={setSelectedDayKey} />
-          </div>
-        )}
+        </section>
       </div>
-
-      {boardQuery.isLoading ? (
-        <div className={styles.loadingState}>Gerando perfil autonomo...</div>
-      ) : (
-        <>
-          <div className={styles.contentScroll}>
-            {sections.map((s) => (<InsightSection key={s.key} title={s.title} cards={s.cards} />))}
-            {!filteredCards.length && <div className={styles.emptyState}>Nenhum insight no recorte selecionado.</div>}
-          </div>
-          <footer className={styles.statsBar}>
-            <span>Runs: {timeAwareBoard?.stats?.runsAnalyzed ?? 0}</span>
-            <span>Cards: {filteredCards.length}</span>
-            <span>Foco: {((timeAwareBoard?.stats?.workRatio || 0) * 100).toFixed(0)}%</span>
-            <span>Distracao: {((timeAwareBoard?.stats?.distractionRatio || 0) * 100).toFixed(0)}%</span>
-          </footer>
-        </>
-      )}
     </div>
   )
 }
