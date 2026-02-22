@@ -60,7 +60,7 @@ function Settings() {
   // Encrypted custom key state
   const [encryptedCustomKey, setEncryptedCustomKey] = useState('')
   useEffect(() => {
-    window.electron.ipc.invoke('get-custom-key').then((k) => { if (k) setEncryptedCustomKey(k) })
+    tipcClient.getCustomKey().then((k) => { if (k) setEncryptedCustomKey(k) })
   }, [])
 
   // Prompt editor states
@@ -978,9 +978,9 @@ function Settings() {
                                     const val = e.target.value
                                     setEncryptedCustomKey(val)
                                     if (val.trim()) {
-                                      window.electron.ipc.invoke('set-custom-key', val.trim())
+                                      tipcClient.setCustomKey({ secretKey: val.trim() })
                                     } else {
-                                      window.electron.ipc.invoke('delete-custom-key')
+                                      tipcClient.deleteCustomKey()
                                     }
                                   }}
                                   placeholder="sk-..."
@@ -1524,7 +1524,14 @@ function Settings() {
                 <Tabs.Content value="agent">
                   <AgentSettingsTab
                     livConfig={livConfigQuery.data}
-                    saveLivConfig={saveLivConfigMutation.mutateAsync}
+                    saveLivConfig={async (partialConfig) =>
+                      saveLivConfigMutation.mutateAsync({
+                        config: {
+                          ...livConfigQuery.data,
+                          ...partialConfig,
+                        },
+                      })
+                    }
                   />
                 </Tabs.Content>
               </Tabs.Root>
@@ -1774,14 +1781,6 @@ function AgentSettingsTab({ livConfig, saveLivConfig }) {
 
   const toggleNanobot = async () => {
     await saveLivConfig({ nanobotEnabled: !nanobotEnabled })
-    if (!nanobotEnabled) {
-      // Just enabled — restart will happen on next app launch or via IPC
-      try {
-        await tipcClient.restartNanobot()
-      } catch {
-        // May fail if not yet initialized
-      }
-    }
   }
 
   const loadMemory = async () => {

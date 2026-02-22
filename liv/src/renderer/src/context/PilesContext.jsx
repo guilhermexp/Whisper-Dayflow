@@ -55,41 +55,37 @@ export const PilesContextProvider = ({ children }) => {
   }, [location.pathname, piles, currentPile]);
 
   const getConfig = async () => {
-    const configFilePath = window.electron.getConfigPath();
+    const configFilePath = await tipcClient.getPilesConfigPath();
     const configDirPath = configFilePath.replace(/[/\\][^/\\]+$/, '');
 
     // Setup new piles.json if doesn't exist,
     // or read in the existing
-    if (!window.electron.existsSync(configFilePath)) {
+    const exists = await tipcClient.pathExists({ targetPath: configFilePath });
+    if (!exists) {
       try {
-        await window.electron.mkdir(configDirPath);
+        await tipcClient.ensureDirectory({ dirPath: configDirPath });
       } catch (mkdirErr) {
         console.error('[PilesContext] Failed to create config directory:', mkdirErr);
       }
 
-      window.electron.writeFile(configFilePath, JSON.stringify([]), (err) => {
-        if (err) {
-          console.error('[PilesContext] Failed to initialize piles config:', err);
-          setIsPilesLoaded(true);
-          return;
-        }
+      try {
+        await tipcClient.writePilesConfig({ piles: [] });
         setPiles([]);
         setIsPilesLoaded(true);
-      });
+      } catch (err) {
+        console.error('[PilesContext] Failed to initialize piles config:', err);
+        setIsPilesLoaded(true);
+      }
       return;
     }
 
-    await window.electron.readFile(configFilePath, (err, data) => {
-      if (!err) {
-        try {
-          const jsonData = JSON.parse(data);
-          setPiles(jsonData);
-        } catch (_parseErr) {
-          // keep piles empty on parse errors
-        }
-      }
+    try {
+      const jsonData = await tipcClient.readPilesConfig();
+      setPiles(jsonData);
       setIsPilesLoaded(true);
-    });
+    } catch (_parseErr) {
+      setIsPilesLoaded(true);
+    }
   };
 
   const getCurrentPilePath = (appendPath = '') => {
@@ -101,25 +97,22 @@ export const PilesContextProvider = ({ children }) => {
 
   const writeConfig = async (piles) => {
     if (!piles) return;
-    const configFilePath = window.electron.getConfigPath();
+    const configFilePath = await tipcClient.getPilesConfigPath();
     const configDirPath = configFilePath.replace(/[/\\][^/\\]+$/, '');
 
     try {
-      await window.electron.mkdir(configDirPath);
+      await tipcClient.ensureDirectory({ dirPath: configDirPath });
     } catch (mkdirErr) {
       console.error('[PilesContext] Failed to ensure config directory exists:', mkdirErr);
     }
 
-    return new Promise((resolve) => {
-      window.electron.writeFile(configFilePath, JSON.stringify(piles), (err) => {
-        if (err) {
-          console.error('[PilesContext] Error writing piles config:', err);
-          resolve(false);
-          return;
-        }
-        resolve(true);
-      });
-    });
+    try {
+      await tipcClient.writePilesConfig({ piles });
+      return true;
+    } catch (err) {
+      console.error('[PilesContext] Error writing piles config:', err);
+      return false;
+    }
   };
 
   const createPile = (name = '', selectedPath = null) => {
@@ -135,14 +128,8 @@ export const PilesContextProvider = ({ children }) => {
     const journalPath = window.electron.joinPath(livFolder, name);
 
     // Create the Liv folder if it doesn't exist
-    if (!window.electron.existsSync(livFolder)) {
-      window.electron.mkdir(livFolder);
-    }
-
-    // Create the journal folder
-    if (!window.electron.existsSync(journalPath)) {
-      window.electron.mkdir(journalPath);
-    }
+    tipcClient.ensureDirectory({ dirPath: livFolder });
+    tipcClient.ensureDirectory({ dirPath: journalPath });
 
     const newPiles = [{ name, path: journalPath }, ...piles];
     setPiles(newPiles);
@@ -181,14 +168,8 @@ export const PilesContextProvider = ({ children }) => {
       console.log('[PilesContext] Creating default journal at:', journalPath);
 
       // Create the Liv folder if it doesn't exist
-      if (!window.electron.existsSync(livFolder)) {
-        await window.electron.mkdir(livFolder);
-      }
-
-      // Create the journal folder
-      if (!window.electron.existsSync(journalPath)) {
-        await window.electron.mkdir(journalPath);
-      }
+      await tipcClient.ensureDirectory({ dirPath: livFolder });
+      await tipcClient.ensureDirectory({ dirPath: journalPath });
 
       // Add to piles list
       const newPiles = [{ name: journalName, path: journalPath }];

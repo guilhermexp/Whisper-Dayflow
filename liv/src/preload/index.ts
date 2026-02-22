@@ -10,12 +10,12 @@ export type Channels = 'ipc-example';
 const getAllowedRoots = (): Set<string> => {
   const roots = new Set<string>()
   try {
-    const configPath = ipcRenderer.sendSync("get-config-file-path")
+    const homeDir = process.env.HOME || process.env.USERPROFILE || ""
+    const configPath = path.join(homeDir, "Piles", "piles.json")
     const configRoot = path.dirname(configPath)
     roots.add(path.resolve(configRoot))
 
     // Allow ~/Documents/Liv for default journal creation
-    const homeDir = process.env.HOME || process.env.USERPROFILE || ""
     if (homeDir) {
       const defaultLivFolder = path.join(homeDir, "Documents", "Liv")
       roots.add(path.resolve(defaultLivFolder))
@@ -86,9 +86,6 @@ const pileAPI = {
     assertAllowedPath(path);
     fs.existsSync(path);
   },
-  getConfigPath: () => {
-    return ipcRenderer.sendSync('get-config-file-path');
-  },
   openFolder: (folderPath: string) => {
     try {
       assertAllowedPath(folderPath);
@@ -136,11 +133,7 @@ const pileAPI = {
   isMac: process.platform === 'darwin',
   isWindows: process.platform === 'win32',
   pathSeparator: path.sep,
-  settingsGet: (key: string) => ipcRenderer.invoke('electron-store-get', key),
-  settingsSet: (key: string, value: string) =>
-    ipcRenderer.invoke('electron-store-set', key, value),
-  // Get system locale for i18n (sync call - used at startup)
-  getSystemLocale: () => ipcRenderer.sendSync('get-system-locale') as string,
+  getSystemLocale: () => navigator.language || "en-US",
 };
 
 // Custom APIs for renderer

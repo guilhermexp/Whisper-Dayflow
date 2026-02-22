@@ -118,9 +118,6 @@ const configureSherpaLibraryPaths = () => {
 // Configure sherpa paths before app is ready
 configureSherpaLibraryPaths()
 
-// Register Pile IPC handlers
-import "./pile-ipc"
-
 registerServeSchema()
 
 // Mark pre-ready initialization complete
@@ -345,19 +342,15 @@ app.whenReady().then(() => {
     }
     logger.info("[Nanobot] Starting deferred nanobot agent initialization...")
     try {
-      const { startNanobotCallbackServer } = await import("./services/nanobot-callback-server")
-      const callbackPort = await startNanobotCallbackServer()
+      const { startNanobotRuntime } = await import("./services/nanobot-runtime-service")
+      const status = await startNanobotRuntime()
 
-      const { nanobotBridge } = await import("./services/nanobot-bridge-service")
-      const { initClients } = await import("./services/nanobot-gateway-client")
-
-      await nanobotBridge.start(callbackPort)
-      initClients(nanobotBridge.port)
-
-      logger.info(`[Nanobot] Agent ready on port ${nanobotBridge.port}, callback on port ${callbackPort}`)
+      logger.info(`[Nanobot] Agent ready on port ${status.port}`)
       markPhase("nanobot-ready")
     } catch (err) {
       logger.error("[Nanobot] Init failed:", err)
+      // Fallback: if nanobot is enabled but failed to start, keep classic scheduler alive.
+      startAutoJournalScheduler()
     }
   }
 
@@ -434,11 +427,8 @@ app.whenReady().then(() => {
     globalShortcutManager.unregisterAll()
     shutdownAutonomousMemory()
     // Stop nanobot if running
-    import("./services/nanobot-bridge-service").then(({ nanobotBridge }) => {
-      void nanobotBridge.stop()
-    }).catch(() => {})
-    import("./services/nanobot-gateway-client").then(({ destroyClients }) => {
-      destroyClients()
+    import("./services/nanobot-runtime-service").then(({ stopNanobotRuntime }) => {
+      void stopNanobotRuntime()
     }).catch(() => {})
   })
 })

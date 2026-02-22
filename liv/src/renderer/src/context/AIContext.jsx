@@ -8,6 +8,7 @@ import {
 import OpenAI from "openai"
 import { usePilesContext } from "./PilesContext"
 import { useElectronStore } from "renderer/hooks/useElectronStore"
+import { tipcClient } from "renderer/lib/tipc-client"
 
 const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 const DEFAULT_OLLAMA_CHAT_MODEL = "llama3.1:8b"
@@ -76,8 +77,8 @@ export const AIContextProvider = ({ children }) => {
   ])
 
   const setupAi = useCallback(async () => {
-    const key = await window.electron.ipc.invoke("get-ai-key")
-    const openrouterKey = await window.electron.ipc.invoke("get-openrouter-key")
+    const key = await tipcClient.getAiKey()
+    const openrouterKey = await tipcClient.getOpenrouterKey()
     const provider =
       pileAIProvider === "subscription" ? "openai" : pileAIProvider
 
@@ -273,11 +274,11 @@ export const AIContextProvider = ({ children }) => {
       // Ollama doesn't need an API key
       return true
     } else if (provider === "openrouter") {
-      const key = await window.electron.ipc.invoke("get-openrouter-key")
+      const key = await tipcClient.getOpenrouterKey()
       return key !== null && key !== ""
     } else {
       // OpenAI or custom
-      const key = await window.electron.ipc.invoke("get-ai-key")
+      const key = await tipcClient.getAiKey()
       return key !== null && key !== ""
     }
   }, [pileAIProvider])
@@ -291,12 +292,12 @@ export const AIContextProvider = ({ children }) => {
     let cancelled = false
     const checkNanobot = async () => {
       try {
-        const config = await window.electron.ipcRenderer.invoke("getConfig")
+        const config = await tipcClient.getConfig()
         if (cancelled) return
         setNanobotEnabled(config?.nanobotEnabled === true)
 
         if (config?.nanobotEnabled) {
-          const status = await window.electron.ipcRenderer.invoke("getNanobotStatus")
+          const status = await tipcClient.getNanobotStatus()
           if (!cancelled) setNanobotStatus(status)
         }
       } catch {
@@ -321,10 +322,10 @@ export const AIContextProvider = ({ children }) => {
       // For now, use HTTP endpoint (non-streaming) as MVP
       // WebSocket streaming will be added in a follow-up
       try {
-        const result = await window.electron.ipcRenderer.invoke(
-          "sendNanobotMessage",
-          { content, sessionId: "liv:chat" },
-        )
+        const result = await tipcClient.sendNanobotMessage({
+          content,
+          sessionId: "liv:chat",
+        })
         if (result?.content) {
           // Simulate streaming by sending the full response as one token
           callback(result.content)
@@ -347,13 +348,13 @@ export const AIContextProvider = ({ children }) => {
     setBaseUrl,
     prompt,
     setPrompt,
-    setKey: (secretKey) => window.electron.ipc.invoke("set-ai-key", secretKey),
-    getKey: () => window.electron.ipc.invoke("get-ai-key"),
+    setKey: (secretKey) => tipcClient.setAiKey({ secretKey }),
+    getKey: () => tipcClient.getAiKey(),
     setOpenrouterKey: (secretKey) =>
-      window.electron.ipc.invoke("set-openrouter-key", secretKey),
-    getOpenrouterKey: () => window.electron.ipc.invoke("get-openrouter-key"),
+      tipcClient.setOpenrouterKey({ secretKey }),
+    getOpenrouterKey: () => tipcClient.getOpenrouterKey(),
     validKey: checkApiKeyValidity,
-    deleteKey: () => window.electron.ipc.invoke("delete-ai-key"),
+    deleteKey: () => tipcClient.deleteAiKey(),
     updateSettings: (newPrompt) =>
       updateCurrentPile({ ...currentPile, AIPrompt: newPrompt }),
     model,

@@ -161,6 +161,7 @@ class NanobotBridgeService {
     this.proc.on("error", (err) => {
       logger.error(`${LOG_PREFIX} Process error:`, err)
       this.setStatus("error", err.message)
+      this.emit("error", err)
       this.scheduleRestart()
     })
 
@@ -169,6 +170,7 @@ class NanobotBridgeService {
       this.proc = null
       if (!this.intentionallyStopped) {
         this.setStatus("error", `Process exited with code ${code}`)
+        this.emit("error", { code, signal })
         this.scheduleRestart()
       } else {
         this.setStatus("stopped")
@@ -301,10 +303,7 @@ class NanobotBridgeService {
 
     const workspace = path.join(dataFolder, "nanobot-workspace")
 
-    // Nanobot-ref path
-    const nanobotRef = app.isPackaged
-      ? path.join(process.resourcesPath, "nanobot-ref")
-      : path.join(__dirname, "..", "..", "..", "nanobot-ref")
+    const nanobotRef = this.resolveNanobotRefPath()
 
     return {
       LIV_API_KEY: apiKey,
@@ -347,9 +346,47 @@ class NanobotBridgeService {
 
   private resolveGatewayScript(): string {
     if (app.isPackaged) {
-      return path.join(process.resourcesPath, "nanobot", "gateway.py")
+      const packagedCandidates = [
+        path.join(process.resourcesPath, "nanobot", "gateway.py"),
+        path.join(process.resourcesPath, "resources", "nanobot", "gateway.py"),
+        path.join(
+          process.resourcesPath,
+          "app.asar.unpacked",
+          "resources",
+          "nanobot",
+          "gateway.py",
+        ),
+      ]
+      const hit = packagedCandidates.find((candidate) => fs.existsSync(candidate))
+      return hit || packagedCandidates[packagedCandidates.length - 1]
     }
-    return path.join(__dirname, "..", "..", "..", "resources", "nanobot", "gateway.py")
+    return path.join(
+      __dirname,
+      "..",
+      "..",
+      "..",
+      "resources",
+      "nanobot",
+      "gateway.py",
+    )
+  }
+
+  private resolveNanobotRefPath(): string {
+    if (app.isPackaged) {
+      const packagedCandidates = [
+        path.join(process.resourcesPath, "nanobot-ref"),
+        path.join(process.resourcesPath, "resources", "nanobot-ref"),
+        path.join(
+          process.resourcesPath,
+          "app.asar.unpacked",
+          "resources",
+          "nanobot-ref",
+        ),
+      ]
+      const hit = packagedCandidates.find((candidate) => fs.existsSync(candidate))
+      return hit || packagedCandidates[0]
+    }
+    return path.join(__dirname, "..", "..", "..", "nanobot-ref")
   }
 
   private getLogStream() {

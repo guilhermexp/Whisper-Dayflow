@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePilesContext } from './PilesContext';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 export const HighlightsContext = createContext();
 
@@ -30,31 +31,28 @@ export const HighlightsContextProvider = ({ children }) => {
   }, [currentPile]);
 
   const loadHighlights = useCallback(async (pilePath) => {
-    const newHighlights = await window.electron.ipc.invoke(
-      'highlights-load',
-      pilePath
-    );
+    const newHighlights = await tipcClient.highlightsLoad({ pilePath });
     const newMap = new Map(newHighlights);
     setHighlights(newMap);
   }, []);
 
   const refreshHighlights = useCallback(async () => {
-    const newHighlights = await window.electron.ipc.invoke('highlights-get');
+    const newHighlights = await tipcClient.highlightsGet();
     const newMap = new Map(newHighlights);
-    setTags(newMap);
+    setHighlights(newMap);
   }, []);
 
   const createHighlight = useCallback(async (highlight) => {
-    window.electron.ipc
-      .invoke('highlights-create', highlight)
+    tipcClient
+      .highlightsCreate({ highlight })
       .then((highlights) => {
         setHighlights(highlights);
       });
   }, []);
 
   const deleteHighlight = useCallback(async (highlight) => {
-    window.electron.ipc
-      .invoke('highlights-delete', highlight)
+    tipcClient
+      .highlightsDelete({ highlight })
       .then((highlights) => {
         setHighlights(highlights);
       });

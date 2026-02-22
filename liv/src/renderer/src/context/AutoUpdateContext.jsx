@@ -1,5 +1,6 @@
 import React, { useState, createContext, useEffect, useContext } from 'react';
 import { useToastsContext } from './ToastsContext';
+import { rendererHandlers, tipcClient } from 'renderer/lib/tipc-client';
 
 export const AutoUpdateContext = createContext();
 
@@ -14,76 +15,25 @@ export const AutoUpdateContextProvider = ({ children }) => {
   const handleUpdateAvailable = () => {
     addNotification({
       id: 'auto-update',
-      message: 'Update available',
-      dismissTime: 2000,
-    });
-
-    addNotification({
-      id: 'auto-update',
       type: 'waiting',
-      message: 'Downloading update...',
+      message: 'Update downloaded and ready to install',
       dismissTime: 5000,
     });
 
     setUpdateAvailable(true);
-  };
-
-  const handleUpdateDownloaded = () => {
-    removeNotification('auto-update');
     setUpdateDownloaded(true);
   };
 
-  const handleUpdateError = (error) => {
-    addNotification({
-      id: 'auto-update',
-      type: 'failed',
-      message: 'Auto update failed',
-      dismissTime: 5000,
-    });
-
-    setUpdateError(error);
-  };
-
-  const handleUpdateNotAvailable = () => {
-    addNotification({
-      id: 'auto-update',
-      message: 'Pile is up-to-date',
-      type: 'success',
-      dismissTime: 5000,
-      immediate: false,
-    });
-
-    setUpdateNotAvailable(true);
-  };
-
   useEffect(() => {
-    if (!window) return;
-
-    window.electron.ipc.on('update_available', handleUpdateAvailable);
-    window.electron.ipc.on('update_downloaded', handleUpdateDownloaded);
-    window.electron.ipc.on('update_error', handleUpdateError);
-    window.electron.ipc.on('update_not_available', handleUpdateNotAvailable);
+    const unlisten = rendererHandlers.updateAvailable.listen(handleUpdateAvailable);
 
     return () => {
-      window.electron.ipc.removeListener(
-        'update_available',
-        handleUpdateAvailable
-      );
-      window.electron.ipc.removeListener(
-        'update_downloaded',
-        handleUpdateDownloaded
-      );
-      window.electron.ipc.removeListener('update_error', handleUpdateError);
-      window.electron.ipc.removeListener(
-        'update_not_available',
-        handleUpdateNotAvailable
-      );
+      unlisten();
     };
   }, []);
 
   const restartAndUpdate = () => {
-    if (!window) return;
-    window.electron.ipc.sendMessage('restart_app');
+    tipcClient.quitAndInstall();
   };
 
   const autoUpdateContextValue = {

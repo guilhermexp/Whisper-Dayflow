@@ -10,6 +10,7 @@ import {
   detachFromPostCreator,
   setHighlightCreator,
 } from './usePostHelpers';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 const highlightColors = [
   'var(--border)',
@@ -104,7 +105,7 @@ function usePost(
         );
         prependIndex(postRelativePath, data); // Add the file to the index
         addIndex(postRelativePath, parentPostPath); // Add the file to the index
-        window.electron.ipc.invoke('tags-sync', saveToPath); // Sync tags
+        tipcClient.tagsSync({ filePath: saveToPath }); // Sync tags
         console.timeEnd('post-time');
       } catch (error) {
         console.error(`Error writing file: ${saveToPath}`);

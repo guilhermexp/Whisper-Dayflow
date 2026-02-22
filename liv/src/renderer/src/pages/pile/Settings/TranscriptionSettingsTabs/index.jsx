@@ -50,33 +50,33 @@ export default function TranscriptionSettingsTabs() {
 
   // Load encrypted keys on mount
   useEffect(() => {
-    window.electron.ipc.invoke('get-gemini-key').then((k) => { if (k) setGeminiKeyState(k); });
-    window.electron.ipc.invoke('get-groq-key').then((k) => { if (k) setGroqKeyState(k); });
-    window.electron.ipc.invoke('get-deepgram-key').then((k) => { if (k) setDeepgramKeyState(k); });
-    window.electron.ipc.invoke('get-custom-key').then((k) => { if (k) setCustomKeyState(k); });
+    tipcClient.getGeminiKey().then((k) => { if (k) setGeminiKeyState(k); });
+    tipcClient.getGroqKey().then((k) => { if (k) setGroqKeyState(k); });
+    tipcClient.getDeepgramKey().then((k) => { if (k) setDeepgramKeyState(k); });
+    tipcClient.getCustomKey().then((k) => { if (k) setCustomKeyState(k); });
   }, []);
 
   const handleEncryptedKeyChange = (provider) => (e) => {
     const value = e.target.value;
     const ipcMap = {
-      gemini: { setter: setGeminiKeyState, ipc: 'set-gemini-key', deleteIpc: 'delete-gemini-key' },
-      groq: { setter: setGroqKeyState, ipc: 'set-groq-key', deleteIpc: 'delete-groq-key' },
-      deepgram: { setter: setDeepgramKeyState, ipc: 'set-deepgram-key', deleteIpc: 'delete-deepgram-key' },
-      custom: { setter: setCustomKeyState, ipc: 'set-custom-key', deleteIpc: 'delete-custom-key' },
+      gemini: { setter: setGeminiKeyState, save: tipcClient.setGeminiKey, remove: tipcClient.deleteGeminiKey },
+      groq: { setter: setGroqKeyState, save: tipcClient.setGroqKey, remove: tipcClient.deleteGroqKey },
+      deepgram: { setter: setDeepgramKeyState, save: tipcClient.setDeepgramKey, remove: tipcClient.deleteDeepgramKey },
+      custom: { setter: setCustomKeyState, save: tipcClient.setCustomKey, remove: tipcClient.deleteCustomKey },
     };
     const entry = ipcMap[provider];
     if (!entry) return;
     entry.setter(value);
     if (value.trim()) {
-      window.electron.ipc.invoke(entry.ipc, value.trim());
+      entry.save({ secretKey: value.trim() });
     } else {
-      window.electron.ipc.invoke(entry.deleteIpc);
+      entry.remove();
     }
   };
 
   // Load cached OpenRouter models on mount
   useEffect(() => {
-    window.electron.ipc.invoke('get-openrouter-models').then((models) => {
+    tipcClient.getOpenrouterModels().then((models) => {
       if (models && models.length > 0) {
         setOpenrouterModels(models);
       }
@@ -93,7 +93,7 @@ export default function TranscriptionSettingsTabs() {
   const handleFetchOpenrouterModels = async () => {
     setIsLoadingModels(true);
     try {
-      const models = await window.electron.ipc.invoke('fetch-openrouter-models');
+      const models = await tipcClient.fetchOpenrouterModels();
       if (models && models.length > 0) {
         setOpenrouterModels(models);
       }

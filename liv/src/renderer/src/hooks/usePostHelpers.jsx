@@ -6,15 +6,13 @@ import {
   getFilePathForNewPost,
   getDirectoryPath,
 } from '../utils/fileOperations';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 export const getPost = async (postPath) => {
   try {
     if (!postPath) return;
-    const fileContent = await window.electron.ipc.invoke('get-file', postPath);
-    const parsed = await window.electron.ipc.invoke(
-      'matter-parse',
-      fileContent
-    );
+    const fileContent = await tipcClient.readTextFile({ filePath: postPath });
+    const parsed = await tipcClient.matterParse({ file: fileContent });
     const post = { content: parsed.content, data: parsed.data };
     return post;
   } catch (error) {
@@ -29,7 +27,7 @@ export const attachToPostCreator =
     let newAttachments = [];
     if (imageData) {
       // save image data to a file
-      const newFilePath = await window.electron.ipc.invoke('save-file', {
+      const newFilePath = await tipcClient.saveAttachmentFile({
         fileData: imageData,
         fileExtension: fileExtension,
         storePath: storePath,
@@ -41,7 +39,7 @@ export const attachToPostCreator =
         console.error('Failed to save the pasted image.');
       }
     } else {
-      newAttachments = await window.electron.ipc.invoke('open-file', {
+      newAttachments = await tipcClient.openAttachmentFiles({
         storePath: storePath,
       });
     }
@@ -80,12 +78,8 @@ export const detachFromPostCreator =
         attachmentPath
       );
 
-      window.electron.deleteFile(fullPath, (err) => {
-        if (err) {
-          console.error('There was an error:', err);
-        } else {
-          console.log('File was deleted successfully');
-        }
+      tipcClient.deleteFilePath({ filePath: fullPath }).catch((err) => {
+        console.error('There was an error:', err);
       });
 
       console.log('Attachment removed', attachmentPath);
