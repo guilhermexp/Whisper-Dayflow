@@ -163,34 +163,26 @@
   border: 1px solid var(--border);
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .overviewTopRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.overviewHint {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--secondary);
-  opacity: 0.9;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .headerBtnIcon {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 12px;
-  font-size: 12px;
+  height: 30px;
+  padding: 0 11px;
+  font-size: 11px;
   font-weight: 500;
   border-radius: 90px;
   border: none;
@@ -208,13 +200,13 @@
 .filters {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .widgetBar {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .widgetChip {
@@ -223,9 +215,9 @@
   background: var(--bg-secondary);
   color: var(--secondary);
   border-radius: 999px;
-  padding: 7px 13px;
-  font-size: 12px;
-  font-weight: 550;
+  padding: 6px 11px;
+  font-size: 11px;
+  font-weight: 520;
   cursor: pointer;
   transition: all 0.15s ease;
   &:hover { color: var(--primary); background: var(--bg-tertiary); }
@@ -240,7 +232,7 @@
 .weekSelector,
 .daySelector {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -251,8 +243,8 @@
   background: var(--bg-secondary);
   color: var(--secondary);
   border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 5px 10px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
