@@ -444,7 +444,9 @@ function VideoRecordings() {
                 })}
 
                 {positionedBlocks.length === 0 && (
-                  <div className={styles.empty}>Nenhuma sessão para este filtro.</div>
+                  <div className={`${styles.empty} ${styles.timelineEmpty}`}>
+                    Nenhuma sessão para este filtro.
+                  </div>
                 )}
               </div>
             </div>

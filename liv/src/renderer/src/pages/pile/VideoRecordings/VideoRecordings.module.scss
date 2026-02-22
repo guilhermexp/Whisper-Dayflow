@@ -342,6 +342,14 @@
   padding: 12px;
 }
 
+.timelineEmpty {
+  position: absolute;
+  top: 54px;
+  left: 92px;
+  right: 8px;
+  z-index: 2;
+}
+
 .rightPanel {
   overflow: auto;
   padding: 14px;
