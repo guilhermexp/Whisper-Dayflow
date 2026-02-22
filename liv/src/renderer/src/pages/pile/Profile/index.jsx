@@ -244,18 +244,21 @@ function OverviewTab({ boardQuery, configQuery, saveConfigMutation, lifeAnalysis
         </div>
       )}
 
-      <div className={styles.overviewActions}>
-        <button className={styles.headerBtnIcon} onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>
-          <RefreshIcon style={{ width: 14, height: 14 }} />
-          <span>{refreshMutation.isPending ? "Atualizando..." : "Atualizar Insights"}</span>
-        </button>
-      </div>
-
       {timeAwareBoard?.weeks?.length > 0 && (
-        <div className={styles.filters}>
-          <WidgetToggleBar availableWidgets={timeAwareBoard.availableWidgets || []} enabledWidgets={effectiveEnabledWidgets} onToggle={toggleWidget} />
-          <WeekSelector weeks={timeAwareBoard.weeks} selectedWeekKey={selectedWeekKey} onSelectWeek={(k) => { setSelectedWeekKey(k); setSelectedDayKey("all") }} />
-          <DaySelector days={daysOfSelectedWeek} selectedDayKey={selectedDayKey} onSelectDay={setSelectedDayKey} />
+        <div className={styles.overviewControlPanel}>
+          <div className={styles.overviewTopRow}>
+            <div className={styles.overviewHint}>Filtros de analise</div>
+            <button className={styles.headerBtnIcon} onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>
+              <RefreshIcon style={{ width: 14, height: 14 }} />
+              <span>{refreshMutation.isPending ? "Atualizando..." : "Atualizar Insights"}</span>
+            </button>
+          </div>
+
+          <div className={styles.filters}>
+            <WidgetToggleBar availableWidgets={timeAwareBoard.availableWidgets || []} enabledWidgets={effectiveEnabledWidgets} onToggle={toggleWidget} />
+            <WeekSelector weeks={timeAwareBoard.weeks} selectedWeekKey={selectedWeekKey} onSelectWeek={(k) => { setSelectedWeekKey(k); setSelectedDayKey("all") }} />
+            <DaySelector days={daysOfSelectedWeek} selectedDayKey={selectedDayKey} onSelectDay={setSelectedDayKey} />
+          </div>
         </div>
       )}
 
