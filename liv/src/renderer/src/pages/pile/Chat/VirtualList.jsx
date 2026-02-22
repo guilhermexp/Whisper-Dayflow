@@ -79,7 +79,7 @@ const VirtualList = memo(({ data, isStreaming = false }) => {
         Footer: () => (
           <div
             style={{
-              paddingTop: "170px",
+              paddingTop: "16px",
             }}
           ></div>
         ),

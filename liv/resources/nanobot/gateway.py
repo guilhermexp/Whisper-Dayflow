@@ -43,7 +43,7 @@ from nanobot.providers.litellm_provider import LiteLLMProvider
 from nanobot.cron.service import CronService
 from nanobot.session.manager import SessionManager
 
-from config_bridge import get_config, get_provider_api_base
+from config_bridge import get_config, get_provider_api_base, get_channels_config
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -89,6 +89,8 @@ class GatewayState:
         self.bus: MessageBus | None = None
         self.cron: CronService | None = None
         self.session_manager: SessionManager | None = None
+        self.channel_manager = None
+        self.channel_tasks: list[asyncio.Task] = []
         self.loop_task: asyncio.Task | None = None
         self.config: dict = {}
         self.started_at: float = 0
@@ -177,17 +179,50 @@ class GatewayState:
         log.info("Agent initialized successfully")
 
     async def start(self):
-        """Start agent loop and cron in background."""
+        """Start agent loop, cron, and channels in background."""
         if self.agent:
             self.loop_task = asyncio.create_task(self.agent.run())
         if self.cron:
             await self.cron.start()
+
+        # Initialize channel integrations if configured
+        await self.start_channels()
+
         self.ready = True
         log.info("Gateway ready")
 
+    async def start_channels(self):
+        """Start enabled channel integrations (Telegram, Slack, etc.)."""
+        channels_cfg = get_channels_config()
+        if not channels_cfg:
+            return
+
+        try:
+            from nanobot.channels.manager import ChannelManager
+            self.channel_manager = ChannelManager(
+                agent=self.agent,
+                config=channels_cfg,
+            )
+            self.channel_tasks = await self.channel_manager.start_all()
+            enabled = list(channels_cfg.keys())
+            log.info(f"Started channels: {', '.join(enabled)}")
+        except ImportError:
+            log.warning("Channel manager not available in nanobot-ref, skipping channel integrations")
+        except Exception as e:
+            log.error(f"Failed to start channels: {e}")
+
     async def stop(self):
-        """Gracefully stop agent and cron."""
+        """Gracefully stop agent, cron, and channels."""
         self.ready = False
+        # Stop channels first
+        if self.channel_manager:
+            try:
+                await self.channel_manager.stop_all()
+            except Exception as e:
+                log.error(f"Error stopping channels: {e}")
+        for task in self.channel_tasks:
+            task.cancel()
+        self.channel_tasks.clear()
         if self.cron:
             self.cron.stop()
         if self.agent:
