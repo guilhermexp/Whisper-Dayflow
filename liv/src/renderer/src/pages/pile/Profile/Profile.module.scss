@@ -158,9 +158,30 @@
 
 // ===================== Overview =====================
 
-.overviewActions {
+.overviewControlPanel {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  padding: 10px 12px;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.overviewTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.overviewHint {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--secondary);
+  opacity: 0.9;
 }
 
 .headerBtnIcon {
@@ -185,17 +206,15 @@
 }
 
 .filters {
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .widgetBar {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 2px;
 }
 
 .widgetChip {
@@ -204,9 +223,9 @@
   background: var(--bg-secondary);
   color: var(--secondary);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 7px 13px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 550;
   cursor: pointer;
   transition: all 0.15s ease;
   &:hover { color: var(--primary); background: var(--bg-tertiary); }
@@ -214,16 +233,15 @@
 
 .widgetChipActive {
   color: var(--primary);
-  border-color: rgba(255, 255, 255, 0.45);
-  background: var(--bg);
+  border-color: rgba(96, 165, 250, 0.55);
+  background: rgba(59, 130, 246, 0.14);
 }
 
 .weekSelector,
 .daySelector {
   display: flex;
   gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 2px;
+  flex-wrap: wrap;
 }
 
 .weekBtn,
@@ -243,9 +261,20 @@
 
 .weekBtnActive,
 .dayBtnActive {
-  background: var(--bg);
+  background: rgba(59, 130, 246, 0.14);
   color: var(--primary);
-  border-color: var(--secondary);
+  border-color: rgba(96, 165, 250, 0.55);
+}
+
+@media only screen and (max-width: 980px) {
+  .overviewTopRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerBtnIcon {
+    justify-content: center;
+  }
 }
 
 .contentScroll {
