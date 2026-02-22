@@ -10,6 +10,7 @@ import {
 } from "renderer/icons"
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { tipcClient } from "renderer/lib/tipc-client"
 import { usePilesContext } from "renderer/context/PilesContext"
@@ -147,6 +148,7 @@ function getSessionCategory(run) {
 }
 
 function VideoRecordings() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { currentTheme } = usePilesContext()
@@ -321,7 +323,7 @@ function VideoRecordings() {
       <div className={styles.pageContainer}>
         <div className={styles.header}>
           <div className={styles.wrapper}>
-            <h1 className={styles.DialogTitle}>video pipeline</h1>
+            <h1 className={styles.DialogTitle}>{t("autoJournal.videoPipelineTitle")}</h1>
 
             <div className={styles.headerActions}>
               <button
