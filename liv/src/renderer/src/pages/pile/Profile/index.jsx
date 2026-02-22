@@ -2,7 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import * as Tabs from "@radix-ui/react-tabs"
-import { CrossIcon, RefreshIcon } from "renderer/icons"
+import {
+  BoxIcon,
+  CardIcon,
+  CrossIcon,
+  GaugeIcon,
+  HighlightIcon,
+  NeedleIcon,
+  RefreshIcon,
+} from "renderer/icons"
 import { usePilesContext } from "renderer/context/PilesContext"
 import { tipcClient } from "renderer/lib/tipc-client"
 import { useConfigQuery, useSaveConfigMutation } from "renderer/lib/query-client"
@@ -297,12 +305,15 @@ function OverviewTab({ boardQuery, configQuery, saveConfigMutation, lifeAnalysis
 
 // ===================== MyLifeTab =====================
 
-function CollapsibleSection({ title, emoji, count, defaultOpen = false, children }) {
+function CollapsibleSection({ title, icon: Icon, count, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div className={styles.sectionAccordion}>
       <button className={styles.sectionAccordionHeader} onClick={() => setOpen(!open)}>
-        <span>{emoji} {title}</span>
+        <span className={styles.sectionTitleWrap}>
+          {Icon ? <Icon className={styles.sectionIcon} /> : null}
+          <span>{title}</span>
+        </span>
         <span className={styles.sectionCount}>{count != null ? count : ""}</span>
         <span className={`${styles.chevron} ${open ? styles.chevronOpen : ""}`}>&#9660;</span>
       </button>
@@ -329,7 +340,7 @@ function MyLifeTab({ lifeContext, saveContext }) {
   // Dimensions
   const addDimension = () => {
     const newDim = {
-      id: generateId(), name: "Nova Dimensao", icon: "🎯",
+      id: generateId(), name: "Nova Dimensao", icon: "",
       color: DEFAULT_COLORS[ctx.dimensions.length % DEFAULT_COLORS.length],
       targetPercent: 10, description: "", keywords: [], createdAt: Date.now(),
     }
@@ -397,7 +408,7 @@ function MyLifeTab({ lifeContext, saveContext }) {
     <div className={styles.tabContent}>
       <div className={styles.mylifeContainer}>
         {/* Mission */}
-        <CollapsibleSection title="Missao" emoji="🎯" defaultOpen={true}>
+        <CollapsibleSection title="Missao" icon={NeedleIcon} defaultOpen={true}>
           <textarea
             className={styles.missionInput}
             placeholder="Qual e o proposito da sua vida em uma frase?"
@@ -409,12 +420,14 @@ function MyLifeTab({ lifeContext, saveContext }) {
         </CollapsibleSection>
 
         {/* Dimensions */}
-        <CollapsibleSection title="Dimensoes" emoji="📊" count={ctx.dimensions.length} defaultOpen={true}>
+        <CollapsibleSection title="Dimensoes" icon={GaugeIcon} count={ctx.dimensions.length} defaultOpen={true}>
           <div className={styles.dimensionList}>
             {ctx.dimensions.map((dim) => (
               <div key={dim.id} className={styles.dimensionCard}>
                 <div className={styles.dimCardTop}>
-                  <input className={styles.emojiInput} value={dim.icon} onChange={(e) => updateDimension(dim.id, { icon: e.target.value })} maxLength={2} />
+                  <span className={styles.dimIconBadge}>
+                    <GaugeIcon />
+                  </span>
                   <input className={styles.dimNameInput} value={dim.name} onChange={(e) => updateDimension(dim.id, { name: e.target.value })} placeholder="Nome" />
                   <input type="color" className={styles.colorSwatch} value={dim.color} onChange={(e) => updateDimension(dim.id, { color: e.target.value })} />
                   <button className={styles.deleteBtn} onClick={() => deleteDimension(dim.id)} title="Remover">x</button>
@@ -432,7 +445,7 @@ function MyLifeTab({ lifeContext, saveContext }) {
         </CollapsibleSection>
 
         {/* Goals */}
-        <CollapsibleSection title="Metas" emoji="🎯" count={ctx.goals.length}>
+        <CollapsibleSection title="Metas" icon={CardIcon} count={ctx.goals.length}>
           <div className={styles.goalList}>
             {ctx.goals.map((goal) => (
               <div key={goal.id} className={styles.goalCard}>
@@ -450,7 +463,7 @@ function MyLifeTab({ lifeContext, saveContext }) {
                   <label>
                     Dimensao:
                     <select value={goal.dimensionId} onChange={(e) => updateGoal(goal.id, { dimensionId: e.target.value })}>
-                      {ctx.dimensions.map((d) => (<option key={d.id} value={d.id}>{d.icon} {d.name}</option>))}
+                      {ctx.dimensions.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
                     </select>
                   </label>
                   <label>
@@ -479,7 +492,7 @@ function MyLifeTab({ lifeContext, saveContext }) {
         </CollapsibleSection>
 
         {/* Principles */}
-        <CollapsibleSection title="Principios" emoji="⚖️" count={ctx.principles.length}>
+        <CollapsibleSection title="Principios" icon={BoxIcon} count={ctx.principles.length}>
           <div className={styles.principleList}>
             {ctx.principles.map((p) => (
               <div key={p.id} className={styles.principleRow}>
@@ -498,7 +511,7 @@ function MyLifeTab({ lifeContext, saveContext }) {
         </CollapsibleSection>
 
         {/* Wisdom */}
-        <CollapsibleSection title="Sabedoria" emoji="💡" count={ctx.wisdom.length}>
+        <CollapsibleSection title="Sabedoria" icon={HighlightIcon} count={ctx.wisdom.length}>
           <div className={styles.wisdomList}>
             {ctx.wisdom.map((w) => (
               <div key={w.id} className={styles.wisdomEntry}>
@@ -572,7 +585,10 @@ function RealityCheckTab({ lifeContext, lifeAnalysis, refreshAnalysis, isRefresh
               const gapColor = gapAbs <= 5 ? "#34d399" : gapAbs <= 15 ? "#f59e0b" : "#fb7185"
               return (
                 <div key={score.dimensionId} className={styles.dimensionRow}>
-                  <span className={styles.dimRowLabel}>{dim?.icon || "?"} {dim?.name || "?"}</span>
+                  <span className={styles.dimRowLabel}>
+                    <GaugeIcon className={styles.dimRowIcon} />
+                    <span>{dim?.name || "?"}</span>
+                  </span>
                   <div className={styles.barTrack}>
                     <div className={styles.barFill} style={{ width: `${Math.min(100, score.actualPercent)}%`, backgroundColor: dim?.color || "#60a5fa" }} />
                     <div className={styles.barTarget} style={{ left: `${Math.min(100, score.targetPercent)}%` }} />
