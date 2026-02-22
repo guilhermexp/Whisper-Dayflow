@@ -16,6 +16,7 @@ import {
   listAutoJournalRuns,
   runAutoJournalOnce,
   getSchedulerStatus,
+  deleteAutoJournalRun,
 } from "./auto-journal-service"
 import {
   getAutonomousKanbanBoard,
@@ -41,6 +42,7 @@ import {
 } from "./autonomous-memory-service"
 import { configStore } from "../config"
 import { historyStore } from "../history-store"
+import { runHistorySearch } from "../history-analytics"
 import { Notification } from "electron"
 
 const LOG_PREFIX = "[NanobotCallback]"
@@ -254,6 +256,46 @@ async function handleRequest(
         filtered = filtered.filter((r) => r.createdAt <= to)
       }
       return json(res, { recordings: filtered })
+    }
+
+    if (path === "/recordings/search" && method === "POST") {
+      const body = await parseBody(req)
+      const text = (body.text as string) || ""
+      const items = historyStore.readAll()
+      const filters: Record<string, unknown> = { text }
+      if (body.tags) filters.tags = body.tags
+      if (body.from_ts || body.to_ts) {
+        filters.dateRange = {
+          from: body.from_ts as number | undefined,
+          to: body.to_ts as number | undefined,
+        }
+      }
+      const result = runHistorySearch(items, filters as any)
+      return json(res, { recordings: result.items, total: result.total })
+    }
+
+    if (path.startsWith("/recordings/") && method === "DELETE") {
+      const id = path.split("/recordings/")[1]
+      if (!id) return error(res, "Missing recording ID")
+      historyStore.delete(id)
+      return json(res, { status: "ok", id })
+    }
+
+    if (path.startsWith("/recordings/") && method === "PUT") {
+      const id = path.split("/recordings/")[1]
+      if (!id) return error(res, "Missing recording ID")
+      const body = await parseBody(req)
+      const updated = historyStore.update(id, body as any)
+      if (!updated) return error(res, `Recording not found: ${id}`, 404)
+      return json(res, { recording: updated })
+    }
+
+    // --- Journal delete ---
+    if (path.startsWith("/journal/entries/") && method === "DELETE") {
+      const id = path.split("/journal/entries/")[1]
+      if (!id) return error(res, "Missing journal entry ID")
+      await deleteAutoJournalRun(id)
+      return json(res, { status: "ok", id })
     }
 
     // --- App control ---

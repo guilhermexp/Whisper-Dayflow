@@ -44,7 +44,8 @@ class LivJournalTool(Tool):
             "Access auto-journal entries. Actions: "
             "'list' to get recent journal runs, "
             "'trigger' to run auto-journal now, "
-            "'status' to check scheduler status."
+            "'status' to check scheduler status, "
+            "'delete' to remove a journal entry by ID."
         )
 
     @property
@@ -54,8 +55,12 @@ class LivJournalTool(Tool):
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["list", "trigger", "status"],
+                    "enum": ["list", "trigger", "status", "delete"],
                     "description": "Action to perform",
+                },
+                "entry_id": {
+                    "type": "string",
+                    "description": "Journal entry ID (for delete action)",
                 },
                 "limit": {
                     "type": "integer",
@@ -100,6 +105,13 @@ class LivJournalTool(Tool):
 
         elif action == "status":
             result = await self.client.get("/journal/status")
+            return _json_result(result)
+
+        elif action == "delete":
+            entry_id = kwargs.get("entry_id")
+            if not entry_id:
+                return "Error: entry_id required for delete"
+            result = await self.client.delete(f"/journal/entries/{entry_id}")
             return _json_result(result)
 
         return f"Unknown action: {action}"
@@ -430,8 +442,11 @@ class LivRecordingsTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Access audio recording transcriptions. "
-            "Actions: 'list' to get recent recordings with transcripts."
+            "Access audio recording transcriptions. Actions: "
+            "'list' to get recent recordings, "
+            "'search' to find recordings by text/tags/date, "
+            "'delete' to remove a recording by ID, "
+            "'update' to modify recording metadata (tags)."
         )
 
     @property
@@ -441,8 +456,21 @@ class LivRecordingsTool(Tool):
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["list"],
+                    "enum": ["list", "search", "delete", "update"],
                     "description": "Action to perform",
+                },
+                "recording_id": {
+                    "type": "string",
+                    "description": "Recording ID (for delete/update)",
+                },
+                "text": {
+                    "type": "string",
+                    "description": "Text query for search action",
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Tags to filter by (for search) or set (for update)",
                 },
                 "limit": {
                     "type": "integer",
@@ -461,15 +489,50 @@ class LivRecordingsTool(Tool):
         }
 
     async def execute(self, **kwargs) -> str:
-        params = {}
-        if kwargs.get("limit"):
-            params["limit"] = str(kwargs["limit"])
-        if kwargs.get("from_ts"):
-            params["from"] = str(kwargs["from_ts"])
-        if kwargs.get("to_ts"):
-            params["to"] = str(kwargs["to_ts"])
-        result = await self.client.get("/recordings", params or None)
-        return _json_result(result)
+        action = kwargs.get("action", "list")
+
+        if action == "list":
+            params = {}
+            if kwargs.get("limit"):
+                params["limit"] = str(kwargs["limit"])
+            if kwargs.get("from_ts"):
+                params["from"] = str(kwargs["from_ts"])
+            if kwargs.get("to_ts"):
+                params["to"] = str(kwargs["to_ts"])
+            result = await self.client.get("/recordings", params or None)
+            return _json_result(result)
+
+        elif action == "search":
+            data = {}
+            if kwargs.get("text"):
+                data["text"] = kwargs["text"]
+            if kwargs.get("tags"):
+                data["tags"] = kwargs["tags"]
+            if kwargs.get("from_ts"):
+                data["from_ts"] = kwargs["from_ts"]
+            if kwargs.get("to_ts"):
+                data["to_ts"] = kwargs["to_ts"]
+            result = await self.client.post("/recordings/search", data)
+            return _json_result(result)
+
+        elif action == "delete":
+            recording_id = kwargs.get("recording_id")
+            if not recording_id:
+                return "Error: recording_id required for delete"
+            result = await self.client.delete(f"/recordings/{recording_id}")
+            return _json_result(result)
+
+        elif action == "update":
+            recording_id = kwargs.get("recording_id")
+            if not recording_id:
+                return "Error: recording_id required for update"
+            data = {}
+            if kwargs.get("tags") is not None:
+                data["tags"] = kwargs["tags"]
+            result = await self.client.put(f"/recordings/{recording_id}", data)
+            return _json_result(result)
+
+        return f"Unknown action: {action}"
 
 
 # ---------------------------------------------------------------------------
