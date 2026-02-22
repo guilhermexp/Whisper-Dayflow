@@ -3,6 +3,7 @@ import { useCallback, useState, useEffect, memo } from 'react';
 import { DiscIcon, PhotoIcon, TrashIcon, TagIcon } from 'renderer/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import LinkPreview from './LinkPreview';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 const extractLinks = (htmlString) => {
   const parser = new DOMParser();
@@ -26,7 +27,7 @@ const extractLinks = (htmlString) => {
 
 const LinkPreviews = memo(({ post, editable = false }) => {
   const getPreview = (url) => {
-    return window.electron.ipc.invoke('get-link-preview', url);
+    return tipcClient.getLinkPreview({ url });
   };
   const content = post.content ?? '';
   const links = extractLinks(content);

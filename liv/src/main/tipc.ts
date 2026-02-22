@@ -12,6 +12,7 @@ import {
   desktopCapturer,
 } from "electron"
 import path from "path"
+import matter from "gray-matter"
 import { configStore, recordingsFolder } from "./config"
 import { modelManager } from "./model-manager"
 import type {
@@ -47,6 +48,11 @@ import {
   deleteAutoJournalRun,
   GIF_DIR,
 } from "./services/auto-journal-service"
+import {
+  restartNanobotRuntime,
+  startNanobotRuntime,
+  stopNanobotRuntime,
+} from "./services/nanobot-runtime-service"
 import { saveAutoJournalEntry } from "./services/auto-journal-entry"
 import {
   startPeriodicScreenshotScheduler,
@@ -104,6 +110,34 @@ import {
   startFocusSession,
   stopFocusSession,
 } from "./services/focus-session-service"
+import settings from "electron-settings"
+import {
+  getKey,
+  setKey,
+  deleteKey,
+  getOpenrouterKey,
+  setOpenrouterKey,
+  getOpenrouterModels,
+  fetchOpenrouterModels,
+  getGeminiKey,
+  setGeminiKey,
+  deleteGeminiKey,
+  getGroqKey,
+  setGroqKey,
+  deleteGroqKey,
+  getDeepgramKey,
+  setDeepgramKey,
+  deleteDeepgramKey,
+  getCustomKey,
+  setCustomKey,
+  deleteCustomKey,
+} from "./pile-utils/store"
+import pileHelper from "./pile-utils/pileHelper"
+import pileIndex from "./pile-utils/pileIndex"
+import pileTags from "./pile-utils/pileTags"
+import pileHighlights from "./pile-utils/pileHighlights"
+import pileLinks from "./pile-utils/pileLinks"
+import { getLinkPreview, getLinkContent } from "./pile-utils/linkPreview"
 
 const t = tipc.create()
 
@@ -267,6 +301,72 @@ const normalizeAudioProfileInput = (profile?: RecordingAudioProfile) => {
         : null,
     sampleCount: profile.sampleCount ?? 0,
   }
+}
+
+const pilesConfigPath = path.join(app.getPath("home"), "Piles", "piles.json")
+let invalidPilesConfigReported = false
+
+type PileConfigEntry = { name?: string; path?: string; theme?: string }
+
+const readPilesConfigSafeSync = (): PileConfigEntry[] => {
+  if (!fs.existsSync(pilesConfigPath)) return []
+
+  const raw = fs.readFileSync(pilesConfigPath, "utf-8")
+  const trimmed = raw.trim()
+  if (!trimmed) return []
+
+  try {
+    const parsed = JSON.parse(trimmed)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    if (!invalidPilesConfigReported) {
+      invalidPilesConfigReported = true
+      console.warn("[tipc] Invalid piles config JSON; recovering file", error)
+    }
+    try {
+      const backupPath = `${pilesConfigPath}.corrupt-${Date.now()}.json`
+      fs.writeFileSync(backupPath, raw, "utf-8")
+      fs.writeFileSync(pilesConfigPath, "[]", "utf-8")
+      console.warn(
+        `[tipc] Corrupt piles config backed up to ${backupPath} and reset to []`,
+      )
+    } catch (repairError) {
+      console.warn("[tipc] Failed to repair piles config", repairError)
+    }
+    return []
+  }
+}
+
+const loadAllowedRoots = () => {
+  const roots = new Set<string>([path.resolve(path.dirname(pilesConfigPath))])
+  roots.add(path.resolve(app.getPath("home")))
+
+  const documentsLiv = path.join(app.getPath("documents"), "Liv")
+  roots.add(path.resolve(documentsLiv))
+
+  try {
+    const piles = readPilesConfigSafeSync()
+    for (const pile of piles) {
+      if (pile?.path) {
+        roots.add(path.resolve(String(pile.path)))
+      }
+    }
+  } catch (error) {
+    console.warn("[tipc] Failed to read piles config for allowed roots", error)
+  }
+
+  return roots
+}
+
+const assertAllowedPath = (targetPath: string) => {
+  const resolved = path.resolve(targetPath)
+  const allowedRoots = loadAllowedRoots()
+  for (const root of allowedRoots) {
+    if (resolved === root || resolved.startsWith(root + path.sep)) {
+      return
+    }
+  }
+  throw new Error(`[tipc] Path outside allowed roots: ${targetPath}`)
 }
 
 export const router = {
@@ -557,11 +657,12 @@ export const router = {
           console.log(`[transcription] Using Deepgram provider`)
           const deepgramModel = config.deepgramModel || "nova-3"
           const deepgramUrl = `https://api.deepgram.com/v1/listen?model=${deepgramModel}&language=pt&smart_format=true`
+          const deepgramKey = (await getDeepgramKey()) || config.deepgramApiKey
 
           const transcriptResponse = await fetch(deepgramUrl, {
             method: "POST",
             headers: {
-              Authorization: `Token ${config.deepgramApiKey}`,
+              Authorization: `Token ${deepgramKey || ""}`,
               "Content-Type": mimeType,
             },
             body: recordingBuffer,
@@ -614,12 +715,28 @@ export const router = {
                 ? openrouterBaseUrl
                 : openaiBaseUrl
 
-          const apiKey =
+          const encryptedApiKey =
+            providerId === "groq"
+              ? await getGroqKey()
+              : providerId === "openrouter"
+                ? await getOpenrouterKey()
+                : await getKey()
+          const configApiKey =
             providerId === "groq"
               ? config.groqApiKey
               : providerId === "openrouter"
                 ? config.openrouterApiKey
                 : config.openaiApiKey
+          const apiKey = encryptedApiKey || configApiKey
+
+          if (!apiKey) {
+            throw new Error(
+              `Missing API key for provider '${providerId}'. Configure it in Settings.`,
+            )
+          }
+          console.log(
+            `[transcription] Using ${providerId} API key source=${encryptedApiKey ? "encrypted-store" : "config"}`,
+          )
 
           const transcriptResponse = await fetch(
             `${baseUrl}/audio/transcriptions`,
@@ -1503,15 +1620,286 @@ export const router = {
     return configStore.get()
   }),
 
+  getSetting: t.procedure
+    .input<{ key: string }>()
+    .action(async ({ input }) => {
+      return settings.get(input.key)
+    }),
+
+  setSetting: t.procedure
+    .input<{ key: string; value: unknown }>()
+    .action(async ({ input }) => {
+      await settings.set(input.key, input.value as any)
+    }),
+
+  getPilesConfigPath: t.procedure.action(async () => {
+    return pilesConfigPath
+  }),
+
+  readPilesConfig: t.procedure.action(async () => {
+    try {
+      return readPilesConfigSafeSync()
+    } catch (error) {
+      console.warn("[tipc] Failed to read piles config", error)
+      return []
+    }
+  }),
+
+  writePilesConfig: t.procedure
+    .input<{ piles: Array<{ name: string; path: string; theme?: string }> }>()
+    .action(async ({ input }) => {
+      const dir = path.dirname(pilesConfigPath)
+      await fs.promises.mkdir(dir, { recursive: true })
+      await fs.promises.writeFile(
+        pilesConfigPath,
+        JSON.stringify(input.piles),
+        "utf-8",
+      )
+    }),
+
+  pathExists: t.procedure
+    .input<{ targetPath: string }>()
+    .action(async ({ input }) => {
+      assertAllowedPath(input.targetPath)
+      return fs.existsSync(input.targetPath)
+    }),
+
+  ensureDirectory: t.procedure
+    .input<{ dirPath: string }>()
+    .action(async ({ input }) => {
+      assertAllowedPath(input.dirPath)
+      await fs.promises.mkdir(input.dirPath, { recursive: true })
+    }),
+
+  readTextFile: t.procedure
+    .input<{ filePath: string }>()
+    .action(async ({ input }) => {
+      assertAllowedPath(input.filePath)
+      return fs.promises.readFile(input.filePath, "utf-8")
+    }),
+
+  writeTextFile: t.procedure
+    .input<{ filePath: string; content: string }>()
+    .action(async ({ input }) => {
+      assertAllowedPath(input.filePath)
+      await fs.promises.writeFile(input.filePath, input.content, "utf-8")
+    }),
+
+  deleteFilePath: t.procedure
+    .input<{ filePath: string }>()
+    .action(async ({ input }) => {
+      assertAllowedPath(input.filePath)
+      await fs.promises.unlink(input.filePath)
+    }),
+
+  matterParse: t.procedure
+    .input<{ file: string }>()
+    .action(async ({ input }) => {
+      return matter(input.file)
+    }),
+
+  matterStringify: t.procedure
+    .input<{ content: string; data: Record<string, unknown> }>()
+    .action(async ({ input }) => {
+      return matter.stringify(input.content, input.data)
+    }),
+
+  listFilesRecursively: t.procedure
+    .input<{ dirPath: string }>()
+    .action(async ({ input }) => {
+      assertAllowedPath(input.dirPath)
+      return pileHelper.getFilesInFolder(input.dirPath)
+    }),
+
+  selectDirectory: t.procedure.action(async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openDirectory"],
+    })
+    if (result.canceled) return null
+    return result.filePaths?.[0] ?? null
+  }),
+
+  saveAttachmentFile: t.procedure
+    .input<{ fileData: string; fileExtension: string; storePath: string }>()
+    .action(async ({ input }) => {
+      assertAllowedPath(input.storePath)
+      const currentDate = new Date()
+      const year = String(currentDate.getFullYear()).slice(-2)
+      const month = String(currentDate.getMonth() + 1).padStart(2, "0")
+      const day = String(currentDate.getDate()).padStart(2, "0")
+      const hours = String(currentDate.getHours()).padStart(2, "0")
+      const minutes = String(currentDate.getMinutes()).padStart(2, "0")
+      const seconds = String(currentDate.getSeconds()).padStart(2, "0")
+      const milliseconds = String(currentDate.getMilliseconds()).padStart(3, "0")
+      const fileName = `${year}${month}${day}-${hours}${minutes}${seconds}${milliseconds}.${input.fileExtension}`
+      const fullStorePath = path.join(
+        input.storePath,
+        String(currentDate.getFullYear()),
+        currentDate.toLocaleString("default", { month: "short" }),
+        "media",
+      )
+      const newFilePath = path.join(fullStorePath, fileName)
+
+      const dataUrlParts = input.fileData.split(";base64,")
+      const fileBuffer = Buffer.from(dataUrlParts[1], "base64")
+      await fs.promises.mkdir(fullStorePath, { recursive: true })
+      await fs.promises.writeFile(newFilePath, fileBuffer)
+      return newFilePath
+    }),
+
+  openAttachmentFiles: t.procedure
+    .input<{ storePath: string }>()
+    .action(async ({ input }) => {
+      assertAllowedPath(input.storePath)
+      const selected = await dialog.showOpenDialog({
+        properties: ["openFile", "multiSelections"],
+        filters: [
+          { name: "Images", extensions: ["jpg", "jpeg", "png", "gif", "svg"] },
+          { name: "Movies", extensions: ["mp4", "mov"] },
+        ],
+      })
+      if (selected.canceled) return []
+
+      const attachments: string[] = []
+      for (const [index, filePath] of (selected.filePaths || []).entries()) {
+        const currentDate = new Date()
+        const year = String(currentDate.getFullYear()).slice(-2)
+        const month = String(currentDate.getMonth() + 1).padStart(2, "0")
+        const day = String(currentDate.getDate()).padStart(2, "0")
+        const hours = String(currentDate.getHours()).padStart(2, "0")
+        const minutes = String(currentDate.getMinutes()).padStart(2, "0")
+        const seconds = String(currentDate.getSeconds()).padStart(2, "0")
+        const selectedFileName = filePath.split(/[/\\]/).pop()
+        if (!selectedFileName) continue
+
+        const extension = selectedFileName.split(".").pop()
+        const fileName = `${year}${month}${day}-${hours}${minutes}${seconds}-${index}.${extension}`
+        const fullStorePath = path.join(
+          input.storePath,
+          String(currentDate.getFullYear()),
+          currentDate.toLocaleString("default", { month: "short" }),
+          "media",
+        )
+        const newFilePath = path.join(fullStorePath, fileName)
+        await fs.promises.mkdir(fullStorePath, { recursive: true })
+        await fs.promises.copyFile(filePath, newFilePath)
+        attachments.push(newFilePath)
+      }
+
+      return attachments
+    }),
+
+  indexLoad: t.procedure
+    .input<{ pilePath: string }>()
+    .action(async ({ input }) => pileIndex.load(input.pilePath)),
+
+  indexGet: t.procedure.action(async () => pileIndex.get()),
+
+  indexRegenerateEmbeddings: t.procedure.action(async () =>
+    pileIndex.regenerateEmbeddings(),
+  ),
+
+  indexAdd: t.procedure
+    .input<{ filePath: string }>()
+    .action(async ({ input }) => pileIndex.add(input.filePath)),
+
+  indexUpdate: t.procedure
+    .input<{ filePath: string; data: Record<string, unknown> }>()
+    .action(async ({ input }) => pileIndex.update(input.filePath, input.data)),
+
+  indexSearch: t.procedure
+    .input<{ query: string }>()
+    .action(async ({ input }) => pileIndex.search(input.query)),
+
+  indexVectorSearch: t.procedure
+    .input<{ query: string; topN?: number }>()
+    .action(async ({ input }) => {
+      const parsedTopN = Number(input.topN ?? 50)
+      const safeTopN = Number.isFinite(parsedTopN)
+        ? Math.min(100, Math.max(1, parsedTopN))
+        : 50
+      return pileIndex.vectorSearch(input.query, safeTopN)
+    }),
+
+  indexGetThreadsAsText: t.procedure
+    .input<{ filePaths: string[] }>()
+    .action(async ({ input }) => {
+      const results: unknown[] = []
+      for (const filePath of input.filePaths || []) {
+        const entry = pileIndex.getThreadAsText(filePath)
+        if (entry) results.push(entry)
+      }
+      return results
+    }),
+
+  indexRemove: t.procedure
+    .input<{ filePath: string }>()
+    .action(async ({ input }) => pileIndex.remove(input.filePath)),
+
+  tagsLoad: t.procedure
+    .input<{ pilePath: string }>()
+    .action(async ({ input }) => pileTags.load(input.pilePath)),
+
+  tagsGet: t.procedure.action(async () => pileTags.get()),
+
+  tagsSync: t.procedure
+    .input<{ filePath: string }>()
+    .action(async ({ input }) => {
+      pileTags.sync(input.filePath)
+      return pileTags.get()
+    }),
+
+  tagsAdd: t.procedure
+    .input<{ tag: string; filePath: string }>()
+    .action(async ({ input }) => pileTags.add(input.tag, input.filePath)),
+
+  tagsRemove: t.procedure
+    .input<{ tag: string; filePath: string }>()
+    .action(async ({ input }) => pileTags.remove(input.tag, input.filePath)),
+
+  highlightsLoad: t.procedure
+    .input<{ pilePath: string }>()
+    .action(async ({ input }) => pileHighlights.load(input.pilePath)),
+
+  highlightsGet: t.procedure.action(async () => pileHighlights.get()),
+
+  highlightsCreate: t.procedure
+    .input<{ highlight: string }>()
+    .action(async ({ input }) => pileHighlights.create(input.highlight)),
+
+  highlightsDelete: t.procedure
+    .input<{ highlight: string }>()
+    .action(async ({ input }) => pileHighlights.delete(input.highlight)),
+
+  linksGet: t.procedure
+    .input<{ pilePath: string; url: string }>()
+    .action(async ({ input }) => pileLinks.get(input.pilePath, input.url)),
+
+  linksSet: t.procedure
+    .input<{ pilePath: string; url: string; data: unknown }>()
+    .action(async ({ input }) =>
+      pileLinks.set(input.pilePath, input.url, input.data),
+    ),
+
+  getLinkPreview: t.procedure
+    .input<{ url: string }>()
+    .action(async ({ input }) => getLinkPreview(input.url)),
+
+  getLinkContent: t.procedure
+    .input<{ url: string }>()
+    .action(async ({ input }) => getLinkContent(input.url)),
+
   saveConfig: t.procedure
     .input<{ config: Config }>()
     .action(async ({ input }) => {
       const prevConfig = configStore.get()
       const prevProvider = deriveSttProviderId(prevConfig)
       const prevDefault = prevConfig.defaultLocalModel
+      const prevNanobotEnabled = prevConfig.nanobotEnabled === true
       configStore.save(input.config)
       const nextConfig = configStore.get()
       const nextProvider = deriveSttProviderId(nextConfig)
+      const nextNanobotEnabled = nextConfig.nanobotEnabled === true
       if (prevProvider !== nextProvider) {
         console.log(
           `[config] STT provider changed from ${prevProvider} to ${nextProvider}`,
@@ -1521,6 +1909,20 @@ export const router = {
         console.log(
           `[config] Default local model changed from ${prevDefault ?? "none"} to ${nextConfig.defaultLocalModel ?? "none"}`,
         )
+      }
+
+      if (prevNanobotEnabled !== nextNanobotEnabled) {
+        if (nextNanobotEnabled) {
+          console.log("[config] Nanobot enabled, starting runtime...")
+          await startNanobotRuntime()
+          // Nanobot cron now handles this schedule to avoid duplicated runs.
+          stopAutoJournalScheduler()
+        } else {
+          console.log("[config] Nanobot disabled, stopping runtime...")
+          await stopNanobotRuntime()
+          // Restore classic scheduler when turning nanobot off.
+          startAutoJournalScheduler()
+        }
       }
     }),
 
@@ -1554,7 +1956,7 @@ export const router = {
 
   fetchOpenRouterModels: t.procedure.action(async () => {
     const config = configStore.get()
-    const apiKey = config.openrouterApiKey
+    const apiKey = (await getOpenrouterKey()) || config.openrouterApiKey
 
     if (!apiKey) {
       throw new Error("OpenRouter API key is required")
@@ -1588,6 +1990,44 @@ export const router = {
       throw error
     }
   }),
+
+  // Legacy encrypted key compatibility (migration target from raw ipc channels)
+  getAiKey: t.procedure.action(async () => getKey()),
+  setAiKey: t.procedure
+    .input<{ secretKey: string }>()
+    .action(async ({ input }) => setKey(input.secretKey)),
+  deleteAiKey: t.procedure.action(async () => deleteKey()),
+
+  getOpenrouterKey: t.procedure.action(async () => getOpenrouterKey()),
+  setOpenrouterKey: t.procedure
+    .input<{ secretKey: string }>()
+    .action(async ({ input }) => setOpenrouterKey(input.secretKey)),
+  getOpenrouterModels: t.procedure.action(async () => getOpenrouterModels()),
+  fetchOpenrouterModels: t.procedure.action(async () => fetchOpenrouterModels()),
+
+  getGeminiKey: t.procedure.action(async () => getGeminiKey()),
+  setGeminiKey: t.procedure
+    .input<{ secretKey: string }>()
+    .action(async ({ input }) => setGeminiKey(input.secretKey)),
+  deleteGeminiKey: t.procedure.action(async () => deleteGeminiKey()),
+
+  getGroqKey: t.procedure.action(async () => getGroqKey()),
+  setGroqKey: t.procedure
+    .input<{ secretKey: string }>()
+    .action(async ({ input }) => setGroqKey(input.secretKey)),
+  deleteGroqKey: t.procedure.action(async () => deleteGroqKey()),
+
+  getDeepgramKey: t.procedure.action(async () => getDeepgramKey()),
+  setDeepgramKey: t.procedure
+    .input<{ secretKey: string }>()
+    .action(async ({ input }) => setDeepgramKey(input.secretKey)),
+  deleteDeepgramKey: t.procedure.action(async () => deleteDeepgramKey()),
+
+  getCustomKey: t.procedure.action(async () => getCustomKey()),
+  setCustomKey: t.procedure
+    .input<{ secretKey: string }>()
+    .action(async ({ input }) => setCustomKey(input.secretKey)),
+  deleteCustomKey: t.procedure.action(async () => deleteCustomKey()),
 
   recordEvent: t.procedure
     .input<{ type: "start" | "end" }>()
@@ -1674,10 +2114,22 @@ export const router = {
     return nanobotBridge.status
   }),
 
+  startNanobot: t.procedure.action(async () => {
+    const status = await startNanobotRuntime()
+    stopAutoJournalScheduler()
+    return status
+  }),
+
+  stopNanobot: t.procedure.action(async () => {
+    const status = await stopNanobotRuntime()
+    startAutoJournalScheduler()
+    return status
+  }),
+
   restartNanobot: t.procedure.action(async () => {
-    const { nanobotBridge } = await import("./services/nanobot-bridge-service")
-    await nanobotBridge.restart()
-    return nanobotBridge.status
+    const status = await restartNanobotRuntime()
+    stopAutoJournalScheduler()
+    return status
   }),
 
   sendNanobotMessage: t.procedure

@@ -51,43 +51,25 @@ const getFilePathForNewPost = (basePath, timestamp = new Date()) => {
 };
 
 const createDirectory = (directoryPath) => {
-  return window.electron.mkdir(directoryPath);
+  return tipcClient.ensureDirectory({ dirPath: directoryPath });
 };
 
 const getFiles = async (dir) => {
-  const files = await window.electron.getFiles(dir);
+  const files = await tipcClient.listFilesRecursively({ dirPath: dir });
 
   return files;
 };
 
 const saveFile = (path, file) => {
-  return new Promise((resolve, reject) => {
-    window.electron.writeFile(path, file, (err) => {
-      if (err) {
-        console.error('Error writing to file.', err);
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
-  });
+  return tipcClient.writeTextFile({ filePath: path, content: file });
 };
 
 const deleteFile = (path) => {
-  return new Promise((resolve, reject) => {
-    window.electron.deleteFile(path, (err) => {
-      if (err) {
-        console.error('Error deleting file.', err);
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
-  });
+  return tipcClient.deleteFilePath({ filePath: path });
 };
 
 const generateMarkdown = (content, data) => {
-  return window.electron.ipc.invoke('matter-stringify', { content, data });
+  return tipcClient.matterStringify({ content, data });
 };
 
 export {
@@ -100,3 +82,4 @@ export {
   getFilePathForNewPost,
   generateMarkdown,
 };
+import { tipcClient } from 'renderer/lib/tipc-client';

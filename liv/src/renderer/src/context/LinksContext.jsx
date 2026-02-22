@@ -9,6 +9,7 @@ import { useLocation } from 'react-router-dom';
 import { usePilesContext } from './PilesContext';
 import { useAIContext } from './AIContext';
 import { useToastsContext } from './ToastsContext';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 export const LinksContext = createContext();
 
@@ -21,11 +22,7 @@ export const LinksContextProvider = ({ children }) => {
   const getLink = useCallback(
     async (url) => {
       const pilePath = getCurrentPilePath();
-      const preview = await window.electron.ipc.invoke(
-        'links-get',
-        pilePath,
-        url
-      );
+      const preview = await tipcClient.linksGet({ pilePath, url });
 
       // return cached preview if available
       if (preview) {
@@ -75,18 +72,18 @@ export const LinksContextProvider = ({ children }) => {
   const setLink = useCallback(
     async (url, data) => {
       const pilePath = getCurrentPilePath();
-      window.electron.ipc.invoke('links-set', pilePath, url, data);
+      tipcClient.linksSet({ pilePath, url, data });
     },
     [currentPile]
   );
 
   const getPreview = async (url) => {
-    const data = await window.electron.ipc.invoke('get-link-preview', url);
+    const data = await tipcClient.getLinkPreview({ url });
     return data;
   };
 
   const getContent = async (url) => {
-    const data = await window.electron.ipc.invoke('get-link-content', url);
+    const data = await tipcClient.getLinkContent({ url });
     return data;
   };
 

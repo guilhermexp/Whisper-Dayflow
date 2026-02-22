@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 export function useElectronStore(key, initialValue) {
   const [storedValue, setStoredValue] = useState(initialValue);
 
   useEffect(() => {
-    window.electron.settingsGet(key).then((value) => {
+    tipcClient.getSetting({ key }).then((value) => {
       if (value !== undefined) setStoredValue(value);
     });
   }, [key]);
@@ -13,7 +14,7 @@ export function useElectronStore(key, initialValue) {
     (value) => {
       const newValue = value instanceof Function ? value(storedValue) : value;
       setStoredValue(newValue);
-      window.electron.settingsSet(key, newValue);
+      tipcClient.setSetting({ key, value: newValue });
     },
     [key, storedValue]
   );

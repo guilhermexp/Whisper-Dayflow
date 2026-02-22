@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import styles from './CreatePile.module.scss';
 import layoutStyles from '../pile/PileLayout.module.scss';
 import { TrashIcon, CrossIcon } from 'renderer/icons';
@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { usePilesContext } from 'renderer/context/PilesContext';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../pile/Navigation';
+import { tipcClient } from 'renderer/lib/tipc-client';
 const pilesList = ['Users/uj/Personal', 'Users/uj/Startup', 'Users/uj/School'];
 
 export function Component() {
@@ -31,25 +32,13 @@ export function Component() {
     return "/create-pile";
   }, [currentPile?.name, piles]);
 
-  useEffect(() => {
-    // @ts-expect-error - Pile-specific IPC channel not in base type definitions
-    window.electron.ipc.on('selected-directory', (path: string) => {
-      setPath(path);
-    });
-
-    return () => {
-      // @ts-expect-error - Pile-specific IPC channel not in base type definitions
-      window.electron.ipc.removeAllListeners('selected-directory');
-    };
-  }, []);
-
   const handleNameChange = (e: any) => {
     setName(e.target.value);
   };
 
-  const handleClick = () => {
-    // @ts-expect-error - Pile-specific IPC channel not in base type definitions
-    window.electron.ipc.sendMessage('open-file-dialog');
+  const handleClick = async () => {
+    const selectedPath = await tipcClient.selectDirectory();
+    if (selectedPath) setPath(selectedPath);
   };
 
   const handleSubmit = () => {

@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePilesContext } from './PilesContext';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 export const IndexContext = createContext();
 
@@ -25,13 +26,13 @@ export const IndexContextProvider = ({ children }) => {
   }, [currentPile]);
 
   const loadIndex = useCallback(async (pilePath) => {
-    const newIndex = await window.electron.ipc.invoke('index-load', pilePath);
+    const newIndex = await tipcClient.indexLoad({ pilePath });
     const newMap = new Map(newIndex);
     setIndex(newMap);
   }, []);
 
   const refreshIndex = useCallback(async () => {
-    const newIndex = await window.electron.ipc.invoke('index-get');
+    const newIndex = await tipcClient.indexGet();
     const newMap = new Map(newIndex);
     setIndex(newMap);
   }, []);
@@ -49,8 +50,8 @@ export const IndexContextProvider = ({ children }) => {
       console.time('index-add-time');
       const pilePath = getCurrentPilePath();
 
-      await window.electron.ipc
-      .invoke('index-add', newEntryPath)
+      await tipcClient
+      .indexAdd({ filePath: newEntryPath })
       .then((index) => {
         // setIndex(index);
         loadLatestThreads();
@@ -61,32 +62,32 @@ export const IndexContextProvider = ({ children }) => {
   );
 
   const regenerateEmbeddings = () => {
-    window.electron.ipc.invoke('index-regenerate-embeddings');
+    tipcClient.indexRegenerateEmbeddings();
   };
 
   const getThreadsAsText = useCallback(async (filePaths) => {
-    return window.electron.ipc.invoke('index-get-threads-as-text', filePaths);
+    return tipcClient.indexGetThreadsAsText({ filePaths });
   }, []);
 
   const updateIndex = useCallback(async (filePath, data) => {
-    window.electron.ipc.invoke('index-update', filePath, data).then((index) => {
+    tipcClient.indexUpdate({ filePath, data }).then((index) => {
       setIndex(index);
       loadLatestThreads();
     });
   }, []);
 
   const removeIndex = useCallback(async (filePath) => {
-    window.electron.ipc.invoke('index-remove', filePath).then((index) => {
+    tipcClient.indexRemove({ filePath }).then((index) => {
       setIndex(index);
     });
   }, []);
 
   const search = useCallback(async (query) => {
-    return window.electron.ipc.invoke('index-search', query);
+    return tipcClient.indexSearch({ query });
   }, []);
 
   const vectorSearch = useCallback(async (query, topN = 50) => {
-    return window.electron.ipc.invoke('index-vector-search', query, topN);
+    return tipcClient.indexVectorSearch({ query, topN });
   }, []);
 
   const loadLatestThreads = useCallback(async (count = 10) => {

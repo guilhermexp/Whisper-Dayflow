@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePilesContext } from './PilesContext';
+import { tipcClient } from 'renderer/lib/tipc-client';
 
 export const TagsContext = createContext();
 
@@ -21,32 +22,32 @@ export const TagsContextProvider = ({ children }) => {
   }, [currentPile]);
 
   const loadTags = useCallback(async (pilePath) => {
-    const newTags = await window.electron.ipc.invoke('tags-load', pilePath);
+    const newTags = await tipcClient.tagsLoad({ pilePath });
     const newMap = new Map(newTags);
     setTags(newMap);
   }, []);
 
   const refreshTags = useCallback(async () => {
-    const newTags = await window.electron.ipc.invoke('tags-get');
+    const newTags = await tipcClient.tagsGet();
     const newMap = new Map(newTags);
     setTags(newMap);
   }, []);
 
   const syncTags = useCallback(async (filePath) => {
-    window.electron.ipc.invoke('tags-sync', filePath).then((tags) => {
+    tipcClient.tagsSync({ filePath }).then((tags) => {
       setTags(tags);
     });
   }, []);
 
   const addTag = useCallback(async (tag, filePath) => {
-    window.electron.ipc.invoke('tags-add', { tag, filePath }).then((tags) => {
+    tipcClient.tagsAdd({ tag, filePath }).then((tags) => {
       setTags(tags);
     });
   }, []);
 
   const removeTag = useCallback(async (tag, filePath) => {
-    window.electron.ipc
-      .invoke('tags-remove', { tag, filePath })
+    tipcClient
+      .tagsRemove({ tag, filePath })
       .then((tags) => {
         setTags(tags);
       });
