@@ -1776,22 +1776,42 @@ function AgentSettingsTab({ livConfig, saveLivConfig }) {
   const [memory, setMemory] = useState("")
   const [cronJobs, setCronJobs] = useState([])
   const [loadingMemory, setLoadingMemory] = useState(false)
+  const [agentSection, setAgentSection] = useState(null)
+  const [restarting, setRestarting] = useState(false)
+  const [skillsData, setSkillsData] = useState({ tools: [], skills: [] })
+  const [loadingSkills, setLoadingSkills] = useState(false)
 
   const nanobotEnabled = livConfig?.nanobotEnabled ?? false
+  const useSeparateModel = !!(livConfig?.nanobotModel)
 
   const toggleNanobot = async () => {
     await saveLivConfig({ nanobotEnabled: !nanobotEnabled })
+  }
+
+  const handleRestart = async () => {
+    setRestarting(true)
+    try {
+      await tipcClient.restartNanobot()
+    } catch { /* ignore */ }
+    setRestarting(false)
   }
 
   const loadMemory = async () => {
     setLoadingMemory(true)
     try {
       const content = await tipcClient.getNanobotMemory()
-      setMemory(content || "(empty)")
+      setMemory(content || "(vazio)")
     } catch {
-      setMemory("(could not load)")
+      setMemory("(erro ao carregar)")
     }
     setLoadingMemory(false)
+  }
+
+  const clearMemory = async () => {
+    try {
+      await tipcClient.resetNanobotMemory()
+      setMemory("(vazio)")
+    } catch { /* ignore */ }
   }
 
   const loadCronJobs = async () => {
@@ -1803,9 +1823,21 @@ function AgentSettingsTab({ livConfig, saveLivConfig }) {
     }
   }
 
+  const loadSkills = async () => {
+    setLoadingSkills(true)
+    try {
+      const data = await tipcClient.getNanobotToolsAndSkills()
+      setSkillsData(data || { tools: [], skills: [] })
+    } catch {
+      setSkillsData({ tools: [], skills: [] })
+    }
+    setLoadingSkills(false)
+  }
+
   useEffect(() => {
     if (isNanobotActive) {
       loadCronJobs()
+      loadSkills()
     }
   }, [isNanobotActive])
 
@@ -1827,144 +1859,720 @@ function AgentSettingsTab({ livConfig, saveLivConfig }) {
           ? `Erro: ${nanobotStatus.error || "desconhecido"}`
           : "Desconectado"
 
-  return (
-    <div style={{ padding: "4px 0" }}>
-      {/* Enable/disable toggle */}
-      <fieldset className={styles.Fieldset}>
-        <label className={styles.Label}>Agente Nanobot</label>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span style={{ fontSize: "13px", color: "var(--secondary)" }}>
-            Ativar agente inteligente com ferramentas, cron e memoria
-          </span>
-          <Switch checked={nanobotEnabled} onCheckedChange={toggleNanobot} />
-        </div>
-      </fieldset>
+  const toggleSection = (name) =>
+    setAgentSection((prev) => (prev === name ? null : name))
 
-      {/* Status */}
-      {nanobotEnabled && (
-        <fieldset className={styles.Fieldset}>
-          <label className={styles.Label}>Status</label>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              fontSize: "13px",
-            }}
-          >
-            <div
-              style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                background: statusColor,
-              }}
-            />
-            <span>{statusLabel}</span>
-            {nanobotStatus?.uptime > 0 && (
-              <span style={{ color: "var(--secondary)", fontSize: "11px" }}>
-                (uptime: {Math.floor(nanobotStatus.uptime / 60)}min)
-              </span>
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+
+      {/* ---- Section 1: Agent toggle + status ---- */}
+      <div className={styles.ExpandableSection}>
+        <button
+          className={styles.ExpandableHeader}
+          onClick={() => toggleSection("agent")}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>Agente</span>
+            {nanobotEnabled && (
+              <div
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: statusColor,
+                }}
+              />
             )}
           </div>
-        </fieldset>
-      )}
-
-      {/* Memory viewer */}
-      {isNanobotActive && (
-        <fieldset className={styles.Fieldset}>
-          <label className={styles.Label}>
-            Memoria do Agente
-            <button
-              className={styles.Button}
-              style={{
-                marginLeft: "8px",
-                fontSize: "11px",
-                padding: "2px 8px",
-              }}
-              onClick={loadMemory}
-              disabled={loadingMemory}
-            >
-              {loadingMemory ? "..." : "Carregar"}
-            </button>
-          </label>
-          {memory && (
-            <pre
-              style={{
-                fontSize: "11px",
-                background: "rgba(0,0,0,0.2)",
-                padding: "10px",
-                borderRadius: "8px",
-                maxHeight: "200px",
-                overflow: "auto",
-                whiteSpace: "pre-wrap",
-                color: "var(--secondary)",
-                lineHeight: "1.5",
-              }}
-            >
-              {memory}
-            </pre>
-          )}
-        </fieldset>
-      )}
-
-      {/* Cron jobs */}
-      {isNanobotActive && cronJobs.length > 0 && (
-        <fieldset className={styles.Fieldset}>
-          <label className={styles.Label}>Cron Jobs</label>
-          <div
+          <ChevronRightIcon
             style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "6px",
+              height: "14px",
+              width: "14px",
+              transform: agentSection === "agent" ? "rotate(90deg)" : "rotate(0deg)",
+              transition: "transform 0.2s ease",
             }}
-          >
-            {cronJobs.map((job) => (
-              <div
-                key={job.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: "12px",
-                  padding: "6px 10px",
-                  background: "rgba(0,0,0,0.15)",
-                  borderRadius: "6px",
-                }}
-              >
-                <span style={{ fontWeight: 500 }}>{job.name}</span>
-                <span
+          />
+        </button>
+        {agentSection === "agent" && (
+          <div className={styles.ExpandableContent}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "12px",
+              }}
+            >
+              <span style={{ fontSize: "13px", color: "var(--secondary)" }}>
+                Ativar agente inteligente
+              </span>
+              <Switch checked={nanobotEnabled} onCheckedChange={toggleNanobot} />
+            </div>
+
+            {nanobotEnabled && (
+              <>
+                <div
                   style={{
-                    color: job.enabled ? "#22c55e" : "#6b7280",
-                    fontSize: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "13px",
+                    marginBottom: "8px",
                   }}
                 >
-                  {job.enabled ? "ativo" : "desativado"}
-                </span>
-              </div>
-            ))}
+                  <div
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: statusColor,
+                    }}
+                  />
+                  <span>{statusLabel}</span>
+                  {nanobotStatus?.uptime > 0 && (
+                    <span style={{ color: "var(--secondary)", fontSize: "11px" }}>
+                      (uptime: {Math.floor(nanobotStatus.uptime / 60)}min)
+                    </span>
+                  )}
+                </div>
+                <button
+                  className={styles.Button}
+                  style={{ fontSize: "11px", padding: "4px 12px" }}
+                  onClick={handleRestart}
+                  disabled={restarting}
+                >
+                  {restarting ? "Reiniciando..." : "Reiniciar"}
+                </button>
+              </>
+            )}
           </div>
-        </fieldset>
+        )}
+      </div>
+
+      {/* ---- Section 2: Gateway ---- */}
+      {nanobotEnabled && (
+        <div className={styles.ExpandableSection}>
+          <button
+            className={styles.ExpandableHeader}
+            onClick={() => toggleSection("gateway")}
+          >
+            <span>Gateway</span>
+            <ChevronRightIcon
+              style={{
+                height: "14px",
+                width: "14px",
+                transform: agentSection === "gateway" ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {agentSection === "gateway" && (
+            <div className={styles.ExpandableContent}>
+              <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                <label className={styles.Label}>Porta</label>
+                <input
+                  className={styles.Input}
+                  type="number"
+                  min="0"
+                  max="65535"
+                  placeholder="Auto"
+                  value={livConfig?.nanobotGatewayPort || ""}
+                  onChange={(e) => {
+                    const val = e.target.value ? parseInt(e.target.value) : 0
+                    saveLivConfig({ nanobotGatewayPort: val })
+                  }}
+                />
+                <span style={{ fontSize: "11px", color: "var(--secondary)" }}>
+                  Porta do servidor HTTP interno. Deixe vazio para auto-detectar.
+                </span>
+              </fieldset>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Info */}
+      {/* ---- Section 3: Model & Parameters ---- */}
+      {nanobotEnabled && (
+        <div className={styles.ExpandableSection}>
+          <button
+            className={styles.ExpandableHeader}
+            onClick={() => toggleSection("model")}
+          >
+            <span>Modelo & Parametros</span>
+            <ChevronRightIcon
+              style={{
+                height: "14px",
+                width: "14px",
+                transform: agentSection === "model" ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {agentSection === "model" && (
+            <div className={styles.ExpandableContent}>
+              {/* Separate model toggle */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: "12px",
+                }}
+              >
+                <span style={{ fontSize: "13px", color: "var(--secondary)" }}>
+                  Usar modelo separado do Chat
+                </span>
+                <Switch
+                  checked={useSeparateModel}
+                  onCheckedChange={(checked) => {
+                    if (!checked) {
+                      saveLivConfig({ nanobotModel: "" })
+                    } else {
+                      saveLivConfig({ nanobotModel: "anthropic/claude-sonnet-4-20250514" })
+                    }
+                  }}
+                />
+              </div>
+
+              {useSeparateModel ? (
+                <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                  <label className={styles.Label}>Modelo</label>
+                  <input
+                    className={styles.Input}
+                    type="text"
+                    placeholder="anthropic/claude-sonnet-4-20250514"
+                    value={livConfig?.nanobotModel || ""}
+                    onChange={(e) => saveLivConfig({ nanobotModel: e.target.value })}
+                  />
+                </fieldset>
+              ) : (
+                <div style={{ fontSize: "12px", color: "var(--secondary)", marginBottom: "12px" }}>
+                  Usando modelo configurado na aba Journal.
+                </div>
+              )}
+
+              {/* Temperature slider */}
+              <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                <label className={styles.Label}>Temperatura</label>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={Math.round((livConfig?.nanobotTemperature ?? 0.7) * 100)}
+                    onChange={(e) =>
+                      saveLivConfig({ nanobotTemperature: parseInt(e.target.value) / 100 })
+                    }
+                    style={{ flex: 1, cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: "13px", color: "var(--primary)", minWidth: "36px", textAlign: "right" }}>
+                    {(livConfig?.nanobotTemperature ?? 0.7).toFixed(2)}
+                  </span>
+                </div>
+              </fieldset>
+
+              {/* Max Tokens */}
+              <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                <label className={styles.Label}>Max Tokens</label>
+                <input
+                  className={styles.Input}
+                  type="number"
+                  min="256"
+                  max="200000"
+                  value={livConfig?.nanobotMaxTokens ?? 8192}
+                  onChange={(e) =>
+                    saveLivConfig({ nanobotMaxTokens: parseInt(e.target.value) || 8192 })
+                  }
+                />
+              </fieldset>
+
+              {/* Max Iterations */}
+              <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                <label className={styles.Label}>Max Iteracoes</label>
+                <input
+                  className={styles.Input}
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={livConfig?.nanobotMaxIterations ?? 20}
+                  onChange={(e) =>
+                    saveLivConfig({ nanobotMaxIterations: parseInt(e.target.value) || 20 })
+                  }
+                />
+              </fieldset>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ---- Section 4: Integrations ---- */}
+      {nanobotEnabled && (
+        <div className={styles.ExpandableSection}>
+          <button
+            className={styles.ExpandableHeader}
+            onClick={() => toggleSection("integrations")}
+          >
+            <span>Integracoes</span>
+            <ChevronRightIcon
+              style={{
+                height: "14px",
+                width: "14px",
+                transform: agentSection === "integrations" ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {agentSection === "integrations" && (
+            <div className={styles.ExpandableContent}>
+
+              {/* Telegram */}
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)" }}>Telegram</span>
+                  <Switch
+                    checked={livConfig?.nanobotTelegramEnabled ?? false}
+                    onCheckedChange={(checked) => saveLivConfig({ nanobotTelegramEnabled: checked })}
+                  />
+                </div>
+                {livConfig?.nanobotTelegramEnabled && (
+                  <fieldset className={styles.Fieldset} style={{ marginTop: 0, marginBottom: 0 }}>
+                    <label className={styles.Label}>Token</label>
+                    <input
+                      className={styles.Input}
+                      type="password"
+                      placeholder="123456:ABC-DEF..."
+                      value={livConfig?.nanobotTelegramToken || ""}
+                      onChange={(e) => saveLivConfig({ nanobotTelegramToken: e.target.value })}
+                    />
+                  </fieldset>
+                )}
+              </div>
+
+              {/* WhatsApp */}
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)" }}>WhatsApp</span>
+                  <Switch
+                    checked={livConfig?.nanobotWhatsappEnabled ?? false}
+                    onCheckedChange={(checked) => saveLivConfig({ nanobotWhatsappEnabled: checked })}
+                  />
+                </div>
+                {livConfig?.nanobotWhatsappEnabled && (
+                  <>
+                    <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                      <label className={styles.Label}>Bridge URL</label>
+                      <input
+                        className={styles.Input}
+                        type="text"
+                        placeholder="http://localhost:3000"
+                        value={livConfig?.nanobotWhatsappBridgeUrl || ""}
+                        onChange={(e) => saveLivConfig({ nanobotWhatsappBridgeUrl: e.target.value })}
+                      />
+                    </fieldset>
+                    <fieldset className={styles.Fieldset} style={{ marginTop: 0, marginBottom: 0 }}>
+                      <label className={styles.Label}>Bridge Token</label>
+                      <input
+                        className={styles.Input}
+                        type="password"
+                        placeholder="Token"
+                        value={livConfig?.nanobotWhatsappBridgeToken || ""}
+                        onChange={(e) => saveLivConfig({ nanobotWhatsappBridgeToken: e.target.value })}
+                      />
+                    </fieldset>
+                  </>
+                )}
+              </div>
+
+              {/* Slack */}
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)" }}>Slack</span>
+                  <Switch
+                    checked={livConfig?.nanobotSlackEnabled ?? false}
+                    onCheckedChange={(checked) => saveLivConfig({ nanobotSlackEnabled: checked })}
+                  />
+                </div>
+                {livConfig?.nanobotSlackEnabled && (
+                  <>
+                    <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                      <label className={styles.Label}>Bot Token</label>
+                      <input
+                        className={styles.Input}
+                        type="password"
+                        placeholder="xoxb-..."
+                        value={livConfig?.nanobotSlackBotToken || ""}
+                        onChange={(e) => saveLivConfig({ nanobotSlackBotToken: e.target.value })}
+                      />
+                    </fieldset>
+                    <fieldset className={styles.Fieldset} style={{ marginTop: 0, marginBottom: 0 }}>
+                      <label className={styles.Label}>App Token</label>
+                      <input
+                        className={styles.Input}
+                        type="password"
+                        placeholder="xapp-..."
+                        value={livConfig?.nanobotSlackAppToken || ""}
+                        onChange={(e) => saveLivConfig({ nanobotSlackAppToken: e.target.value })}
+                      />
+                    </fieldset>
+                  </>
+                )}
+              </div>
+
+              {/* Discord */}
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)" }}>Discord</span>
+                  <Switch
+                    checked={livConfig?.nanobotDiscordEnabled ?? false}
+                    onCheckedChange={(checked) => saveLivConfig({ nanobotDiscordEnabled: checked })}
+                  />
+                </div>
+                {livConfig?.nanobotDiscordEnabled && (
+                  <fieldset className={styles.Fieldset} style={{ marginTop: 0, marginBottom: 0 }}>
+                    <label className={styles.Label}>Token</label>
+                    <input
+                      className={styles.Input}
+                      type="password"
+                      placeholder="Bot token"
+                      value={livConfig?.nanobotDiscordToken || ""}
+                      onChange={(e) => saveLivConfig({ nanobotDiscordToken: e.target.value })}
+                    />
+                  </fieldset>
+                )}
+              </div>
+
+              {/* Email */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)" }}>Email</span>
+                  <Switch
+                    checked={livConfig?.nanobotEmailEnabled ?? false}
+                    onCheckedChange={(checked) => saveLivConfig({ nanobotEmailEnabled: checked })}
+                  />
+                </div>
+                {livConfig?.nanobotEmailEnabled && (
+                  <>
+                    <div style={{ fontSize: "11px", color: "var(--secondary)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      IMAP (receber)
+                    </div>
+                    <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                      <label className={styles.Label}>Host</label>
+                      <input
+                        className={styles.Input}
+                        type="text"
+                        placeholder="imap.gmail.com"
+                        value={livConfig?.nanobotEmailImapHost || ""}
+                        onChange={(e) => saveLivConfig({ nanobotEmailImapHost: e.target.value })}
+                      />
+                    </fieldset>
+                    <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                      <label className={styles.Label}>Usuario</label>
+                      <input
+                        className={styles.Input}
+                        type="text"
+                        placeholder="user@gmail.com"
+                        value={livConfig?.nanobotEmailImapUser || ""}
+                        onChange={(e) => saveLivConfig({ nanobotEmailImapUser: e.target.value })}
+                      />
+                    </fieldset>
+                    <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                      <label className={styles.Label}>Senha</label>
+                      <input
+                        className={styles.Input}
+                        type="password"
+                        placeholder="App password"
+                        value={livConfig?.nanobotEmailImapPass || ""}
+                        onChange={(e) => saveLivConfig({ nanobotEmailImapPass: e.target.value })}
+                      />
+                    </fieldset>
+                    <div style={{ fontSize: "11px", color: "var(--secondary)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      SMTP (enviar)
+                    </div>
+                    <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                      <label className={styles.Label}>Host</label>
+                      <input
+                        className={styles.Input}
+                        type="text"
+                        placeholder="smtp.gmail.com"
+                        value={livConfig?.nanobotEmailSmtpHost || ""}
+                        onChange={(e) => saveLivConfig({ nanobotEmailSmtpHost: e.target.value })}
+                      />
+                    </fieldset>
+                    <fieldset className={styles.Fieldset} style={{ marginTop: 0 }}>
+                      <label className={styles.Label}>Usuario</label>
+                      <input
+                        className={styles.Input}
+                        type="text"
+                        placeholder="user@gmail.com"
+                        value={livConfig?.nanobotEmailSmtpUser || ""}
+                        onChange={(e) => saveLivConfig({ nanobotEmailSmtpUser: e.target.value })}
+                      />
+                    </fieldset>
+                    <fieldset className={styles.Fieldset} style={{ marginTop: 0, marginBottom: 0 }}>
+                      <label className={styles.Label}>Senha</label>
+                      <input
+                        className={styles.Input}
+                        type="password"
+                        placeholder="App password"
+                        value={livConfig?.nanobotEmailSmtpPass || ""}
+                        onChange={(e) => saveLivConfig({ nanobotEmailSmtpPass: e.target.value })}
+                      />
+                    </fieldset>
+                  </>
+                )}
+              </div>
+
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ---- Section 5: Skills & Tools ---- */}
+      {nanobotEnabled && (
+        <div className={styles.ExpandableSection}>
+          <button
+            className={styles.ExpandableHeader}
+            onClick={() => toggleSection("skills")}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>Skills & Tools</span>
+              {skillsData.skills.length > 0 && (
+                <span style={{ fontSize: "10px", color: "var(--secondary)" }}>
+                  ({skillsData.skills.length})
+                </span>
+              )}
+            </div>
+            <ChevronRightIcon
+              style={{
+                height: "14px",
+                width: "14px",
+                transform: agentSection === "skills" ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {agentSection === "skills" && (
+            <div className={styles.ExpandableContent}>
+              {/* Refresh button */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                <button
+                  className={styles.Button}
+                  style={{ fontSize: "11px", padding: "4px 10px" }}
+                  onClick={loadSkills}
+                  disabled={loadingSkills || !isNanobotActive}
+                >
+                  {loadingSkills ? "..." : "Atualizar"}
+                </button>
+              </div>
+
+              {/* Skills list */}
+              <div style={{ marginBottom: "14px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)", display: "block", marginBottom: "8px" }}>
+                  Skills instaladas
+                </span>
+                {skillsData.skills.length > 0 ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                    {skillsData.skills.map((skill) => (
+                      <span
+                        key={skill}
+                        style={{
+                          fontSize: "11px",
+                          padding: "3px 10px",
+                          background: "rgba(0,0,0,0.15)",
+                          borderRadius: "12px",
+                          color: "var(--primary)",
+                        }}
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: "11px", color: "var(--secondary)" }}>
+                    {isNanobotActive ? "Nenhuma skill encontrada." : "Agente desconectado."}
+                  </span>
+                )}
+              </div>
+
+              {/* Tools list */}
+              <div style={{ marginBottom: "14px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)", display: "block", marginBottom: "8px" }}>
+                  Tools registradas
+                </span>
+                {skillsData.tools.length > 0 ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                    {skillsData.tools.map((tool) => (
+                      <span
+                        key={tool}
+                        style={{
+                          fontSize: "11px",
+                          padding: "3px 10px",
+                          background: "rgba(0,0,0,0.15)",
+                          borderRadius: "12px",
+                          color: "var(--secondary)",
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {tool}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: "11px", color: "var(--secondary)" }}>
+                    {isNanobotActive ? "Nenhuma tool encontrada." : "Agente desconectado."}
+                  </span>
+                )}
+              </div>
+
+              {/* Skill-creator info */}
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "var(--secondary)",
+                  background: "rgba(0,0,0,0.1)",
+                  padding: "10px",
+                  borderRadius: "8px",
+                  lineHeight: "1.5",
+                }}
+              >
+                O agente possui o <strong style={{ color: "var(--primary)" }}>skill-creator</strong> integrado.
+                Voce pode pedir no chat para ele criar novas skills — por exemplo:{" "}
+                <em>"crie uma skill para resumir emails"</em>. A nova skill sera adicionada
+                automaticamente e aparecera aqui apos reiniciar o agente.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ---- Section 6: Memory & Cron ---- */}
+      {nanobotEnabled && (
+        <div className={styles.ExpandableSection}>
+          <button
+            className={styles.ExpandableHeader}
+            onClick={() => toggleSection("memory")}
+          >
+            <span>Memoria & Cron</span>
+            <ChevronRightIcon
+              style={{
+                height: "14px",
+                width: "14px",
+                transform: agentSection === "memory" ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {agentSection === "memory" && (
+            <div className={styles.ExpandableContent}>
+              {/* Memory */}
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                  <button
+                    className={styles.Button}
+                    style={{ fontSize: "11px", padding: "4px 10px" }}
+                    onClick={loadMemory}
+                    disabled={loadingMemory || !isNanobotActive}
+                  >
+                    {loadingMemory ? "..." : "Carregar Memoria"}
+                  </button>
+                  <button
+                    className={styles.Button}
+                    style={{
+                      fontSize: "11px",
+                      padding: "4px 10px",
+                      background: "var(--secondary-bg)",
+                      color: "var(--primary)",
+                    }}
+                    onClick={clearMemory}
+                    disabled={!isNanobotActive}
+                  >
+                    Limpar Memoria
+                  </button>
+                </div>
+                {memory && (
+                  <pre
+                    style={{
+                      fontSize: "11px",
+                      background: "rgba(0,0,0,0.2)",
+                      padding: "10px",
+                      borderRadius: "8px",
+                      maxHeight: "200px",
+                      overflow: "auto",
+                      whiteSpace: "pre-wrap",
+                      color: "var(--secondary)",
+                      lineHeight: "1.5",
+                    }}
+                  >
+                    {memory}
+                  </pre>
+                )}
+              </div>
+
+              {/* Cron jobs */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)" }}>
+                    Cron Jobs
+                  </span>
+                  <button
+                    className={styles.Button}
+                    style={{ fontSize: "11px", padding: "4px 10px" }}
+                    onClick={loadCronJobs}
+                    disabled={!isNanobotActive}
+                  >
+                    Carregar Jobs
+                  </button>
+                </div>
+                {cronJobs.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {cronJobs.map((job) => (
+                      <div
+                        key={job.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: "12px",
+                          padding: "6px 10px",
+                          background: "rgba(0,0,0,0.15)",
+                          borderRadius: "6px",
+                        }}
+                      >
+                        <span style={{ fontWeight: 500 }}>{job.name}</span>
+                        <span
+                          style={{
+                            color: job.enabled ? "#22c55e" : "#6b7280",
+                            fontSize: "10px",
+                          }}
+                        >
+                          {job.enabled ? "ativo" : "desativado"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {cronJobs.length === 0 && isNanobotActive && (
+                  <span style={{ fontSize: "11px", color: "var(--secondary)" }}>
+                    Nenhum job encontrado.
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Info footer */}
       <div
         style={{
           fontSize: "11px",
           color: "var(--secondary)",
-          padding: "12px 0",
+          padding: "8px 0",
           textAlign: "center",
           opacity: 0.7,
         }}
       >
-        O agente usa o mesmo provedor de IA configurado na aba Journal.
-        Requer Python 3.10+ instalado.
+        Requer Python 3.10+ instalado. Reinicie o agente apos alterar configuracoes.
       </div>
     </div>
   )

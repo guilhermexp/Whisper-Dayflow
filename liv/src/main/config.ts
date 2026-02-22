@@ -114,6 +114,13 @@ const withDefaults = (config?: Config): Config => {
     screenSessionCaptureIntervalSeconds:
       config?.screenSessionCaptureIntervalSeconds ?? 5,
 
+    // Nanobot Agent defaults
+    nanobotEnabled: config?.nanobotEnabled ?? false,
+    nanobotTemperature: config?.nanobotTemperature ?? 0.7,
+    nanobotMaxTokens: config?.nanobotMaxTokens ?? 8192,
+    nanobotMaxIterations: config?.nanobotMaxIterations ?? 20,
+    nanobotGatewayPort: config?.nanobotGatewayPort ?? 0,
+
     ...config,
   }
 }

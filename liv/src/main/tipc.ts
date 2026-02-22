@@ -2161,6 +2161,40 @@ export const router = {
     if (!client) return []
     return client.listCronJobs()
   }),
+
+  getNanobotToolsAndSkills: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) return { tools: [] as string[], skills: [] as string[] }
+    try {
+      const status = await client.getStatus() as {
+        tool_names?: string[]
+        workspace?: string
+      }
+      const tools: string[] = (status.tool_names || []) as string[]
+
+      // List skill directories in workspace
+      const fs = await import("fs")
+      const path = await import("path")
+      const skills: string[] = []
+      const workspace = status.workspace || ""
+      if (workspace) {
+        const skillsDir = path.join(workspace, "skills")
+        if (fs.existsSync(skillsDir)) {
+          const entries = fs.readdirSync(skillsDir, { withFileTypes: true })
+          for (const entry of entries) {
+            if (entry.isDirectory()) {
+              skills.push(entry.name)
+            }
+          }
+        }
+      }
+
+      return { tools, skills }
+    } catch {
+      return { tools: [] as string[], skills: [] as string[] }
+    }
+  }),
 }
 
 export type Router = typeof router

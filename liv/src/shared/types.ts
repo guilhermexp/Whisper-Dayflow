@@ -524,6 +524,29 @@ export type Config = {
   // Nanobot Agent
   nanobotEnabled?: boolean
   nanobotModel?: string
+  nanobotTemperature?: number
+  nanobotMaxTokens?: number
+  nanobotMaxIterations?: number
+  nanobotGatewayPort?: number
+
+  // Nanobot Channel Integrations
+  nanobotTelegramEnabled?: boolean
+  nanobotTelegramToken?: string
+  nanobotWhatsappEnabled?: boolean
+  nanobotWhatsappBridgeUrl?: string
+  nanobotWhatsappBridgeToken?: string
+  nanobotSlackEnabled?: boolean
+  nanobotSlackBotToken?: string
+  nanobotSlackAppToken?: string
+  nanobotDiscordEnabled?: boolean
+  nanobotDiscordToken?: string
+  nanobotEmailEnabled?: boolean
+  nanobotEmailImapHost?: string
+  nanobotEmailImapUser?: string
+  nanobotEmailImapPass?: string
+  nanobotEmailSmtpHost?: string
+  nanobotEmailSmtpUser?: string
+  nanobotEmailSmtpPass?: string
 }
 
 // Periodic screenshot captured independently of recordings

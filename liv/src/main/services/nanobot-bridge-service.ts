@@ -28,6 +28,7 @@ const HEALTH_CHECK_INTERVAL_MS = 2_000
 const HEALTH_CHECK_TIMEOUT_MS = 30_000
 const MAX_BACKOFF_MS = 30_000
 const INITIAL_BACKOFF_MS = 1_000
+const MAX_RESTART_ATTEMPTS = 5
 
 // ---------------------------------------------------------------------------
 // Port allocation
@@ -73,6 +74,7 @@ class NanobotBridgeService {
   }
   private startedAt = 0
   private intentionallyStopped = false
+  private restartCount = 0
   private memoryCheckTimer: ReturnType<typeof setInterval> | null = null
   private listeners: Map<NanobotBridgeEvent, Set<EventListener>> = new Map()
 
@@ -121,8 +123,10 @@ class NanobotBridgeService {
     this.intentionallyStopped = false
     this.callbackPort = callbackPort
 
-    // Allocate port
-    this.gatewayPort = await findFreePort()
+    // Allocate port (use fixed port from config if set)
+    const cfg = configStore.get()
+    const fixedPort = cfg.nanobotGatewayPort ?? 0
+    this.gatewayPort = fixedPort > 0 ? fixedPort : await findFreePort()
     logger.info(`${LOG_PREFIX} Gateway port: ${this.gatewayPort}`)
 
     // Build env
@@ -144,6 +148,9 @@ class NanobotBridgeService {
       throw new Error(err)
     }
 
+    // Ensure Python dependencies are installed
+    await this.ensureDependencies(pythonPath, path.dirname(gatewayScript))
+
     logger.info(`${LOG_PREFIX} Spawning: ${pythonPath} ${gatewayScript}`)
     this.setStatus("starting")
 
@@ -153,10 +160,17 @@ class NanobotBridgeService {
       stdio: ["ignore", "pipe", "pipe"],
     })
 
-    // Pipe stdout/stderr to log file
+    // Pipe stdout/stderr to log file AND to terminal for debug
     const logStream = this.getLogStream()
     this.proc.stdout?.pipe(logStream)
     this.proc.stderr?.pipe(logStream)
+    // Also echo to main process stdout/stderr for dev visibility
+    this.proc.stdout?.on("data", (chunk: Buffer) => {
+      process.stdout.write(`${LOG_PREFIX} ${chunk.toString()}`)
+    })
+    this.proc.stderr?.on("data", (chunk: Buffer) => {
+      process.stderr.write(`${LOG_PREFIX} ${chunk.toString()}`)
+    })
 
     this.proc.on("error", (err) => {
       logger.error(`${LOG_PREFIX} Process error:`, err)
@@ -181,6 +195,7 @@ class NanobotBridgeService {
     await this.waitForHealth()
     this.startedAt = Date.now()
     this.backoffMs = INITIAL_BACKOFF_MS
+    this.restartCount = 0
     this.setStatus("connected")
     this.emit("ready", { port: this.gatewayPort })
 
@@ -255,6 +270,8 @@ class NanobotBridgeService {
     logger.info(`${LOG_PREFIX} Restarting...`)
     await this.stop()
     this.intentionallyStopped = false
+    this.restartCount = 0
+    this.backoffMs = INITIAL_BACKOFF_MS
     await this.start(this.callbackPort)
   }
 
@@ -276,6 +293,9 @@ class NanobotBridgeService {
     const openrouterModel = (await settings.get("openrouterModel")) as string | undefined
     const baseUrl = (await settings.get("baseUrl")) as string | undefined
 
+    // Read nanobot-specific config from configStore
+    const cfg = configStore.get()
+
     // Get API key from encrypted store based on provider
     const provider = pileProvider || "openai"
     let apiKey = ""
@@ -290,22 +310,22 @@ class NanobotBridgeService {
       apiKey = (await getKey()) || ""
     }
 
-    // Determine model string in LiteLLM format (provider/model)
+    // Determine model: use nanobot override if set, otherwise Chat model
     let model = ""
-    if (provider === "openrouter" && openrouterModel) {
+    if (cfg.nanobotModel) {
+      model = cfg.nanobotModel
+    } else if (provider === "openrouter" && openrouterModel) {
       model = `openrouter/${openrouterModel}`
     } else if (pileModel) {
-      // Add provider prefix if not already there
       model = pileModel.includes("/") ? pileModel : `${provider}/${pileModel}`
     } else {
       model = "anthropic/claude-sonnet-4-20250514"
     }
 
     const workspace = path.join(dataFolder, "nanobot-workspace")
-
     const nanobotRef = this.resolveNanobotRefPath()
 
-    return {
+    const env: Record<string, string> = {
       LIV_API_KEY: apiKey,
       LIV_MODEL: model,
       LIV_PROVIDER: provider,
@@ -314,34 +334,183 @@ class NanobotBridgeService {
       LIV_GATEWAY_PORT: String(this.gatewayPort),
       LIV_NANOBOT_REF: nanobotRef,
       LIV_LOG_LEVEL: "INFO",
-      ...(baseUrl ? { LIV_API_BASE: baseUrl } : {}),
+      LIV_TEMPERATURE: String(cfg.nanobotTemperature ?? 0.7),
+      LIV_MAX_TOKENS: String(cfg.nanobotMaxTokens ?? 8192),
+      LIV_MAX_ITERATIONS: String(cfg.nanobotMaxIterations ?? 20),
     }
+
+    if (baseUrl) env.LIV_API_BASE = baseUrl
+
+    // Channel integrations
+    if (cfg.nanobotTelegramEnabled) {
+      env.LIV_TELEGRAM_ENABLED = "true"
+      if (cfg.nanobotTelegramToken) env.LIV_TELEGRAM_TOKEN = cfg.nanobotTelegramToken
+    }
+    if (cfg.nanobotWhatsappEnabled) {
+      env.LIV_WHATSAPP_ENABLED = "true"
+      if (cfg.nanobotWhatsappBridgeUrl) env.LIV_WHATSAPP_BRIDGE_URL = cfg.nanobotWhatsappBridgeUrl
+      if (cfg.nanobotWhatsappBridgeToken) env.LIV_WHATSAPP_BRIDGE_TOKEN = cfg.nanobotWhatsappBridgeToken
+    }
+    if (cfg.nanobotSlackEnabled) {
+      env.LIV_SLACK_ENABLED = "true"
+      if (cfg.nanobotSlackBotToken) env.LIV_SLACK_BOT_TOKEN = cfg.nanobotSlackBotToken
+      if (cfg.nanobotSlackAppToken) env.LIV_SLACK_APP_TOKEN = cfg.nanobotSlackAppToken
+    }
+    if (cfg.nanobotDiscordEnabled) {
+      env.LIV_DISCORD_ENABLED = "true"
+      if (cfg.nanobotDiscordToken) env.LIV_DISCORD_TOKEN = cfg.nanobotDiscordToken
+    }
+    if (cfg.nanobotEmailEnabled) {
+      env.LIV_EMAIL_ENABLED = "true"
+      if (cfg.nanobotEmailImapHost) env.LIV_EMAIL_IMAP_HOST = cfg.nanobotEmailImapHost
+      if (cfg.nanobotEmailImapUser) env.LIV_EMAIL_IMAP_USER = cfg.nanobotEmailImapUser
+      if (cfg.nanobotEmailImapPass) env.LIV_EMAIL_IMAP_PASS = cfg.nanobotEmailImapPass
+      if (cfg.nanobotEmailSmtpHost) env.LIV_EMAIL_SMTP_HOST = cfg.nanobotEmailSmtpHost
+      if (cfg.nanobotEmailSmtpUser) env.LIV_EMAIL_SMTP_USER = cfg.nanobotEmailSmtpUser
+      if (cfg.nanobotEmailSmtpPass) env.LIV_EMAIL_SMTP_PASS = cfg.nanobotEmailSmtpPass
+    }
+
+    return env
   }
 
   private findPython(): string | null {
+    const { execSync } = require("child_process")
+
+    // 1. Prefer the venv Python inside the gateway directory (always correct version + deps)
+    const gatewayDir = path.dirname(this.resolveGatewayScript())
+    const venvPython = path.join(gatewayDir, ".venv", "bin", "python3")
+    if (fs.existsSync(venvPython)) {
+      try {
+        const version = execSync(`"${venvPython}" --version 2>&1`, {
+          encoding: "utf8",
+          timeout: 5_000,
+        }).trim()
+        if (version.includes("Python 3")) {
+          logger.info(`${LOG_PREFIX} Using venv Python: ${venvPython} (${version})`)
+          return venvPython
+        }
+      } catch { /* fallthrough */ }
+    }
+
+    // 2. Try system Pythons, preferring 3.11+ (required by nanobot-ref)
     const candidates = [
+      "/opt/homebrew/bin/python3.13",
+      "/opt/homebrew/bin/python3.12",
+      "/opt/homebrew/bin/python3.11",
+      "/usr/local/bin/python3.13",
+      "/usr/local/bin/python3.12",
+      "/usr/local/bin/python3.11",
+      "/opt/homebrew/bin/python3",
       "python3",
       "python",
       "/usr/local/bin/python3",
-      "/opt/homebrew/bin/python3",
       "/usr/bin/python3",
     ]
 
     for (const candidate of candidates) {
       try {
-        const { execSync } = require("child_process")
         const version = execSync(`${candidate} --version 2>&1`, {
           encoding: "utf8",
           timeout: 5_000,
         }).trim()
         if (version.includes("Python 3")) {
+          // Extract minor version and prefer 3.11+
+          const match = version.match(/Python 3\.(\d+)/)
+          const minor = match ? parseInt(match[1], 10) : 0
+          if (minor >= 11) {
+            logger.info(`${LOG_PREFIX} Using Python: ${candidate} (${version})`)
+            return candidate
+          }
+        }
+      } catch {
+        continue
+      }
+    }
+
+    // 3. Fallback: any Python 3 (may fail at import time)
+    for (const candidate of candidates) {
+      try {
+        const version = execSync(`${candidate} --version 2>&1`, {
+          encoding: "utf8",
+          timeout: 5_000,
+        }).trim()
+        if (version.includes("Python 3")) {
+          logger.warn(`${LOG_PREFIX} Only found ${candidate} (${version}) — nanobot-ref requires 3.11+`)
           return candidate
         }
       } catch {
         continue
       }
     }
+
     return null
+  }
+
+  /**
+   * Check if required Python deps are installed; if not, install them.
+   * This prevents the gateway from crashing in a restart loop due to
+   * missing modules like fastapi, uvicorn, etc.
+   */
+  private async ensureDependencies(pythonPath: string, gatewayDir: string): Promise<void> {
+    const { execSync } = require("child_process")
+
+    // Quick check: can Python import the two key modules?
+    try {
+      execSync(`"${pythonPath}" -c "import fastapi; import loguru" 2>&1`, {
+        encoding: "utf8",
+        timeout: 10_000,
+      })
+      return // deps already installed
+    } catch {
+      // deps missing — try to install
+    }
+
+    logger.info(`${LOG_PREFIX} Python dependencies missing, attempting install...`)
+    this.setStatus("starting")
+
+    // Detect if we're running inside a venv (no --user flag needed)
+    const isVenv = pythonPath.includes(".venv")
+    const pipUserFlag = isVenv ? "" : "--user"
+
+    // 1. Install gateway requirements.txt
+    const reqFile = path.join(gatewayDir, "requirements.txt")
+    if (fs.existsSync(reqFile)) {
+      try {
+        const cmd = `"${pythonPath}" -m pip install ${pipUserFlag} -r "${reqFile}" 2>&1`
+        execSync(cmd, { encoding: "utf8", timeout: 120_000, cwd: gatewayDir })
+        logger.info(`${LOG_PREFIX} Gateway dependencies installed`)
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        logger.error(`${LOG_PREFIX} Failed to install gateway deps: ${msg}`)
+      }
+    }
+
+    // 2. Install nanobot-ref package (has its own deps like loguru, croniter, etc.)
+    const nanobotRefPath = this.resolveNanobotRefPath()
+    if (fs.existsSync(path.join(nanobotRefPath, "pyproject.toml"))) {
+      try {
+        const cmd = `"${pythonPath}" -m pip install ${pipUserFlag} -e "${nanobotRefPath}" 2>&1`
+        execSync(cmd, { encoding: "utf8", timeout: 180_000, cwd: gatewayDir })
+        logger.info(`${LOG_PREFIX} nanobot-ref package installed`)
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        logger.error(`${LOG_PREFIX} Failed to install nanobot-ref: ${msg}`)
+      }
+    }
+
+    // Final verification
+    try {
+      execSync(`"${pythonPath}" -c "import fastapi; import loguru" 2>&1`, {
+        encoding: "utf8",
+        timeout: 10_000,
+      })
+      logger.info(`${LOG_PREFIX} All Python dependencies verified`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const errStr = `Python dependencies still missing after install. Check logs. Error: ${msg}`
+      this.setStatus("error", errStr)
+      throw new Error(errStr)
+    }
   }
 
   private resolveGatewayScript(): string {
@@ -362,7 +531,6 @@ class NanobotBridgeService {
     }
     return path.join(
       __dirname,
-      "..",
       "..",
       "..",
       "resources",
@@ -386,7 +554,7 @@ class NanobotBridgeService {
       const hit = packagedCandidates.find((candidate) => fs.existsSync(candidate))
       return hit || packagedCandidates[0]
     }
-    return path.join(__dirname, "..", "..", "..", "nanobot-ref")
+    return path.join(__dirname, "..", "..", "nanobot-ref")
   }
 
   private getLogStream() {
@@ -428,8 +596,19 @@ class NanobotBridgeService {
   private scheduleRestart() {
     if (this.intentionallyStopped) return
 
-    logger.info(`${LOG_PREFIX} Scheduling restart in ${this.backoffMs}ms`)
-    this.emit("restarting", { backoffMs: this.backoffMs })
+    this.restartCount++
+    if (this.restartCount > MAX_RESTART_ATTEMPTS) {
+      logger.error(
+        `${LOG_PREFIX} Max restart attempts (${MAX_RESTART_ATTEMPTS}) reached, giving up. ` +
+        `Fix the issue and restart manually.`,
+      )
+      this.setStatus("error", `Falhou apos ${MAX_RESTART_ATTEMPTS} tentativas. Verifique os logs e reinicie manualmente.`)
+      this.emit("error", { message: "Max restart attempts exceeded" })
+      return
+    }
+
+    logger.info(`${LOG_PREFIX} Scheduling restart ${this.restartCount}/${MAX_RESTART_ATTEMPTS} in ${this.backoffMs}ms`)
+    this.emit("restarting", { backoffMs: this.backoffMs, attempt: this.restartCount })
 
     this.restartTimer = setTimeout(async () => {
       try {
