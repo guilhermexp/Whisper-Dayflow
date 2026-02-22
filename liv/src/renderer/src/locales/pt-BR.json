@@ -280,7 +280,7 @@
     }
   },
   "search": {
-    "title": "busca",
+    "title": "Busca",
     "placeholder": "O que você está procurando?",
     "loadingIndex": "Carregando índice...",
     "threads": "threads",
