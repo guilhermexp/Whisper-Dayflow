@@ -489,19 +489,19 @@
 }
 
 .sectionAccordion {
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
 }
 
 .sectionAccordionHeader {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  font-size: 13px;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--primary);
   background: transparent;
@@ -509,6 +509,18 @@
   cursor: pointer;
   transition: background 0.12s ease;
   &:hover { background: rgba(255, 255, 255, 0.03); }
+}
+
+.sectionTitleWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionIcon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.85;
 }
 
 .sectionCount {
@@ -530,15 +542,15 @@
 }
 
 .sectionAccordionContent {
-  padding: 0 14px 14px;
+  padding: 0 12px 12px;
 }
 
 .missionInput {
   width: 100%;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 9px 10px;
   color: var(--primary);
   font-size: 13px;
   line-height: 1.5;
@@ -557,13 +569,13 @@
 }
 
 .dimensionCard {
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 9px 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.15));
+  background: rgba(255, 255, 255, 0.01);
 }
 
 .dimCardTop {
@@ -572,22 +584,28 @@
   gap: 8px;
 }
 
-.emojiInput {
-  width: 32px;
-  text-align: center;
-  font-size: 18px;
-  background: transparent;
-  border: 1px solid var(--border);
+.dimIconBadge {
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
-  padding: 4px;
-  color: var(--primary);
-  outline: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.8;
+  }
 }
 
 .dimNameInput {
   flex: 1;
-  background: transparent;
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 5px 8px;
   color: var(--primary);
@@ -642,8 +660,8 @@
 .dimDescInput,
 .dimKeywordsInput {
   width: 100%;
-  background: transparent;
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 5px 8px;
   color: var(--secondary);
@@ -704,13 +722,13 @@
 }
 
 .goalCard {
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 9px 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.15));
+  background: rgba(255, 255, 255, 0.01);
 }
 
 .goalHeader {
@@ -721,8 +739,8 @@
 
 .goalTitleInput {
   flex: 1;
-  background: transparent;
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 5px 8px;
   color: var(--primary);
@@ -745,8 +763,8 @@
 
 .goalDescInput {
   width: 100%;
-  background: transparent;
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 6px 8px;
   color: var(--secondary);
@@ -993,6 +1011,15 @@
   color: var(--primary);
   font-weight: 500;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dimRowIcon {
+  width: 12px;
+  height: 12px;
+  opacity: 0.75;
 }
 
 .barTrack {
