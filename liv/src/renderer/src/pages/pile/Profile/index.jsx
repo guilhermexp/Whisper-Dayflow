@@ -141,11 +141,19 @@ function WidgetToggleBar({ availableWidgets, enabledWidgets, onToggle }) {
 }
 
 function InsightSection({ title, cards }) {
-  if (!cards.length) return null
   return (
-    <section className={styles.section}>
-      <header className={styles.sectionHeader}><h2>{title}</h2><span>{cards.length}</span></header>
-      <div className={styles.cardGrid}>{cards.map((card) => (<ProfileCard key={card.id} card={card} />))}</div>
+    <section className={styles.insightColumn}>
+      <header className={styles.insightColumnHeader}>
+        <h2>{title}</h2>
+        <span>{cards.length}</span>
+      </header>
+      <div className={styles.insightColumnCards}>
+        {cards.length > 0 ? (
+          cards.map((card) => <ProfileCard key={card.id} card={card} />)
+        ) : (
+          <div className={styles.insightColumnEmpty}>Sem cards neste recorte.</div>
+        )}
+      </div>
     </section>
   )
 }
@@ -284,10 +292,17 @@ function OverviewTab({ boardQuery, configQuery, saveConfigMutation, lifeAnalysis
           {boardQuery.isLoading ? (
             <div className={styles.loadingState}>Gerando perfil autonomo...</div>
           ) : (
-            <>
-              <div className={styles.contentScroll}>
+            <div className={styles.overviewBoardPanel}>
+              <header className={styles.overviewBoardHeader}>
+                <div>
+                  <h2 className={styles.overviewBoardTitle}>Analise de Perfil</h2>
+                  <p className={styles.overviewBoardSubtitle}>
+                    Painel autonomo estruturado em colunas, no mesmo fluxo de leitura do Kanban.
+                  </p>
+                </div>
+              </header>
+              <div className={styles.overviewColumns}>
                 {sections.map((s) => (<InsightSection key={s.key} title={s.title} cards={s.cards} />))}
-                {!filteredCards.length && <div className={styles.emptyState}>Nenhum insight no recorte selecionado.</div>}
               </div>
               <footer className={styles.statsBar}>
                 <span>Runs: {timeAwareBoard?.stats?.runsAnalyzed ?? 0}</span>
@@ -295,7 +310,7 @@ function OverviewTab({ boardQuery, configQuery, saveConfigMutation, lifeAnalysis
                 <span>Foco: {((timeAwareBoard?.stats?.workRatio || 0) * 100).toFixed(0)}%</span>
                 <span>Distracao: {((timeAwareBoard?.stats?.distractionRatio || 0) * 100).toFixed(0)}%</span>
               </footer>
-            </>
+            </div>
           )}
         </section>
       </div>
