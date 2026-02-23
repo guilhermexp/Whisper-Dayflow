@@ -6,8 +6,12 @@ import {
   NotebookIcon,
   AudiowaveIcon,
   AIIcon,
+  GlobeIcon,
+  PlusIcon,
+  SearchIcon,
+  SettingsIcon,
 } from "renderer/icons"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import * as Tabs from "@radix-ui/react-tabs"
@@ -333,6 +337,10 @@ function Settings() {
                   <Tabs.Trigger value="agent" className={styles.TabTrigger}>
                     <AIIcon style={{ height: "16px", width: "16px" }} />
                     Agent
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="integrations" className={styles.TabTrigger}>
+                    <GlobeIcon style={{ height: "16px", width: "16px" }} />
+                    Integracoes
                   </Tabs.Trigger>
                 </Tabs.List>
 
@@ -1534,6 +1542,10 @@ function Settings() {
                     }
                   />
                 </Tabs.Content>
+
+                <Tabs.Content value="integrations">
+                  <IntegrationsTab />
+                </Tabs.Content>
               </Tabs.Root>
             </div>
           </div>
@@ -1775,11 +1787,16 @@ function AgentSettingsTab({ livConfig, saveLivConfig }) {
   const { nanobotStatus, isNanobotActive } = useAIContext()
   const [memory, setMemory] = useState("")
   const [cronJobs, setCronJobs] = useState([])
+  const [subagents, setSubagents] = useState({ agents: [], count: 0 })
   const [loadingMemory, setLoadingMemory] = useState(false)
   const [agentSection, setAgentSection] = useState(null)
   const [restarting, setRestarting] = useState(false)
   const [skillsData, setSkillsData] = useState({ tools: [], skills: [] })
   const [loadingSkills, setLoadingSkills] = useState(false)
+  const [bootstrapFiles, setBootstrapFiles] = useState({})
+  const [editingFile, setEditingFile] = useState(null)
+  const [editContent, setEditContent] = useState("")
+  const [savingBootstrap, setSavingBootstrap] = useState(false)
 
   const nanobotEnabled = livConfig?.nanobotEnabled ?? false
   const useSeparateModel = !!(livConfig?.nanobotModel)
@@ -1834,11 +1851,66 @@ function AgentSettingsTab({ livConfig, saveLivConfig }) {
     setLoadingSkills(false)
   }
 
+  const loadSubagents = async () => {
+    try {
+      const data = await tipcClient.getNanobotSubagents()
+      setSubagents(data || { agents: [], count: 0 })
+    } catch {
+      setSubagents({ agents: [], count: 0 })
+    }
+  }
+
+  const toggleCronJob = async (jobId) => {
+    try {
+      await tipcClient.toggleNanobotCronJob({ jobId })
+      await loadCronJobs()
+    } catch { /* ignore */ }
+  }
+
+  const loadBootstrapFiles = async () => {
+    try {
+      const files = await tipcClient.getNanobotBootstrapFiles()
+      setBootstrapFiles(files || {})
+    } catch {
+      setBootstrapFiles({})
+    }
+  }
+
+  const startEditing = (filename) => {
+    setEditingFile(filename)
+    setEditContent(bootstrapFiles[filename] || "")
+  }
+
+  const cancelEditing = () => {
+    setEditingFile(null)
+    setEditContent("")
+  }
+
+  const saveBootstrapFile = async () => {
+    if (!editingFile) return
+    setSavingBootstrap(true)
+    try {
+      await tipcClient.updateNanobotBootstrapFile({ filename: editingFile, content: editContent })
+      setBootstrapFiles((prev) => ({ ...prev, [editingFile]: editContent }))
+      setEditingFile(null)
+      setEditContent("")
+    } catch { /* ignore */ }
+    setSavingBootstrap(false)
+  }
+
   useEffect(() => {
     if (isNanobotActive) {
       loadCronJobs()
       loadSkills()
+      loadSubagents()
     }
+  }, [isNanobotActive])
+
+  // Poll subagents every 10s when agent is active
+  useEffect(() => {
+    if (!isNanobotActive) return
+    const interval = setInterval(loadSubagents, 10000)
+    return () => clearInterval(interval)
   }, [isNanobotActive])
 
   const statusColor =
@@ -2445,14 +2517,259 @@ function AgentSettingsTab({ livConfig, saveLivConfig }) {
         </div>
       )}
 
-      {/* ---- Section 6: Memory & Cron ---- */}
+      {/* ---- Section 6: Subagentes ---- */}
+      {nanobotEnabled && (
+        <div className={styles.ExpandableSection}>
+          <button
+            className={styles.ExpandableHeader}
+            onClick={() => toggleSection("subagents")}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>Subagentes</span>
+              {subagents.count > 0 && (
+                <span style={{
+                  fontSize: "10px",
+                  padding: "1px 6px",
+                  borderRadius: "8px",
+                  background: "rgba(99, 102, 241, 0.2)",
+                  color: "#a5b4fc",
+                  fontWeight: 600,
+                }}>
+                  {subagents.count} ativo{subagents.count > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            <ChevronRightIcon
+              style={{
+                height: "14px",
+                width: "14px",
+                transform: agentSection === "subagents" ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {agentSection === "subagents" && (
+            <div className={styles.ExpandableContent}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                <button
+                  className={styles.Button}
+                  style={{ fontSize: "11px", padding: "4px 10px" }}
+                  onClick={loadSubagents}
+                  disabled={!isNanobotActive}
+                >
+                  Atualizar
+                </button>
+                <span style={{ fontSize: "11px", color: "var(--secondary)" }}>
+                  {subagents.count} rodando
+                </span>
+              </div>
+
+              {subagents.agents.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {subagents.agents.map((agent) => (
+                    <div
+                      key={agent.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: "12px",
+                        padding: "8px 10px",
+                        background: "rgba(0,0,0,0.15)",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          background: agent.done ? "#6b7280" : agent.cancelled ? "#ef4444" : "#22c55e",
+                        }} />
+                        <span style={{ fontFamily: "monospace", fontSize: "11px" }}>{agent.id}</span>
+                      </div>
+                      <span style={{
+                        fontSize: "10px",
+                        color: agent.done ? "#6b7280" : agent.cancelled ? "#ef4444" : "#22c55e",
+                      }}>
+                        {agent.done ? "concluido" : agent.cancelled ? "cancelado" : "rodando"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span style={{ fontSize: "11px", color: "var(--secondary)" }}>
+                  {isNanobotActive
+                    ? "Nenhum subagente ativo. Peca ao agente no chat para criar um."
+                    : "Agente desconectado."}
+                </span>
+              )}
+
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "var(--secondary)",
+                  background: "rgba(0,0,0,0.1)",
+                  padding: "10px",
+                  borderRadius: "8px",
+                  lineHeight: "1.5",
+                  marginTop: "12px",
+                }}
+              >
+                O agente pode criar subagentes via <strong style={{ color: "var(--primary)" }}>spawn</strong>.
+                Peca no chat: <em>"crie um agente para monitorar X a cada hora"</em>.
+                Subagentes rodam em background e reportam o resultado automaticamente.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ---- Section 7: Cron Jobs ---- */}
+      {nanobotEnabled && (
+        <div className={styles.ExpandableSection}>
+          <button
+            className={styles.ExpandableHeader}
+            onClick={() => toggleSection("cron")}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>Cron Jobs</span>
+              {cronJobs.length > 0 && (
+                <span style={{ fontSize: "10px", color: "var(--secondary)" }}>
+                  ({cronJobs.filter((j) => j.enabled).length}/{cronJobs.length})
+                </span>
+              )}
+            </div>
+            <ChevronRightIcon
+              style={{
+                height: "14px",
+                width: "14px",
+                transform: agentSection === "cron" ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {agentSection === "cron" && (
+            <div className={styles.ExpandableContent}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                <button
+                  className={styles.Button}
+                  style={{ fontSize: "11px", padding: "4px 10px" }}
+                  onClick={loadCronJobs}
+                  disabled={!isNanobotActive}
+                >
+                  Atualizar
+                </button>
+              </div>
+
+              {cronJobs.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {cronJobs.map((job) => {
+                    const scheduleLabel = job.schedule?.type === "every"
+                      ? `cada ${job.schedule.interval >= 3600
+                          ? `${Math.round(job.schedule.interval / 3600)}h`
+                          : `${Math.round(job.schedule.interval / 60)}min`}`
+                      : job.schedule?.type === "cron"
+                        ? job.schedule.expression
+                        : job.schedule?.type === "at"
+                          ? "unica vez"
+                          : "—"
+
+                    const lastRunLabel = job.last_run
+                      ? new Date(job.last_run).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                      : "nunca"
+
+                    const nextRunLabel = job.next_run
+                      ? new Date(job.next_run).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                      : "—"
+
+                    return (
+                      <div
+                        key={job.id}
+                        style={{
+                          padding: "8px 10px",
+                          background: "rgba(0,0,0,0.15)",
+                          borderRadius: "8px",
+                          opacity: job.enabled ? 1 : 0.5,
+                        }}
+                      >
+                        <div style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "4px",
+                        }}>
+                          <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--primary)" }}>
+                            {job.name}
+                          </span>
+                          <Switch
+                            checked={job.enabled}
+                            onCheckedChange={() => toggleCronJob(job.id)}
+                          />
+                        </div>
+                        <div style={{
+                          display: "flex",
+                          gap: "12px",
+                          fontSize: "10px",
+                          color: "var(--secondary)",
+                        }}>
+                          <span title="Agendamento">{scheduleLabel}</span>
+                          <span title="Ultima execucao">ultimo: {lastRunLabel}</span>
+                          <span title="Proxima execucao">prox: {nextRunLabel}</span>
+                          {job.status && (
+                            <span style={{
+                              color: job.status === "ok" ? "#22c55e" : job.status === "error" ? "#ef4444" : "#6b7280",
+                            }}>
+                              {job.status}
+                            </span>
+                          )}
+                        </div>
+                        {job.last_error && (
+                          <div style={{ fontSize: "10px", color: "#ef4444", marginTop: "4px" }}>
+                            {job.last_error}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <span style={{ fontSize: "11px", color: "var(--secondary)" }}>
+                  {isNanobotActive
+                    ? "Nenhum job encontrado."
+                    : "Agente desconectado."}
+                </span>
+              )}
+
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "var(--secondary)",
+                  background: "rgba(0,0,0,0.1)",
+                  padding: "10px",
+                  borderRadius: "8px",
+                  lineHeight: "1.5",
+                  marginTop: "12px",
+                }}
+              >
+                O agente pode criar cron jobs via chat. Exemplos:{" "}
+                <em>"me lembre de beber agua a cada 2 horas"</em>,{" "}
+                <em>"faca uma revisao diaria as 22h"</em>.
+                Suporta intervalos, cron expressions e agendamento unico.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ---- Section 8: Memoria ---- */}
       {nanobotEnabled && (
         <div className={styles.ExpandableSection}>
           <button
             className={styles.ExpandableHeader}
             onClick={() => toggleSection("memory")}
           >
-            <span>Memoria & Cron</span>
+            <span>Memoria</span>
             <ChevronRightIcon
               style={{
                 height: "14px",
@@ -2464,99 +2781,184 @@ function AgentSettingsTab({ livConfig, saveLivConfig }) {
           </button>
           {agentSection === "memory" && (
             <div className={styles.ExpandableContent}>
-              {/* Memory */}
-              <div style={{ marginBottom: "14px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                  <button
-                    className={styles.Button}
-                    style={{ fontSize: "11px", padding: "4px 10px" }}
-                    onClick={loadMemory}
-                    disabled={loadingMemory || !isNanobotActive}
-                  >
-                    {loadingMemory ? "..." : "Carregar Memoria"}
-                  </button>
-                  <button
-                    className={styles.Button}
-                    style={{
-                      fontSize: "11px",
-                      padding: "4px 10px",
-                      background: "var(--secondary-bg)",
-                      color: "var(--primary)",
-                    }}
-                    onClick={clearMemory}
-                    disabled={!isNanobotActive}
-                  >
-                    Limpar Memoria
-                  </button>
-                </div>
-                {memory && (
-                  <pre
-                    style={{
-                      fontSize: "11px",
-                      background: "rgba(0,0,0,0.2)",
-                      padding: "10px",
-                      borderRadius: "8px",
-                      maxHeight: "200px",
-                      overflow: "auto",
-                      whiteSpace: "pre-wrap",
-                      color: "var(--secondary)",
-                      lineHeight: "1.5",
-                    }}
-                  >
-                    {memory}
-                  </pre>
-                )}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                <button
+                  className={styles.Button}
+                  style={{ fontSize: "11px", padding: "4px 10px" }}
+                  onClick={loadMemory}
+                  disabled={loadingMemory || !isNanobotActive}
+                >
+                  {loadingMemory ? "..." : "Carregar"}
+                </button>
+                <button
+                  className={styles.Button}
+                  style={{
+                    fontSize: "11px",
+                    padding: "4px 10px",
+                    background: "var(--secondary-bg)",
+                    color: "var(--primary)",
+                  }}
+                  onClick={clearMemory}
+                  disabled={!isNanobotActive}
+                >
+                  Limpar
+                </button>
               </div>
+              {memory && (
+                <pre
+                  style={{
+                    fontSize: "11px",
+                    background: "rgba(0,0,0,0.2)",
+                    padding: "10px",
+                    borderRadius: "8px",
+                    maxHeight: "200px",
+                    overflow: "auto",
+                    whiteSpace: "pre-wrap",
+                    color: "var(--secondary)",
+                    lineHeight: "1.5",
+                  }}
+                >
+                  {memory}
+                </pre>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
-              {/* Cron jobs */}
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                  <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)" }}>
-                    Cron Jobs
-                  </span>
-                  <button
-                    className={styles.Button}
-                    style={{ fontSize: "11px", padding: "4px 10px" }}
-                    onClick={loadCronJobs}
-                    disabled={!isNanobotActive}
+      {/* ---- Section 9: Identidade do Agente ---- */}
+      {nanobotEnabled && (
+        <div className={styles.ExpandableSection}>
+          <button
+            className={styles.ExpandableHeader}
+            onClick={() => {
+              toggleSection("identity")
+              if (agentSection !== "identity" && Object.keys(bootstrapFiles).length === 0 && isNanobotActive) {
+                loadBootstrapFiles()
+              }
+            }}
+          >
+            <span>Identidade do Agente</span>
+            <ChevronRightIcon
+              style={{
+                height: "14px",
+                width: "14px",
+                transform: agentSection === "identity" ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {agentSection === "identity" && (
+            <div className={styles.ExpandableContent}>
+              <p style={{ fontSize: "11px", color: "var(--secondary)", marginBottom: "10px", lineHeight: 1.5 }}>
+                Esses arquivos definem quem o agente e, como ele se comporta e o que sabe sobre voce.
+                O agente tambem pode edita-los sozinho conforme aprende.
+              </p>
+
+              {Object.keys(bootstrapFiles).length === 0 && (
+                <button
+                  className={styles.Button}
+                  style={{ fontSize: "11px", padding: "4px 10px" }}
+                  onClick={loadBootstrapFiles}
+                  disabled={!isNanobotActive}
+                >
+                  Carregar
+                </button>
+              )}
+
+              {["SOUL.md", "AGENTS.md", "USER.md"].map((filename) => {
+                const content = bootstrapFiles[filename]
+                if (content === undefined) return null
+
+                const labels = {
+                  "SOUL.md": { title: "Alma (SOUL.md)", desc: "Personalidade, valores e estilo de comunicacao" },
+                  "AGENTS.md": { title: "Instrucoes (AGENTS.md)", desc: "Diretrizes de comportamento e uso de ferramentas" },
+                  "USER.md": { title: "Perfil do Usuario (USER.md)", desc: "O que o agente sabe sobre voce" },
+                }
+                const label = labels[filename] || { title: filename, desc: "" }
+                const isEditing = editingFile === filename
+
+                return (
+                  <div
+                    key={filename}
+                    style={{
+                      marginBottom: "10px",
+                      background: "rgba(0,0,0,0.15)",
+                      borderRadius: "8px",
+                      padding: "10px",
+                    }}
                   >
-                    Carregar Jobs
-                  </button>
-                </div>
-                {cronJobs.length > 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    {cronJobs.map((job) => (
-                      <div
-                        key={job.id}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                      <div>
+                        <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--primary)" }}>{label.title}</div>
+                        <div style={{ fontSize: "10px", color: "var(--secondary)", opacity: 0.7 }}>{label.desc}</div>
+                      </div>
+                      {!isEditing ? (
+                        <button
+                          className={styles.Button}
+                          style={{ fontSize: "10px", padding: "3px 8px" }}
+                          onClick={() => startEditing(filename)}
+                        >
+                          Editar
+                        </button>
+                      ) : (
+                        <div style={{ display: "flex", gap: "4px" }}>
+                          <button
+                            className={styles.Button}
+                            style={{ fontSize: "10px", padding: "3px 8px" }}
+                            onClick={saveBootstrapFile}
+                            disabled={savingBootstrap}
+                          >
+                            {savingBootstrap ? "..." : "Salvar"}
+                          </button>
+                          <button
+                            className={styles.Button}
+                            style={{ fontSize: "10px", padding: "3px 8px", background: "var(--secondary-bg)", color: "var(--primary)" }}
+                            onClick={cancelEditing}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {isEditing ? (
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
                         style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          fontSize: "12px",
-                          padding: "6px 10px",
-                          background: "rgba(0,0,0,0.15)",
+                          width: "100%",
+                          minHeight: "160px",
+                          fontSize: "11px",
+                          background: "rgba(0,0,0,0.25)",
+                          color: "var(--primary)",
+                          border: "1px solid var(--border)",
                           borderRadius: "6px",
+                          padding: "8px",
+                          fontFamily: "'SF Mono', 'Fira Code', monospace",
+                          lineHeight: 1.5,
+                          resize: "vertical",
+                        }}
+                      />
+                    ) : (
+                      <pre
+                        style={{
+                          fontSize: "11px",
+                          background: "rgba(0,0,0,0.1)",
+                          padding: "8px",
+                          borderRadius: "6px",
+                          maxHeight: "150px",
+                          overflow: "auto",
+                          whiteSpace: "pre-wrap",
+                          color: "var(--secondary)",
+                          lineHeight: 1.5,
                         }}
                       >
-                        <span style={{ fontWeight: 500 }}>{job.name}</span>
-                        <span
-                          style={{
-                            color: job.enabled ? "#22c55e" : "#6b7280",
-                            fontSize: "10px",
-                          }}
-                        >
-                          {job.enabled ? "ativo" : "desativado"}
-                        </span>
-                      </div>
-                    ))}
+                        {content || "(vazio)"}
+                      </pre>
+                    )}
                   </div>
-                )}
-                {cronJobs.length === 0 && isNanobotActive && (
-                  <span style={{ fontSize: "11px", color: "var(--secondary)" }}>
-                    Nenhum job encontrado.
-                  </span>
-                )}
-              </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -2574,6 +2976,878 @@ function AgentSettingsTab({ livConfig, saveLivConfig }) {
       >
         Requer Python 3.10+ instalado. Reinicie o agente apos alterar configuracoes.
       </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Integrations Tab — Composio Marketplace
+// ---------------------------------------------------------------------------
+
+function IntegrationsTab() {
+  const { isNanobotActive } = useAIContext()
+
+  // API key
+  const [apiKeyInput, setApiKeyInput] = useState("")
+  const [hasKey, setHasKey] = useState(false)
+  const [savingKey, setSavingKey] = useState(false)
+
+  // Connections
+  const [connections, setConnections] = useState([])
+
+  // Available apps
+  const [apps, setApps] = useState([])
+  const [loadingApps, setLoadingApps] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // Tools info
+  const [toolsInfo, setToolsInfo] = useState({ tools_by_app: {}, total: 0 })
+
+  // Sections
+  const [connectedExpanded, setConnectedExpanded] = useState(true)
+
+  // --- Wizard state ---
+  const [wizardApp, setWizardApp] = useState(null)
+  const [wizardStep, setWizardStep] = useState(1)
+  const [wizardProfileName, setWizardProfileName] = useState("")
+  const [wizardConnectionId, setWizardConnectionId] = useState(null)
+  const [wizardAuthStatus, setWizardAuthStatus] = useState(null) // null|"waiting"|"success"|"failed"
+  const [wizardActions, setWizardActions] = useState([])
+  const [wizardSelectedActions, setWizardSelectedActions] = useState(new Set())
+  const [wizardToolSearch, setWizardToolSearch] = useState("")
+  const [wizardLoading, setWizardLoading] = useState(false)
+  const pollRef = useRef(null)
+
+  // --- Data loading ---
+
+  const loadAll = async () => {
+    try {
+      const keyStatus = await tipcClient.getComposioApiKeyStatus()
+      setHasKey(keyStatus.hasKey)
+    } catch { /* ignore */ }
+
+    if (!isNanobotActive) return
+
+    try {
+      const conns = await tipcClient.listComposioConnections()
+      setConnections(conns || [])
+    } catch { /* ignore */ }
+
+    try {
+      const tools = await tipcClient.getComposioTools()
+      setToolsInfo(tools || { tools_by_app: {}, total: 0 })
+    } catch { /* ignore */ }
+  }
+
+  const loadApps = async () => {
+    setLoadingApps(true)
+    try {
+      const result = await tipcClient.getComposioApps()
+      setApps(result || [])
+    } catch {
+      setApps([])
+    }
+    setLoadingApps(false)
+  }
+
+  useEffect(() => {
+    loadAll()
+  }, [isNanobotActive])
+
+  useEffect(() => {
+    if (hasKey && isNanobotActive && apps.length === 0) {
+      loadApps()
+    }
+  }, [hasKey, isNanobotActive])
+
+  // --- Handlers ---
+
+  const saveKey = async () => {
+    setSavingKey(true)
+    try {
+      const result = await tipcClient.setComposioApiKey({ key: apiKeyInput })
+      setHasKey(result.hasKey)
+      if (result.hasKey) setApiKeyInput("")
+    } catch { /* ignore */ }
+    setSavingKey(false)
+  }
+
+  const openWizard = (appItem) => {
+    setWizardApp(appItem)
+    setWizardStep(1)
+    setWizardProfileName(`${appItem.display_name || appItem.name} Profile`)
+    setWizardConnectionId(null)
+    setWizardAuthStatus(null)
+    setWizardActions([])
+    setWizardSelectedActions(new Set())
+    setWizardToolSearch("")
+    setWizardLoading(false)
+  }
+
+  const closeWizard = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+    setWizardApp(null)
+  }
+
+  const handleWizardConnect = async () => {
+    if (!wizardApp) return
+    setWizardStep(3)
+    setWizardAuthStatus("waiting")
+    setWizardLoading(true)
+
+    try {
+      const { url, connectionId } = await tipcClient.initiateComposioConnection({ appName: wizardApp.name })
+      setWizardConnectionId(connectionId)
+      if (url) window.open(url, "_blank")
+
+      // Poll for connection status
+      pollRef.current = setInterval(async () => {
+        try {
+          const status = await tipcClient.getComposioConnectionStatus({ connectionId })
+          if (status.status === "ACTIVE") {
+            if (pollRef.current) clearInterval(pollRef.current)
+            pollRef.current = null
+            setWizardAuthStatus("success")
+            setWizardLoading(false)
+            setWizardStep(4)
+
+            // Pre-load actions for step 5
+            try {
+              const actions = await tipcClient.getComposioAppActions({ appName: wizardApp.name })
+              setWizardActions(actions || [])
+              setWizardSelectedActions(new Set((actions || []).map((a) => a.name)))
+            } catch { /* ignore */ }
+
+            // Auto-advance to step 5 after 1.5s
+            setTimeout(() => setWizardStep(5), 1500)
+          } else if (status.status === "FAILED" || status.status === "ERROR") {
+            if (pollRef.current) clearInterval(pollRef.current)
+            pollRef.current = null
+            setWizardAuthStatus("failed")
+            setWizardLoading(false)
+          }
+        } catch { /* keep polling */ }
+      }, 3000)
+
+      // Timeout after 5 min
+      setTimeout(() => {
+        if (pollRef.current) {
+          clearInterval(pollRef.current)
+          pollRef.current = null
+          setWizardAuthStatus("failed")
+          setWizardLoading(false)
+        }
+      }, 300_000)
+    } catch {
+      setWizardAuthStatus("failed")
+      setWizardLoading(false)
+    }
+  }
+
+  const handleSaveTools = async () => {
+    if (!wizardApp) return
+    setWizardLoading(true)
+    try {
+      await tipcClient.registerComposioTools({
+        appName: wizardApp.name,
+        selectedActions: [...wizardSelectedActions],
+      })
+      await loadAll()
+      await loadApps()
+      closeWizard()
+    } catch {
+      setWizardLoading(false)
+    }
+  }
+
+  const handleDisconnect = async (connectionId, appName) => {
+    try {
+      await tipcClient.disconnectComposioApp({ connectionId })
+      await loadAll()
+    } catch { /* ignore */ }
+  }
+
+  // --- Derived ---
+
+  const activeConnections = connections.filter((c) => c.status === "ACTIVE")
+  const connectedAppNames = new Set(activeConnections.map((c) => c.appName))
+
+  const filteredApps = searchQuery
+    ? apps.filter(
+        (a) =>
+          (a.display_name || a.name).toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (a.description || "").toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : apps
+
+  // --- Setup state (no key) ---
+
+  if (!hasKey) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div>
+          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--primary)", margin: "0 0 4px" }}>
+            App Integrations
+          </h3>
+          <p style={{ fontSize: "13px", color: "var(--secondary)", margin: 0, lineHeight: 1.5 }}>
+            Conecte seus apps favoritos ao agente. Ele ganha acesso automatico como ferramentas.
+          </p>
+        </div>
+
+        <div
+          style={{
+            background: "var(--bg-tertiary)",
+            borderRadius: "12px",
+            padding: "20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}
+        >
+          <label style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)" }}>
+            API Key Composio
+          </label>
+          <p style={{ fontSize: "12px", color: "var(--secondary)", margin: 0, lineHeight: 1.5 }}>
+            Crie uma conta em{" "}
+            <span
+              style={{ color: "var(--active)", cursor: "pointer" }}
+              onClick={() => window.open("https://composio.dev", "_blank")}
+            >
+              composio.dev
+            </span>{" "}
+            e copie sua API key para comecar.
+          </p>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <input
+              className={styles.Input}
+              type="password"
+              placeholder="cmp_..."
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <button
+              className={styles.Button}
+              style={{ fontSize: "13px", padding: "8px 20px", whiteSpace: "nowrap" }}
+              onClick={saveKey}
+              disabled={savingKey || !apiKeyInput.trim()}
+            >
+              {savingKey ? "..." : "Salvar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // --- Main marketplace view ---
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div>
+          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--primary)", margin: "0 0 4px" }}>
+            App Integrations
+          </h3>
+          <p style={{ fontSize: "13px", color: "var(--secondary)", margin: 0 }}>
+            Connect your favorite apps with this agent
+          </p>
+        </div>
+      </div>
+
+      {/* Search bar */}
+      <div style={{ position: "relative" }}>
+        <SearchIcon
+          style={{
+            position: "absolute",
+            left: "12px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            height: "14px",
+            width: "14px",
+            color: "var(--secondary)",
+            opacity: 0.6,
+          }}
+        />
+        <input
+          className={styles.Input}
+          type="text"
+          placeholder="Search apps..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ paddingLeft: "36px" }}
+        />
+      </div>
+
+      {/* Connected to this agent */}
+      {activeConnections.length > 0 && (
+        <div
+          style={{
+            background: "var(--bg-tertiary)",
+            borderRadius: "12px",
+            overflow: "hidden",
+          }}
+        >
+          <button
+            onClick={() => setConnectedExpanded(!connectedExpanded)}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "14px 16px",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--primary)",
+              fontSize: "13px",
+              fontWeight: 500,
+            }}
+          >
+            <span>
+              Connected to this agent{" "}
+              <span style={{ opacity: 0.5, fontWeight: 400 }}>{activeConnections.length}</span>
+            </span>
+            <ChevronRightIcon
+              style={{
+                height: "14px",
+                width: "14px",
+                transform: connectedExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {connectedExpanded && (
+            <div style={{ padding: "0 16px 16px" }}>
+              {activeConnections.map((conn) => {
+                const appData = apps.find((a) => a.name === conn.appName)
+                const appTools = toolsInfo.tools_by_app[conn.appName] || []
+                return (
+                  <div
+                    key={conn.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 12px",
+                      background: "var(--bg)",
+                      borderRadius: "10px",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      {appData?.logo ? (
+                        <img
+                          src={appData.logo}
+                          alt=""
+                          style={{ width: "28px", height: "28px", borderRadius: "6px" }}
+                          onError={(e) => { e.target.style.display = "none" }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: "28px",
+                            height: "28px",
+                            borderRadius: "6px",
+                            background: "var(--bg-tertiary)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "14px",
+                          }}
+                        >
+                          {(conn.appName || "?")[0].toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)" }}>
+                          {appData?.display_name || conn.appName}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--secondary)", opacity: 0.7 }}>
+                          Connected
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      {appTools.length > 0 && (
+                        <span style={{ fontSize: "11px", color: "#22c55e" }}>
+                          {appTools.length} tools enabled
+                        </span>
+                      )}
+                      <button
+                        onClick={() => handleDisconnect(conn.id, conn.appName)}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "var(--secondary)",
+                          cursor: "pointer",
+                          padding: "4px",
+                          borderRadius: "4px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        title="Settings / Disconnect"
+                      >
+                        <SettingsIcon style={{ height: "14px", width: "14px" }} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Available Apps */}
+      <div>
+        <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--primary)", marginBottom: "12px" }}>
+          Available Apps
+        </div>
+
+        {loadingApps ? (
+          <div style={{ textAlign: "center", padding: "20px", color: "var(--secondary)", fontSize: "13px" }}>
+            Loading apps...
+          </div>
+        ) : filteredApps.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "20px", color: "var(--secondary)", fontSize: "13px" }}>
+            {searchQuery ? "Nenhum app encontrado" : "Nenhum app disponivel"}
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+              gap: "10px",
+            }}
+          >
+            {filteredApps.map((appItem) => {
+              const isConnected = connectedAppNames.has(appItem.name)
+              const isConnecting = wizardApp?.name === appItem.name
+              const toolCount = (toolsInfo.tools_by_app[appItem.name] || []).length
+
+              return (
+                <div
+                  key={appItem.name}
+                  style={{
+                    background: "var(--bg-tertiary)",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                    border: "1px solid transparent",
+                    transition: "border-color 0.2s",
+                  }}
+                >
+                  {/* Card header */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    {appItem.logo ? (
+                      <img
+                        src={appItem.logo}
+                        alt=""
+                        style={{ width: "28px", height: "28px", borderRadius: "6px" }}
+                        onError={(e) => { e.target.style.display = "none" }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "28px",
+                          height: "28px",
+                          borderRadius: "6px",
+                          background: "var(--bg)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "14px",
+                          color: "var(--primary)",
+                        }}
+                      >
+                        {(appItem.display_name || appItem.name || "?")[0].toUpperCase()}
+                      </div>
+                    )}
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: isConnected ? "#22c55e" : "var(--secondary)",
+                        opacity: isConnected ? 1 : 0.6,
+                      }}
+                    >
+                      {isConnected
+                        ? toolCount > 0
+                          ? `${toolCount} tools`
+                          : "Connected"
+                        : "Not connected"}
+                    </span>
+                  </div>
+
+                  {/* Card body */}
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)", marginBottom: "4px" }}>
+                      {appItem.display_name || appItem.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--secondary)",
+                        lineHeight: 1.4,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                        minHeight: "30px",
+                      }}
+                    >
+                      {appItem.description || ""}
+                    </div>
+                  </div>
+
+                  {/* Card action */}
+                  {isConnected ? (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#22c55e",
+                        textAlign: "center",
+                        padding: "6px 0",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Connected
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => openWizard(appItem)}
+                      disabled={isConnecting}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        padding: "7px 0",
+                        background: "var(--bg)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "8px",
+                        color: "var(--primary)",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        cursor: isConnecting ? "default" : "pointer",
+                        opacity: isConnecting ? 0.5 : 1,
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {isConnecting ? (
+                        "Connecting..."
+                      ) : (
+                        <>
+                          <PlusIcon style={{ height: "12px", width: "12px" }} />
+                          Add
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Footer: API key status */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontSize: "11px",
+          color: "var(--secondary)",
+          opacity: 0.6,
+          padding: "4px 0",
+        }}
+      >
+        <span>Composio API key configurada</span>
+        <button
+          onClick={async () => {
+            await tipcClient.deleteComposioApiKey()
+            setHasKey(false)
+            setConnections([])
+            setApps([])
+          }}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--secondary)",
+            cursor: "pointer",
+            fontSize: "11px",
+            textDecoration: "underline",
+            opacity: 0.7,
+          }}
+        >
+          Remover chave
+        </button>
+      </div>
+
+      {/* ---- Connection Wizard Modal ---- */}
+      {wizardApp && (
+        <div className={styles.wizardOverlay} onClick={(e) => { if (e.target === e.currentTarget) closeWizard() }}>
+          <div className={styles.wizardContent}>
+            {/* Progress dots */}
+            <div className={styles.wizardProgress}>
+              {[1, 2, 3, 4, 5].map((step, i) => (
+                <div key={step} style={{ display: "flex", alignItems: "center", flex: i < 4 ? 1 : "none" }}>
+                  <div
+                    className={`${styles.wizardDot} ${wizardStep >= step ? (wizardStep > step ? styles.done : styles.active) : ""}`}
+                  />
+                  {i < 4 && (
+                    <div className={`${styles.wizardLine} ${wizardStep > step ? styles.done : ""}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Step 1: Connect & Preview */}
+            {wizardStep === 1 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  {wizardApp.logo ? (
+                    <img src={wizardApp.logo} alt="" style={{ width: "36px", height: "36px", borderRadius: "8px" }} onError={(e) => { e.target.style.display = "none" }} />
+                  ) : (
+                    <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", color: "var(--primary)" }}>
+                      {(wizardApp.display_name || wizardApp.name || "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ fontSize: "16px", fontWeight: 600, color: "var(--primary)" }}>Connect & Preview</div>
+                    <div style={{ fontSize: "12px", color: "var(--secondary)" }}>{wizardApp.display_name || wizardApp.name}</div>
+                  </div>
+                </div>
+
+                <div style={{ background: "var(--bg-tertiary)", borderRadius: "10px", padding: "14px" }}>
+                  <div style={{ fontSize: "13px", color: "var(--primary)", fontWeight: 500, marginBottom: "6px" }}>
+                    Connect to {wizardApp.display_name || wizardApp.name}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--secondary)", lineHeight: 1.5 }}>
+                    {wizardApp.description || "Connect this app to give your agent access to its tools and actions."}
+                  </div>
+                  {activeConnections.some((c) => c.appName === wizardApp.name) && (
+                    <div style={{ marginTop: "8px", fontSize: "12px", color: "#22c55e" }}>
+                      Already connected. Creating a new connection will be added.
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                  <button className={styles.wizardBtnSecondary} onClick={closeWizard}>Cancel</button>
+                  <button className={styles.wizardBtnPrimary} onClick={() => setWizardStep(2)}>Continue</button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Create Profile */}
+            {wizardStep === 2 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  {wizardApp.logo ? (
+                    <img src={wizardApp.logo} alt="" style={{ width: "36px", height: "36px", borderRadius: "8px" }} onError={(e) => { e.target.style.display = "none" }} />
+                  ) : (
+                    <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", color: "var(--primary)" }}>
+                      {(wizardApp.display_name || wizardApp.name || "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ fontSize: "16px", fontWeight: 600, color: "var(--primary)" }}>Create Profile</div>
+                    <div style={{ fontSize: "12px", color: "var(--secondary)" }}>Step 2 of 5</div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <label style={{ fontSize: "13px", fontWeight: 500, color: "var(--primary)" }}>Profile Name</label>
+                  <input
+                    className={styles.Input}
+                    value={wizardProfileName}
+                    onChange={(e) => setWizardProfileName(e.target.value)}
+                    placeholder="Profile name"
+                  />
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                  <button className={styles.wizardBtnSecondary} onClick={() => setWizardStep(1)}>Back</button>
+                  <button className={styles.wizardBtnPrimary} onClick={handleWizardConnect}>Connect</button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Waiting for OAuth */}
+            {wizardStep === 3 && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "20px", padding: "20px 0" }}>
+                {wizardApp.logo ? (
+                  <img src={wizardApp.logo} alt="" style={{ width: "48px", height: "48px", borderRadius: "10px" }} onError={(e) => { e.target.style.display = "none" }} />
+                ) : (
+                  <div style={{ width: "48px", height: "48px", borderRadius: "10px", background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", color: "var(--primary)" }}>
+                    {(wizardApp.display_name || wizardApp.name || "?")[0].toUpperCase()}
+                  </div>
+                )}
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "16px", fontWeight: 600, color: "var(--primary)", marginBottom: "8px" }}>
+                    {wizardAuthStatus === "failed" ? "Authentication Failed" : "Waiting for authentication..."}
+                  </div>
+                  <div style={{ fontSize: "13px", color: "var(--secondary)" }}>
+                    {wizardAuthStatus === "failed"
+                      ? "The authorization did not complete. Please try again."
+                      : "Complete the authorization in your browser"}
+                  </div>
+                </div>
+                {wizardAuthStatus !== "failed" && (
+                  <div style={{ width: "32px", height: "32px", border: "3px solid var(--border)", borderTopColor: "var(--active)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                )}
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                <button className={styles.wizardBtnSecondary} onClick={closeWizard}>
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {/* Step 4: Success */}
+            {wizardStep === 4 && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "24px 0" }}>
+                <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: "16px", fontWeight: 600, color: "var(--primary)" }}>Authentication Successful</div>
+                <div style={{ fontSize: "13px", color: "var(--secondary)" }}>Continue to configure tools</div>
+              </div>
+            )}
+
+            {/* Step 5: Configure Tools */}
+            {wizardStep === 5 && (() => {
+              const filteredWizardActions = wizardToolSearch
+                ? wizardActions.filter(
+                    (a) =>
+                      (a.display_name || a.name).toLowerCase().includes(wizardToolSearch.toLowerCase()) ||
+                      (a.description || "").toLowerCase().includes(wizardToolSearch.toLowerCase())
+                  )
+                : wizardActions
+
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    {wizardApp.logo ? (
+                      <img src={wizardApp.logo} alt="" style={{ width: "36px", height: "36px", borderRadius: "8px" }} onError={(e) => { e.target.style.display = "none" }} />
+                    ) : (
+                      <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", color: "var(--primary)" }}>
+                        {(wizardApp.display_name || wizardApp.name || "?")[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ fontSize: "16px", fontWeight: 600, color: "var(--primary)" }}>
+                        Configure {wizardApp.display_name || wizardApp.name} Tools
+                      </div>
+                      <div style={{ fontSize: "12px", color: "var(--secondary)" }}>Select tools to add to your agent</div>
+                    </div>
+                  </div>
+
+                  {/* Search + Select All / Clear */}
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <input
+                      className={styles.Input}
+                      type="text"
+                      placeholder="Search tools..."
+                      value={wizardToolSearch}
+                      onChange={(e) => setWizardToolSearch(e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      className={styles.wizardBtnSecondary}
+                      style={{ fontSize: "11px", padding: "6px 10px", whiteSpace: "nowrap" }}
+                      onClick={() => setWizardSelectedActions(new Set(wizardActions.map((a) => a.name)))}
+                    >
+                      Select All
+                    </button>
+                    <button
+                      className={styles.wizardBtnSecondary}
+                      style={{ fontSize: "11px", padding: "6px 10px", whiteSpace: "nowrap" }}
+                      onClick={() => setWizardSelectedActions(new Set())}
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  <div style={{ fontSize: "11px", color: "var(--secondary)" }}>
+                    Showing {filteredWizardActions.length} of {wizardActions.length} tools
+                  </div>
+
+                  {/* Scrollable tool list */}
+                  <div style={{ maxHeight: "300px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "2px" }}>
+                    {filteredWizardActions.map((action) => {
+                      const isSelected = wizardSelectedActions.has(action.name)
+                      const params = action.parameters?.properties ? Object.keys(action.parameters.properties).length : 0
+                      return (
+                        <div
+                          key={action.name}
+                          className={`${styles.wizardToolRow} ${isSelected ? styles.selected : ""}`}
+                          onClick={() => {
+                            setWizardSelectedActions((prev) => {
+                              const next = new Set(prev)
+                              if (next.has(action.name)) next.delete(action.name)
+                              else next.add(action.name)
+                              return next
+                            })
+                          }}
+                        >
+                          <div className={`${styles.wizardCheckbox} ${isSelected ? styles.checked : ""}`}>
+                            {isSelected && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {action.display_name || action.name}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {action.description || ""}
+                            </div>
+                          </div>
+                          {params > 0 && (
+                            <span style={{ fontSize: "10px", color: "var(--secondary)", opacity: 0.6, flexShrink: 0 }}>
+                              {params} params
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Footer */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "12px", color: "var(--secondary)" }}>
+                      {wizardSelectedActions.size} tool{wizardSelectedActions.size !== 1 ? "s" : ""} will be added
+                    </span>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button className={styles.wizardBtnSecondary} onClick={() => setWizardStep(4)}>Back</button>
+                      <button
+                        className={styles.wizardBtnPrimary}
+                        onClick={handleSaveTools}
+                        disabled={wizardLoading || wizardSelectedActions.size === 0}
+                      >
+                        {wizardLoading ? "Saving..." : "Save Tools"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

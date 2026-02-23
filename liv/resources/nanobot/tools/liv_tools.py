@@ -132,9 +132,14 @@ class LivKanbanTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Manage the Kanban board. Actions: "
-            "'get' to read the board, "
-            "'create' to add a card, "
+            "Manage the multi-board Kanban workspace. Actions: "
+            "'list_boards' to list all boards with IDs and card counts, "
+            "'get' to read a single board (default: auto-analysis), "
+            "'create_board' to create a new board, "
+            "'update_board' to update board metadata (name, description, color), "
+            "'delete_board' to remove a board (cannot delete auto-analysis), "
+            "'add_column' to add a column to a board, "
+            "'create' to add a card to a board column, "
             "'update' to modify a card, "
             "'delete' to remove a card, "
             "'move' to move a card between columns."
@@ -147,8 +152,17 @@ class LivKanbanTool(Tool):
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["get", "create", "update", "delete", "move"],
+                    "enum": [
+                        "list_boards", "get",
+                        "create_board", "update_board", "delete_board",
+                        "add_column",
+                        "create", "update", "delete", "move",
+                    ],
                     "description": "Action to perform",
+                },
+                "board_id": {
+                    "type": "string",
+                    "description": "Board ID (optional, defaults to 'auto-analysis')",
                 },
                 "card_id": {
                     "type": "string",
@@ -156,26 +170,50 @@ class LivKanbanTool(Tool):
                 },
                 "column_id": {
                     "type": "string",
-                    "enum": ["pending", "suggestions", "automations"],
-                    "description": "Column ID (for create/move)",
+                    "description": "Column ID (any string, e.g. 'pending', 'todo', 'doing', 'done')",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Board name (for create_board/update_board)",
                 },
                 "title": {
                     "type": "string",
-                    "description": "Card title (for create/update)",
+                    "description": "Card or column title (for create/update/add_column)",
                 },
                 "description": {
                     "type": "string",
-                    "description": "Card description (for create/update)",
+                    "description": "Description (for create/update/create_board/update_board)",
                 },
                 "bullets": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Bullet points (for create/update)",
+                    "description": "Bullet points (for create/update card)",
                 },
                 "status": {
                     "type": "string",
                     "enum": ["open", "done"],
                     "description": "Card status (for update)",
+                },
+                "color": {
+                    "type": "string",
+                    "description": "Accent color hex (for create_board/update_board/add_column)",
+                },
+                "icon": {
+                    "type": "string",
+                    "description": "Icon identifier (for create_board/update_board/add_column)",
+                },
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "color": {"type": "string"},
+                            "icon": {"type": "string"},
+                        },
+                        "required": ["title"],
+                    },
+                    "description": "Column definitions for create_board (optional, defaults to A Fazer/Em Andamento/Concluido)",
                 },
             },
             "required": ["action"],
@@ -183,13 +221,83 @@ class LivKanbanTool(Tool):
 
     async def execute(self, **kwargs) -> str:
         action = kwargs.get("action", "get")
+        board_id = kwargs.get("board_id", "auto-analysis")
 
-        if action == "get":
-            result = await self.client.get("/kanban/board")
+        if action == "list_boards":
+            result = await self.client.get("/kanban/workspace")
+            if isinstance(result, dict) and "boards" in result:
+                summary = []
+                for b in result["boards"]:
+                    card_count = sum(len(col.get("cards", [])) for col in b.get("columns", []))
+                    summary.append({
+                        "id": b["id"],
+                        "name": b["name"],
+                        "description": b.get("description"),
+                        "createdBy": b.get("createdBy"),
+                        "columns": len(b.get("columns", [])),
+                        "cards": card_count,
+                    })
+                return _json_result({"boards": summary})
+            return _json_result(result)
+
+        elif action == "get":
+            if board_id == "auto-analysis":
+                result = await self.client.get("/kanban/board")
+            else:
+                ws = await self.client.get("/kanban/workspace")
+                if isinstance(ws, dict) and "boards" in ws:
+                    board = next((b for b in ws["boards"] if b["id"] == board_id), None)
+                    if board:
+                        return _json_result(board)
+                    return f"Error: Board '{board_id}' not found"
+                result = ws
+            return _json_result(result)
+
+        elif action == "create_board":
+            data = {
+                "name": kwargs.get("name", "New Board"),
+                "createdBy": "agent",
+            }
+            if kwargs.get("description"):
+                data["description"] = kwargs["description"]
+            if kwargs.get("color"):
+                data["color"] = kwargs["color"]
+            if kwargs.get("icon"):
+                data["icon"] = kwargs["icon"]
+            if kwargs.get("columns"):
+                data["columns"] = kwargs["columns"]
+            result = await self.client.post("/kanban/board", data)
+            return _json_result(result)
+
+        elif action == "update_board":
+            data = {}
+            if kwargs.get("name"):
+                data["name"] = kwargs["name"]
+            if kwargs.get("description") is not None:
+                data["description"] = kwargs["description"]
+            if kwargs.get("color"):
+                data["color"] = kwargs["color"]
+            if kwargs.get("icon"):
+                data["icon"] = kwargs["icon"]
+            result = await self.client.put(f"/kanban/board/{board_id}", data)
+            return _json_result(result)
+
+        elif action == "delete_board":
+            result = await self.client.delete(f"/kanban/board/{board_id}")
+            return _json_result(result)
+
+        elif action == "add_column":
+            data = {"title": kwargs.get("title", "New Column")}
+            if kwargs.get("color"):
+                data["color"] = kwargs["color"]
+            if kwargs.get("icon"):
+                data["icon"] = kwargs["icon"]
+            result = await self.client.post(f"/kanban/board/{board_id}/column", data)
             return _json_result(result)
 
         elif action == "create":
             data = {
+                "boardId": board_id,
                 "columnId": kwargs.get("column_id", "pending"),
                 "title": kwargs.get("title", "New Task"),
             }
@@ -204,7 +312,7 @@ class LivKanbanTool(Tool):
             card_id = kwargs.get("card_id")
             if not card_id:
                 return "Error: card_id required for update"
-            data = {}
+            data = {"boardId": board_id}
             for key in ("title", "description", "bullets", "status"):
                 if kwargs.get(key) is not None:
                     data[key] = kwargs[key]
@@ -224,7 +332,10 @@ class LivKanbanTool(Tool):
             card_id = kwargs.get("card_id")
             if not card_id:
                 return "Error: card_id required for move"
-            data = {"toColumnId": kwargs.get("column_id", "pending")}
+            data = {
+                "toColumnId": kwargs.get("column_id", "pending"),
+                "boardId": board_id,
+            }
             result = await self.client.post(f"/kanban/move/{card_id}", data)
             return _json_result(result)
 

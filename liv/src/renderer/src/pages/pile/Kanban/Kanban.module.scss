@@ -1,4 +1,4 @@
-// Kanban.module.scss - Route-based page (no Dialog)
+// Kanban.module.scss - Multi-board workspace
 
 .pageContainer {
   position: fixed;
@@ -15,7 +15,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 1400;
+  z-index: 10000;
 }
 
 .header {
@@ -126,35 +126,19 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   overflow: hidden;
-  padding: 16px 20px 20px;
+  padding: 8px 20px 20px;
 }
 
-.topFilters {
-  flex-shrink: 0;
+// --- Board Strip (horizontal scroll of boards) ---
+
+.boardStrip {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.searchInput {
-  width: 100%;
-  height: 40px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
-  color: var(--primary);
-  padding: 0 12px;
-  outline: none;
-}
-
-.weekSelector,
-.daySelector {
-  display: flex;
-  gap: 8px;
+  gap: 16px;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding-bottom: 8px;
+  flex: 1;
+  min-height: 0;
 
   &::-webkit-scrollbar {
     height: 6px;
@@ -166,92 +150,212 @@
   }
 }
 
-.weekBtn,
-.dayBtn {
+// --- Board Panel ---
+
+.boardPanel {
+  min-width: 340px;
+  max-width: 380px;
   flex-shrink: 0;
-  border: 1px solid var(--border);
   background: var(--bg-secondary);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 120px);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.boardPanelHeader {
+  flex-shrink: 0;
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.boardAccent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 12px 12px 0 0;
+}
+
+.boardPanelTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.boardPanelName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.boardPanelCardCount {
+  font-size: 11px;
+  font-weight: 500;
   color: var(--secondary);
+  background: var(--bg);
+  padding: 2px 8px;
   border-radius: 999px;
-  padding: 6px 12px;
+  flex-shrink: 0;
+}
+
+.boardPanelActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+
+  .boardPanel:hover & {
+    opacity: 1;
+  }
+}
+
+.boardPanelActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--secondary);
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--bg);
+    color: var(--primary);
+  }
+}
+
+.boardPanelActionBtnDanger {
+  &:hover {
+    color: #ef4444;
+  }
+}
+
+.boardPanelDesc {
+  font-size: 11px;
+  color: var(--secondary);
+  margin: 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.systemBadge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--secondary);
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.boardPanelBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+  }
+}
+
+.boardPanelFooter {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.addColumnBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   font-weight: 500;
+  color: var(--secondary);
+  background: transparent;
+  border: none;
   cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
   transition: all 0.15s ease;
 
   &:hover {
     color: var(--primary);
-    background: var(--bg-tertiary);
+    background: var(--bg);
   }
 }
 
-.weekBtnActive,
-.dayBtnActive {
-  background: var(--bg);
-  color: var(--primary);
-  border-color: var(--secondary);
-}
+// --- New Board Card ---
 
-.searchResults {
-  display: grid;
-  gap: 8px;
-  max-height: 170px;
-  overflow-y: auto;
-}
-
-.searchResultItem {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 10px;
-  background: var(--bg-secondary);
-
-  strong {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 12px;
-    color: var(--secondary);
-  }
-
-  p {
-    margin: 0;
-    font-size: 12px;
-    color: var(--primary);
-    line-height: 1.4;
-  }
-}
-
-.loadingState {
+.newBoardCard {
+  min-width: 340px;
+  max-width: 380px;
+  flex-shrink: 0;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  cursor: pointer;
   color: var(--secondary);
+  font-size: 14px;
+  font-weight: 500;
+  gap: 8px;
+  transition: all 0.2s ease;
+  max-height: calc(100vh - 120px);
+  min-height: 200px;
+
+  &:hover {
+    border-color: var(--secondary);
+    color: var(--primary);
+    background: rgba(255, 255, 255, 0.02);
+  }
 }
 
-.boardWrap {
-  flex: 1;
-  overflow: auto;
-  min-height: 0;
-  padding-bottom: 4px;
-}
-
-.board {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(300px, 1fr));
-  gap: 16px;
-  min-width: 980px;
-  min-height: 100%;
-}
+// --- Column inside board panel ---
 
 .column {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: var(--bg-secondary);
-  border-radius: 14px;
-  padding: 12px;
-  min-height: 0;
-  max-height: 100%;
+  gap: 8px;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 10px;
   transition: border-color 0.15s ease;
   border: 2px solid transparent;
 }
@@ -265,13 +369,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 6px;
+  padding: 0 4px;
 }
 
 .columnTitleArea {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .columnIconSvg {
@@ -279,22 +383,22 @@
 }
 
 .columnIconCircle {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   border: 2px solid;
   flex-shrink: 0;
 }
 
 .columnTitle {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--primary);
   margin: 0;
 }
 
 .columnCount {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--secondary);
 }
@@ -302,15 +406,15 @@
 .columnActions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .columnAction {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border: none;
   background: transparent;
   border-radius: 6px;
@@ -319,7 +423,7 @@
   transition: all 0.15s ease;
 
   &:hover {
-    background: var(--bg-tertiary);
+    background: var(--bg-secondary);
     color: var(--primary);
   }
 }
@@ -327,20 +431,18 @@
 .cardList {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  min-height: 0;
-  max-height: calc(100vh - 320px);
-  padding-right: 4px;
+  gap: 8px;
 }
 
+// --- Card ---
+
 .card {
-  background: var(--bg);
-  border-radius: 12px;
-  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   border: 1px solid var(--border);
   transition: all 0.2s ease;
   cursor: grab;
@@ -364,7 +466,7 @@
 }
 
 .cardTitle {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
   color: var(--primary);
@@ -373,20 +475,20 @@
 
 .cardBullets {
   margin: 0;
-  padding-left: 16px;
+  padding-left: 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 
   li {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--secondary);
     line-height: 1.4;
   }
 }
 
 .cardDescription {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--secondary);
   line-height: 1.4;
   margin: 0;
@@ -409,8 +511,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border: none;
   background: transparent;
   border-radius: 6px;
@@ -424,7 +526,7 @@
   }
 
   &:hover {
-    background: var(--bg-secondary);
+    background: var(--bg);
     color: var(--primary);
     opacity: 1 !important;
   }
@@ -444,16 +546,16 @@
 .tag {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: var(--bg-secondary);
-  padding: 4px 10px;
+  gap: 6px;
+  background: var(--bg);
+  padding: 3px 8px;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .tagIcon {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   border: 2px solid var(--tag-color, var(--secondary));
 }
@@ -470,6 +572,15 @@
   color: var(--secondary);
   font-size: 12px;
   flex-wrap: wrap;
+  padding-top: 8px;
+}
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--secondary);
 }
 
 // --- Modal ---
@@ -591,12 +702,17 @@
 
 @media (max-width: 1100px) {
   .mainContent {
-    padding: 14px;
+    padding: 8px 14px 14px;
   }
 
-  .board {
-    grid-template-columns: repeat(3, minmax(280px, 1fr));
-    min-width: 900px;
+  .boardPanel {
+    min-width: 300px;
+    max-width: 340px;
+  }
+
+  .newBoardCard {
+    min-width: 300px;
+    max-width: 340px;
   }
 }
 
@@ -611,16 +727,11 @@
     }
   }
 
-  .board {
-    min-width: 820px;
-    gap: 12px;
+  .boardPanel {
+    min-width: 280px;
   }
 
-  .column {
-    padding: 10px;
-  }
-
-  .cardList {
-    max-height: calc(100vh - 300px);
+  .newBoardCard {
+    min-width: 280px;
   }
 }
