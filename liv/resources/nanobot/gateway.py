@@ -43,7 +43,7 @@ from nanobot.providers.litellm_provider import LiteLLMProvider
 from nanobot.cron.service import CronService
 from nanobot.session.manager import SessionManager
 
-from config_bridge import get_config, get_provider_api_base, get_channels_config
+from config_bridge import get_config, get_provider_api_base, get_channels_config, get_composio_config
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -96,6 +96,94 @@ class GatewayState:
         self.started_at: float = 0
         self.ready = False
         self.custom_tools: list = []
+        self.composio = None  # ComposioBridge instance (if API key set)
+
+    def _ensure_bootstrap_files(self, workspace: Path):
+        """Create bootstrap files if they don't exist (AGENTS.md, SOUL.md, USER.md, MEMORY.md)."""
+        agents_file = workspace / "AGENTS.md"
+        if not agents_file.exists():
+            agents_file.write_text("""# Agent Instructions
+
+You are Liv's AI agent — a personal assistant embedded in a journaling and productivity desktop app.
+
+## Guidelines
+
+- Always explain what you're doing before taking actions
+- Ask for clarification when the request is ambiguous
+- Use tools to help accomplish tasks (recordings, journal, kanban, profile)
+- Remember important information in memory/MEMORY.md
+- Past events are logged in memory/HISTORY.md — grep it to recall
+- Respond in the same language the user writes to you
+- Be concise and actionable — the user values efficiency
+""", encoding="utf-8")
+            log.info("Created AGENTS.md")
+
+        soul_file = workspace / "SOUL.md"
+        if not soul_file.exists():
+            soul_file.write_text("""# Soul
+
+I am Liv, an AI assistant embedded in a personal journaling and productivity app.
+
+## Personality
+
+- Helpful and proactive
+- Concise and to the point
+- Observant — I notice patterns in the user's data
+- Warm but professional
+
+## Values
+
+- User privacy above all
+- Accuracy over speed
+- Transparency in actions taken
+- Continuous self-improvement through memory
+""", encoding="utf-8")
+            log.info("Created SOUL.md")
+
+        user_file = workspace / "USER.md"
+        if not user_file.exists():
+            user_file.write_text("""# User
+
+Information about the user. Update this as you learn more.
+
+## Preferences
+
+- Communication style: (learn from interactions)
+- Language: (detect from messages)
+- Timezone: (detect from system)
+
+## Context
+
+- Uses Liv for dictation, journaling, and productivity
+- Has access to transcription history, auto-journal, kanban, and profile
+""", encoding="utf-8")
+            log.info("Created USER.md")
+
+        memory_file = workspace / "memory" / "MEMORY.md"
+        if not memory_file.exists():
+            memory_file.write_text("""# Long-term Memory
+
+This file stores important information that persists across sessions.
+I update it automatically as I learn about the user and their patterns.
+
+## User Information
+
+(Important facts about the user)
+
+## Preferences
+
+(User preferences learned over time)
+
+## Important Notes
+
+(Things to remember)
+""", encoding="utf-8")
+            log.info("Created memory/MEMORY.md")
+
+        history_file = workspace / "memory" / "HISTORY.md"
+        if not history_file.exists():
+            history_file.write_text("", encoding="utf-8")
+            log.info("Created memory/HISTORY.md")
 
     async def initialize(self):
         """Initialize the agent with config from environment."""
@@ -103,10 +191,13 @@ class GatewayState:
         workspace = self.config["workspace"]
         workspace.mkdir(parents=True, exist_ok=True)
 
-        # Ensure memory directory exists
+        # Ensure directory structure exists
         (workspace / "memory").mkdir(parents=True, exist_ok=True)
         (workspace / "sessions").mkdir(parents=True, exist_ok=True)
         (workspace / "skills").mkdir(parents=True, exist_ok=True)
+
+        # Create bootstrap files if they don't exist (equivalent to `nanobot onboard`)
+        self._ensure_bootstrap_files(workspace)
 
         log.info(f"Workspace: {workspace}")
         log.info(f"Model: {self.config['model']}")
@@ -176,6 +267,17 @@ class GatewayState:
             self.agent.tools.register(tool)
 
         self.started_at = time.time()
+
+        # Initialize Composio bridge if API key available
+        composio_cfg = get_composio_config()
+        if composio_cfg.get("api_key"):
+            try:
+                from composio_bridge import ComposioBridge
+                self.composio = ComposioBridge(composio_cfg["api_key"])
+                log.info("Composio bridge initialized")
+            except Exception as e:
+                log.error(f"Failed to initialize Composio bridge: {e}")
+
         log.info("Agent initialized successfully")
 
     async def start(self):
@@ -187,6 +289,20 @@ class GatewayState:
 
         # Initialize channel integrations if configured
         await self.start_channels()
+
+        # Auto-register Composio tools for previously connected apps
+        if self.composio and self.agent:
+            try:
+                connections = await self.composio.list_connections()
+                for conn in connections:
+                    if conn.get("status") == "ACTIVE":
+                        app_name = conn.get("appName", "")
+                        if app_name:
+                            self.composio._connected_apps[app_name] = conn["id"]
+                            count = await self.composio.register_app_tools(app_name, self.agent.tools)
+                            log.info(f"Auto-registered {count} Composio tools for {app_name}")
+            except Exception as e:
+                log.error(f"Failed to auto-register Composio tools: {e}")
 
         self.ready = True
         log.info("Gateway ready")
@@ -233,6 +349,8 @@ class GatewayState:
                 except (asyncio.CancelledError, asyncio.TimeoutError):
                     pass
             await self.agent.close_mcp()
+        if self.composio:
+            await self.composio.close()
         log.info("Gateway stopped")
 
 
@@ -313,10 +431,24 @@ async def health():
 
 @app.get("/api/status")
 async def get_status():
-    """Full status including cron and sessions."""
+    """Full status including cron, sessions, and subagents."""
     cron_status = state.cron.status() if state.cron else {}
     sessions = state.session_manager.list_sessions() if state.session_manager else []
     tools = state.agent.tools.get_definitions() if state.agent else []
+
+    # Subagent info
+    subagents_count = 0
+    subagents_running = []
+    if state.agent and hasattr(state.agent, "subagents") and state.agent.subagents:
+        mgr = state.agent.subagents
+        subagents_count = mgr.get_running_count()
+        # Extract running task info
+        for task_id, task in list(mgr._running_tasks.items()):
+            subagents_running.append({
+                "id": task_id,
+                "done": task.done(),
+                "cancelled": task.cancelled(),
+            })
 
     return {
         "ready": state.ready,
@@ -328,6 +460,8 @@ async def get_status():
         "tools_count": len(tools),
         "tool_names": [t.get("function", {}).get("name", "") for t in tools],
         "cron": cron_status,
+        "subagents_count": subagents_count,
+        "subagents": subagents_running,
     }
 
 
@@ -433,6 +567,72 @@ async def list_sessions():
     return {"sessions": state.session_manager.list_sessions()}
 
 
+@app.get("/api/sessions/{session_key:path}")
+async def get_session(session_key: str):
+    """Get a specific session's messages."""
+    if not state.session_manager:
+        raise HTTPException(status_code=503, detail="Session manager not ready")
+    session = state.session_manager.get_or_create(session_key)
+    messages = []
+    for msg in session.messages:
+        messages.append({
+            "role": msg.get("role", "user"),
+            "content": msg.get("content", ""),
+            "timestamp": msg.get("timestamp", ""),
+        })
+    return {
+        "key": session.key,
+        "created_at": session.created_at.isoformat() if hasattr(session.created_at, "isoformat") else str(session.created_at),
+        "updated_at": session.updated_at.isoformat() if hasattr(session.updated_at, "isoformat") else str(session.updated_at),
+        "messages": messages,
+    }
+
+
+# --- Bootstrap files (AGENTS.md, SOUL.md, USER.md) ---
+
+BOOTSTRAP_FILES = ["AGENTS.md", "SOUL.md", "USER.md"]
+
+@app.get("/api/bootstrap")
+async def list_bootstrap_files():
+    """List bootstrap files with their content."""
+    workspace = state.config.get("workspace", Path("."))
+    files = {}
+    for filename in BOOTSTRAP_FILES:
+        file_path = workspace / filename
+        if file_path.exists():
+            files[filename] = file_path.read_text(encoding="utf-8")
+        else:
+            files[filename] = ""
+    return {"files": files}
+
+
+@app.get("/api/bootstrap/{filename}")
+async def get_bootstrap_file(filename: str):
+    """Read a specific bootstrap file."""
+    if filename not in BOOTSTRAP_FILES:
+        raise HTTPException(status_code=400, detail=f"Invalid file: {filename}")
+    workspace = state.config.get("workspace", Path("."))
+    file_path = workspace / filename
+    if file_path.exists():
+        return {"filename": filename, "content": file_path.read_text(encoding="utf-8")}
+    return {"filename": filename, "content": ""}
+
+
+class BootstrapUpdateRequest(BaseModel):
+    content: str
+
+
+@app.put("/api/bootstrap/{filename}")
+async def update_bootstrap_file(filename: str, body: BootstrapUpdateRequest):
+    """Update a bootstrap file."""
+    if filename not in BOOTSTRAP_FILES:
+        raise HTTPException(status_code=400, detail=f"Invalid file: {filename}")
+    workspace = state.config.get("workspace", Path("."))
+    file_path = workspace / filename
+    file_path.write_text(body.content, encoding="utf-8")
+    return {"filename": filename, "status": "ok"}
+
+
 # --- Memory endpoints ---
 
 @app.get("/api/memory")
@@ -473,11 +673,14 @@ async def list_cron_jobs():
                     "type": j.schedule.kind,
                     "interval": (j.schedule.every_ms // 1000) if j.schedule.every_ms else None,
                     "expression": j.schedule.expr,
+                    "tz": j.schedule.tz,
                 },
                 "message": j.payload.message,
-                "last_run": j.state.last_run_ms,
-                "next_run": j.state.next_run_ms,
-                "status": j.state.status,
+                "last_run": getattr(j.state, "last_run_at_ms", None),
+                "next_run": getattr(j.state, "next_run_at_ms", None),
+                "status": getattr(j.state, "last_status", None),
+                "last_error": getattr(j.state, "last_error", None),
+                "created_at": getattr(j, "created_at_ms", None),
             }
             for j in jobs
         ]
@@ -512,6 +715,24 @@ async def add_cron_job(req: CronJobRequest):
     return {"id": job.id, "name": job.name, "status": "created"}
 
 
+@app.patch("/api/cron/jobs/{job_id}")
+async def toggle_cron_job(job_id: str):
+    """Enable or disable a cron job (toggles current state)."""
+    if not state.cron:
+        raise HTTPException(status_code=503, detail="Cron service not available")
+
+    # Find current state
+    jobs = state.cron.list_jobs(include_disabled=True)
+    target = next((j for j in jobs if j.id == job_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    updated = state.cron.enable_job(job_id, enabled=not target.enabled)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"id": updated.id, "enabled": updated.enabled, "status": "toggled"}
+
+
 @app.delete("/api/cron/jobs/{job_id}")
 async def remove_cron_job(job_id: str):
     """Remove a cron job."""
@@ -522,6 +743,161 @@ async def remove_cron_job(job_id: str):
     if not removed:
         raise HTTPException(status_code=404, detail="Job not found")
     return {"status": "removed"}
+
+
+# --- Subagent endpoints ---
+
+@app.get("/api/agents")
+async def list_subagents():
+    """List running subagents."""
+    if not state.agent or not hasattr(state.agent, "subagents") or not state.agent.subagents:
+        return {"agents": [], "count": 0}
+
+    mgr = state.agent.subagents
+    agents = []
+    for task_id, task in list(mgr._running_tasks.items()):
+        agents.append({
+            "id": task_id,
+            "done": task.done(),
+            "cancelled": task.cancelled(),
+        })
+    return {"agents": agents, "count": len(agents)}
+
+
+# --- Composio Integration endpoints ---
+
+class ComposioConnectRequest(BaseModel):
+    app_name: str
+    redirect_url: str | None = None
+    integration_id: str | None = None
+
+class ComposioToolRequest(BaseModel):
+    app_name: str
+    selected_actions: list[str] | None = None
+
+
+@app.get("/api/composio/status")
+async def composio_status():
+    """Check Composio API key validity and list connected apps."""
+    if not state.composio:
+        return {"connected": False, "apps": [], "total_connections": 0, "active_connections": 0}
+    return await state.composio.get_status()
+
+
+@app.get("/api/composio/apps")
+async def composio_apps():
+    """List available apps from Composio."""
+    if not state.composio:
+        raise HTTPException(status_code=503, detail="Composio not configured")
+    apps = await state.composio.list_apps()
+    return {"apps": apps}
+
+
+@app.get("/api/composio/apps/{name}/actions")
+async def composio_app_actions(name: str):
+    """Get actions available for an app."""
+    if not state.composio:
+        raise HTTPException(status_code=503, detail="Composio not configured")
+    actions = await state.composio.get_app_actions(name)
+    return {"actions": actions}
+
+
+@app.post("/api/composio/connect")
+async def composio_connect(req: ComposioConnectRequest):
+    """Initiate an OAuth connection for an app."""
+    if not state.composio:
+        raise HTTPException(status_code=503, detail="Composio not configured")
+    result = await state.composio.initiate_connection(
+        app_name=req.app_name,
+        integration_id=req.integration_id,
+        redirect_url=req.redirect_url,
+    )
+    return result
+
+
+@app.get("/api/composio/connections")
+async def composio_connections():
+    """List all Composio connections."""
+    if not state.composio:
+        return {"connections": []}
+    connections = await state.composio.list_connections()
+    return {"connections": connections}
+
+
+@app.get("/api/composio/connections/{connection_id}")
+async def composio_connection_status(connection_id: str):
+    """Check status of a specific connection (for polling after OAuth)."""
+    if not state.composio:
+        raise HTTPException(status_code=503, detail="Composio not configured")
+    return await state.composio.check_connection(connection_id)
+
+
+@app.delete("/api/composio/connections/{connection_id}")
+async def composio_disconnect(connection_id: str):
+    """Disconnect (delete) a connected account."""
+    if not state.composio:
+        raise HTTPException(status_code=503, detail="Composio not configured")
+
+    # Find app name for this connection to unregister tools
+    conn = await state.composio.check_connection(connection_id)
+    app_name = conn.get("appName", "")
+
+    ok = await state.composio.disconnect(connection_id)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to disconnect")
+
+    # Unregister tools for this app
+    if app_name and state.agent:
+        await state.composio.unregister_app_tools(app_name, state.agent.tools)
+
+    return {"status": "disconnected"}
+
+
+@app.post("/api/composio/tools/register")
+async def composio_register_tools(req: ComposioToolRequest):
+    """Register tools for a connected app into the agent's ToolRegistry."""
+    if not state.composio:
+        raise HTTPException(status_code=503, detail="Composio not configured")
+    if not state.agent:
+        raise HTTPException(status_code=503, detail="Agent not ready")
+
+    # Store connected account ID for execution
+    connections = await state.composio.list_connections()
+    for conn in connections:
+        if conn.get("appName") == req.app_name and conn.get("status") == "ACTIVE":
+            state.composio._connected_apps[req.app_name] = conn["id"]
+            break
+
+    if req.selected_actions:
+        count = await state.composio.register_selected_app_tools(
+            req.app_name, req.selected_actions, state.agent.tools
+        )
+    else:
+        count = await state.composio.register_app_tools(req.app_name, state.agent.tools)
+    return {"count": count, "app_name": req.app_name}
+
+
+@app.post("/api/composio/tools/unregister")
+async def composio_unregister_tools(req: ComposioToolRequest):
+    """Remove tools for an app from the agent's ToolRegistry."""
+    if not state.composio:
+        raise HTTPException(status_code=503, detail="Composio not configured")
+    if not state.agent:
+        raise HTTPException(status_code=503, detail="Agent not ready")
+
+    await state.composio.unregister_app_tools(req.app_name, state.agent.tools)
+    return {"status": "unregistered", "app_name": req.app_name}
+
+
+@app.get("/api/composio/tools")
+async def composio_tools():
+    """List all registered Composio tools grouped by app."""
+    if not state.composio:
+        return {"tools_by_app": {}, "total": 0}
+    return {
+        "tools_by_app": state.composio.get_registered_tools_by_app(),
+        "total": state.composio.get_registered_tools_count(),
+    }
 
 
 # ---------------------------------------------------------------------------

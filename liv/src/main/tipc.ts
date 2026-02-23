@@ -75,6 +75,7 @@ import {
 } from "./services/screen-session-recording-service"
 import {
   getAutonomousKanbanBoard,
+  getKanbanWorkspace,
   refreshAutonomousKanban,
   searchAutonomousKanbanMemory,
   getAutonomousKanbanStatus,
@@ -83,6 +84,11 @@ import {
   updateKanbanCard,
   deleteKanbanCard,
   moveKanbanCard,
+  createKanbanBoard,
+  updateKanbanBoard,
+  deleteKanbanBoard,
+  createKanbanColumn,
+  deleteKanbanColumn,
 } from "./services/autonomous-kanban-service"
 import {
   getAutonomousProfileBoard,
@@ -131,6 +137,9 @@ import {
   getCustomKey,
   setCustomKey,
   deleteCustomKey,
+  getComposioKey,
+  setComposioKey,
+  deleteComposioKey,
 } from "./pile-utils/store"
 import pileHelper from "./pile-utils/pileHelper"
 import pileIndex from "./pile-utils/pileIndex"
@@ -1317,6 +1326,10 @@ export const router = {
     return getAutonomousKanbanBoard()
   }),
 
+  getKanbanWorkspace: t.procedure.action(async () => {
+    return getKanbanWorkspace()
+  }),
+
   refreshAutonomousKanban: t.procedure.action(async () => {
     return refreshAutonomousKanban()
   }),
@@ -1331,32 +1344,62 @@ export const router = {
     return getAutonomousKanbanStatus()
   }),
 
+  createKanbanBoard: t.procedure
+    .input<{ name: string; description?: string; icon?: string; color?: string; columns?: Array<{ id?: string; title: string; color?: string; icon?: string }>; createdBy?: "agent" | "user" | "system" }>()
+    .action(async ({ input }) => {
+      return createKanbanBoard(input)
+    }),
+
+  updateKanbanBoard: t.procedure
+    .input<{ boardId: string; updates: { name?: string; description?: string; icon?: string; color?: string } }>()
+    .action(async ({ input }) => {
+      return updateKanbanBoard(input.boardId, input.updates)
+    }),
+
+  deleteKanbanBoard: t.procedure
+    .input<{ boardId: string }>()
+    .action(async ({ input }) => {
+      return deleteKanbanBoard(input.boardId)
+    }),
+
+  createKanbanColumn: t.procedure
+    .input<{ boardId: string; title: string; color?: string; icon?: string }>()
+    .action(async ({ input }) => {
+      return createKanbanColumn(input.boardId, { title: input.title, color: input.color, icon: input.icon })
+    }),
+
+  deleteKanbanColumn: t.procedure
+    .input<{ boardId: string; columnId: string }>()
+    .action(async ({ input }) => {
+      return deleteKanbanColumn(input.boardId, input.columnId)
+    }),
+
   createKanbanCard: t.procedure
-    .input<{ columnId: string; title: string; description?: string; bullets?: string[] }>()
+    .input<{ boardId?: string; columnId: string; title: string; description?: string; bullets?: string[] }>()
     .action(async ({ input }) => {
       return createKanbanCard(input.columnId, {
         title: input.title,
         description: input.description,
         bullets: input.bullets,
-      })
+      }, input.boardId)
     }),
 
   updateKanbanCard: t.procedure
-    .input<{ cardId: string; updates: { title?: string; description?: string; bullets?: string[]; status?: "open" | "done"; lane?: "pending" | "suggestions" | "automations" } }>()
+    .input<{ boardId?: string; cardId: string; updates: { title?: string; description?: string; bullets?: string[]; status?: "open" | "done"; lane?: string } }>()
     .action(async ({ input }) => {
-      return updateKanbanCard(input.cardId, input.updates)
+      return updateKanbanCard(input.cardId, input.updates, input.boardId)
     }),
 
   deleteKanbanCard: t.procedure
-    .input<{ cardId: string }>()
+    .input<{ boardId?: string; cardId: string }>()
     .action(async ({ input }) => {
-      return deleteKanbanCard(input.cardId)
+      return deleteKanbanCard(input.cardId, input.boardId)
     }),
 
   moveKanbanCard: t.procedure
-    .input<{ cardId: string; toColumnId: string; position?: number }>()
+    .input<{ boardId?: string; cardId: string; toColumnId: string; position?: number }>()
     .action(async ({ input }) => {
-      return moveKanbanCard(input.cardId, input.toColumnId, input.position)
+      return moveKanbanCard(input.cardId, input.toColumnId, input.position, input.boardId)
     }),
 
   getAutonomousProfileBoard: t.procedure.action(async () => {
@@ -2141,6 +2184,26 @@ export const router = {
       return client.sendMessage(input.content, input.sessionId)
     }),
 
+  getNanobotBootstrapFiles: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) return {} as Record<string, string>
+    try {
+      return await client.getBootstrapFiles()
+    } catch {
+      return {} as Record<string, string>
+    }
+  }),
+
+  updateNanobotBootstrapFile: t.procedure
+    .input<{ filename: string; content: string }>()
+    .action(async ({ input }) => {
+      const { getHttpClient } = await import("./services/nanobot-gateway-client")
+      const client = getHttpClient()
+      if (!client) throw new Error("Nanobot not connected")
+      await client.updateBootstrapFile(input.filename, input.content)
+    }),
+
   getNanobotMemory: t.procedure.action(async () => {
     const { getHttpClient } = await import("./services/nanobot-gateway-client")
     const client = getHttpClient()
@@ -2155,12 +2218,52 @@ export const router = {
     await client.resetMemory()
   }),
 
+  getNanobotSessions: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) return [] as Array<{ key: string; created_at: string; updated_at: string; path: string }>
+    try {
+      return await client.listSessions()
+    } catch {
+      return [] as Array<{ key: string; created_at: string; updated_at: string; path: string }>
+    }
+  }),
+
+  getNanobotSessionMessages: t.procedure
+    .input<{ sessionKey: string }>()
+    .action(async ({ input }) => {
+      const { getHttpClient } = await import("./services/nanobot-gateway-client")
+      const client = getHttpClient()
+      if (!client) throw new Error("Nanobot not connected")
+      return client.getSessionMessages(input.sessionKey)
+    }),
+
   getNanobotCronJobs: t.procedure.action(async () => {
     const { getHttpClient } = await import("./services/nanobot-gateway-client")
     const client = getHttpClient()
     if (!client) return []
     return client.listCronJobs()
   }),
+
+  getNanobotSubagents: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) return { agents: [] as Array<{ id: string; done: boolean; cancelled: boolean }>, count: 0 }
+    try {
+      return await client.listSubagents()
+    } catch {
+      return { agents: [] as Array<{ id: string; done: boolean; cancelled: boolean }>, count: 0 }
+    }
+  }),
+
+  toggleNanobotCronJob: t.procedure
+    .input<{ jobId: string }>()
+    .action(async ({ input }) => {
+      const { getHttpClient } = await import("./services/nanobot-gateway-client")
+      const client = getHttpClient()
+      if (!client) throw new Error("Nanobot not connected")
+      return client.toggleCronJob(input.jobId)
+    }),
 
   getNanobotToolsAndSkills: t.procedure.action(async () => {
     const { getHttpClient } = await import("./services/nanobot-gateway-client")
@@ -2193,6 +2296,131 @@ export const router = {
       return { tools, skills }
     } catch {
       return { tools: [] as string[], skills: [] as string[] }
+    }
+  }),
+
+  // ===== Composio Integration =====
+
+  setComposioApiKey: t.procedure
+    .input<{ key: string }>()
+    .action(async ({ input }) => {
+      if (!input.key.trim()) {
+        await deleteComposioKey()
+        return { saved: true, hasKey: false }
+      }
+      const ok = await setComposioKey(input.key)
+      return { saved: ok, hasKey: ok }
+    }),
+
+  getComposioApiKeyStatus: t.procedure.action(async () => {
+    const key = await getComposioKey()
+    return { hasKey: !!key }
+  }),
+
+  deleteComposioApiKey: t.procedure.action(async () => {
+    await deleteComposioKey()
+    return { deleted: true }
+  }),
+
+  getComposioStatus: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) return { connected: false, apps: [] as string[], total_connections: 0, active_connections: 0 }
+    try {
+      return await client.getComposioStatus()
+    } catch {
+      return { connected: false, apps: [] as string[], total_connections: 0, active_connections: 0 }
+    }
+  }),
+
+  getComposioApps: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) return [] as Array<{ name: string; display_name: string; description: string; logo: string; categories: string[] }>
+    try {
+      return await client.getComposioApps()
+    } catch {
+      return [] as Array<{ name: string; display_name: string; description: string; logo: string; categories: string[] }>
+    }
+  }),
+
+  getComposioAppActions: t.procedure
+    .input<{ appName: string }>()
+    .action(async ({ input }) => {
+      const { getHttpClient } = await import("./services/nanobot-gateway-client")
+      const client = getHttpClient()
+      if (!client) return [] as Array<{ name: string; display_name: string; description: string }>
+      try {
+        return await client.getComposioAppActions(input.appName)
+      } catch {
+        return [] as Array<{ name: string; display_name: string; description: string }>
+      }
+    }),
+
+  initiateComposioConnection: t.procedure
+    .input<{ appName: string }>()
+    .action(async ({ input }) => {
+      const { getHttpClient } = await import("./services/nanobot-gateway-client")
+      const client = getHttpClient()
+      if (!client) throw new Error("Nanobot not connected")
+      return client.initiateComposioConnection(input.appName)
+    }),
+
+  getComposioConnectionStatus: t.procedure
+    .input<{ connectionId: string }>()
+    .action(async ({ input }) => {
+      const { getHttpClient } = await import("./services/nanobot-gateway-client")
+      const client = getHttpClient()
+      if (!client) throw new Error("Nanobot not connected")
+      return client.getComposioConnectionStatus(input.connectionId)
+    }),
+
+  listComposioConnections: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) return [] as Array<{ id: string; appName: string; status: string }>
+    try {
+      return await client.listComposioConnections()
+    } catch {
+      return [] as Array<{ id: string; appName: string; status: string }>
+    }
+  }),
+
+  disconnectComposioApp: t.procedure
+    .input<{ connectionId: string }>()
+    .action(async ({ input }) => {
+      const { getHttpClient } = await import("./services/nanobot-gateway-client")
+      const client = getHttpClient()
+      if (!client) throw new Error("Nanobot not connected")
+      await client.disconnectComposioApp(input.connectionId)
+    }),
+
+  registerComposioTools: t.procedure
+    .input<{ appName: string; selectedActions?: string[] }>()
+    .action(async ({ input }) => {
+      const { getHttpClient } = await import("./services/nanobot-gateway-client")
+      const client = getHttpClient()
+      if (!client) throw new Error("Nanobot not connected")
+      return client.registerComposioTools(input.appName, input.selectedActions)
+    }),
+
+  unregisterComposioTools: t.procedure
+    .input<{ appName: string }>()
+    .action(async ({ input }) => {
+      const { getHttpClient } = await import("./services/nanobot-gateway-client")
+      const client = getHttpClient()
+      if (!client) throw new Error("Nanobot not connected")
+      await client.unregisterComposioTools(input.appName)
+    }),
+
+  getComposioTools: t.procedure.action(async () => {
+    const { getHttpClient } = await import("./services/nanobot-gateway-client")
+    const client = getHttpClient()
+    if (!client) return { tools_by_app: {} as Record<string, string[]>, total: 0 }
+    try {
+      return await client.getComposioTools()
+    } catch {
+      return { tools_by_app: {} as Record<string, string[]>, total: 0 }
     }
   }),
 }

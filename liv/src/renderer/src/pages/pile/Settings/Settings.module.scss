@@ -16,7 +16,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 1400;
+  z-index: 10000;
 }
 
 // --- Header ---
@@ -387,5 +387,165 @@
   svg {
     opacity: 1 !important;
     color: var(--active) !important;
+  }
+}
+
+// --- Connection Wizard Modal ---
+
+.wizardOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20000;
+  backdrop-filter: blur(4px);
+  animation: wizardFadeIn 0.2s ease-out;
+}
+
+.wizardContent {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: wizardSlideIn 0.25s ease-out;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.wizardProgress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0 40px;
+
+  .wizardDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+    transition: all 0.2s;
+
+    &.active {
+      background: var(--active);
+      border-color: var(--active);
+    }
+
+    &.done {
+      background: #22c55e;
+      border-color: #22c55e;
+    }
+  }
+
+  .wizardLine {
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    transition: background 0.2s;
+
+    &.done {
+      background: #22c55e;
+    }
+  }
+}
+
+.wizardToolRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--bg-tertiary);
+  }
+
+  &.selected {
+    background: rgba(var(--active-rgb), 0.08);
+  }
+}
+
+.wizardCheckbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+
+  &.checked {
+    background: var(--active);
+    border-color: var(--active);
+  }
+}
+
+.wizardBtnSecondary {
+  padding: 8px 20px;
+  background: var(--bg-tertiary);
+  color: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: var(--bg);
+    border-color: var(--secondary);
+  }
+}
+
+.wizardBtnPrimary {
+  padding: 8px 20px;
+  background: var(--active);
+  color: var(--active-text);
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+@keyframes wizardFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes wizardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

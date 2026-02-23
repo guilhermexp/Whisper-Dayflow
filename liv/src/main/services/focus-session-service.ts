@@ -7,6 +7,10 @@ import {
   stopAutoJournalScheduler,
 } from "./auto-journal-service"
 import {
+  createKanbanCard,
+  refreshAutonomousKanban,
+} from "./autonomous-kanban-service"
+import {
   getPeriodicScreenshotStatus,
   restartPeriodicScreenshotScheduler,
   stopPeriodicScreenshotScheduler,
@@ -16,6 +20,7 @@ import {
   startScreenSessionRecording,
   stopScreenSessionRecording,
 } from "./screen-session-recording-service"
+import { logWithContext } from "../logger"
 
 type FocusPauseReason = "paused" | "finished" | "cancelled"
 
@@ -40,6 +45,8 @@ const state: FocusSessionState = {
   suspendedPeriodicScreenshots: false,
   suspendedContinuousScreenRecording: false,
 }
+
+const focusSessionLog = logWithContext("FocusSession")
 
 function getGeminiDefaultModel(): string {
   return "gemini-3-flash-preview"
@@ -123,6 +130,40 @@ async function runFocusedAnalysisAndPublish(windowMinutes: number) {
   }
 }
 
+async function publishFocusSessionToKanban(params: {
+  label: string
+  elapsedMs: number
+  reason: FocusPauseReason
+}) {
+  const { label, elapsedMs, reason } = params
+  if (elapsedMs < 15_000) {
+    return
+  }
+
+  const elapsedMinutes = Math.max(1, Math.round(elapsedMs / 60000))
+  const title = label.trim() || "Sessão de foco"
+  const prettyReason =
+    reason === "finished"
+      ? "concluída"
+      : reason === "paused"
+        ? "pausada"
+        : "cancelada"
+
+  try {
+    await refreshAutonomousKanban()
+    await createKanbanCard("pending", {
+      title: `Timer: ${title}`,
+      description: `Sessão ${prettyReason} após ${elapsedMinutes} min.`,
+      bullets: [
+        `Duração: ${elapsedMinutes} min`,
+        `Origem: timer de foco`,
+      ],
+    })
+  } catch (error) {
+    focusSessionLog.error("Failed to publish focus session to kanban", error)
+  }
+}
+
 export async function startFocusSession(input?: {
   label?: string
   expectedDurationMs?: number
@@ -155,6 +196,8 @@ export async function pauseFocusSession(_input?: { reason?: FocusPauseReason }) 
   }
 
   const startedAt = state.startedAt
+  const reason = _input?.reason ?? "paused"
+  const label = state.label
   await stopScreenSessionRecording()
 
   const elapsedMs = Math.max(0, Date.now() - startedAt)
@@ -164,6 +207,11 @@ export async function pauseFocusSession(_input?: { reason?: FocusPauseReason }) 
   state.startedAt = null
 
   const run = await runFocusedAnalysisAndPublish(windowMinutes)
+  await publishFocusSessionToKanban({
+    label,
+    elapsedMs,
+    reason,
+  })
   await restorePipelinesIfNeeded()
 
   return {

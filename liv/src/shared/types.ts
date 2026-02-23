@@ -213,7 +213,7 @@ export type AutoJournalRun = {
 export type AutonomousKanbanCard = {
   id: string
   title: string
-  lane: "pending" | "suggestions" | "automations"
+  lane: string
   description: string | null
   bullets: string[]
   confidence: number
@@ -225,14 +225,20 @@ export type AutonomousKanbanCard = {
 }
 
 export type AutonomousKanbanColumn = {
-  id: "pending" | "suggestions" | "automations"
+  id: string
   title: string
-  icon: "lightbulb" | "circle" | "target"
+  icon: string
   color: string
   cards: AutonomousKanbanCard[]
 }
 
 export type AutonomousKanbanBoard = {
+  id: string
+  name: string
+  description?: string
+  icon?: string
+  color?: string
+  createdBy: "agent" | "user" | "system"
   generatedAt: number
   columns: AutonomousKanbanColumn[]
   stats: {
@@ -240,6 +246,12 @@ export type AutonomousKanbanBoard = {
     cardsGenerated: number
     lastRunAt: number | null
   }
+}
+
+export type KanbanWorkspace = {
+  version: 2
+  boards: AutonomousKanbanBoard[]
+  updatedAt: string
 }
 
 export type AutonomousProfileCardKind =
@@ -547,6 +559,9 @@ export type Config = {
   nanobotEmailSmtpHost?: string
   nanobotEmailSmtpUser?: string
   nanobotEmailSmtpPass?: string
+
+  // Composio External Integrations (API key stored in safeStorage, not here)
+  composioApiKey?: string
 }
 
 // Periodic screenshot captured independently of recordings

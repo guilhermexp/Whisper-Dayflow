@@ -214,6 +214,39 @@ export async function deleteCustomKey(): Promise<boolean> {
   }
 }
 
+// Composio key functions
+export async function getComposioKey(): Promise<string | null> {
+  try {
+    const encryptedKey = await settings.get('composioKey');
+    if (!encryptedKey || typeof encryptedKey !== 'string') return null;
+    return safeStorage.decryptString(Buffer.from(encryptedKey, 'base64'));
+  } catch (error) {
+    console.error('Error retrieving Composio key:', error);
+    return null;
+  }
+}
+
+export async function setComposioKey(secretKey: string): Promise<boolean> {
+  try {
+    const encryptedKey = safeStorage.encryptString(secretKey);
+    await settings.set('composioKey', encryptedKey.toString('base64'));
+    return true;
+  } catch (error) {
+    console.error('Error setting Composio key:', error);
+    return false;
+  }
+}
+
+export async function deleteComposioKey(): Promise<boolean> {
+  try {
+    await settings.unset('composioKey');
+    return true;
+  } catch (error) {
+    console.error('Error deleting Composio key:', error);
+    return false;
+  }
+}
+
 export async function fetchOpenrouterModels(): Promise<string[]> {
   try {
     const response = await fetch('https://openrouter.ai/api/v1/models', {

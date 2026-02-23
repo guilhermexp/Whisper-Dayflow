@@ -15,7 +15,7 @@ import fs from "fs"
 import { app } from "electron"
 import { configStore, dataFolder } from "../config"
 import { logger } from "../logger"
-import { getKey, getOpenrouterKey, getGeminiKey, getGroqKey } from "../pile-utils/store"
+import { getKey, getOpenrouterKey, getGeminiKey, getGroqKey, getComposioKey } from "../pile-utils/store"
 import settings from "electron-settings"
 import type { NanobotStatus } from "../../shared/types"
 
@@ -340,6 +340,12 @@ class NanobotBridgeService {
     }
 
     if (baseUrl) env.LIV_API_BASE = baseUrl
+
+    // Composio API key (from encrypted storage)
+    const composioKey = await getComposioKey()
+    if (composioKey) {
+      env.LIV_COMPOSIO_API_KEY = composioKey
+    }
 
     // Channel integrations
     if (cfg.nanobotTelegramEnabled) {

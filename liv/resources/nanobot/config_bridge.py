@@ -84,3 +84,10 @@ def get_channels_config() -> dict:
         }
 
     return channels
+
+
+def get_composio_config() -> dict:
+    """Read Composio configuration from environment variables."""
+    return {
+        "api_key": os.environ.get("LIV_COMPOSIO_API_KEY", ""),
+    }

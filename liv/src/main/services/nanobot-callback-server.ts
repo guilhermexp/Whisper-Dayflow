@@ -20,10 +20,15 @@ import {
 } from "./auto-journal-service"
 import {
   getAutonomousKanbanBoard,
+  getKanbanWorkspace,
   createKanbanCard,
   updateKanbanCard,
   deleteKanbanCard,
   moveKanbanCard,
+  createKanbanBoard,
+  updateKanbanBoard,
+  deleteKanbanBoard,
+  createKanbanColumn,
   searchAutonomousKanbanMemory,
 } from "./autonomous-kanban-service"
 import {
@@ -130,50 +135,110 @@ async function handleRequest(
     }
 
     // --- Kanban ---
+
+    // Workspace (all boards)
+    if (path === "/kanban/workspace" && method === "GET") {
+      const workspace = await getKanbanWorkspace()
+      return json(res, workspace)
+    }
+
+    // Backward compat: single board
     if (path === "/kanban/board" && method === "GET") {
       const board = await getAutonomousKanbanBoard()
       return json(res, board)
     }
 
+    // Create board
+    if (path === "/kanban/board" && method === "POST") {
+      const body = await parseBody(req)
+      const workspace = await createKanbanBoard({
+        name: body.name as string,
+        description: body.description as string | undefined,
+        icon: body.icon as string | undefined,
+        color: body.color as string | undefined,
+        columns: body.columns as Array<{ id?: string; title: string; color?: string; icon?: string }> | undefined,
+        createdBy: (body.createdBy as "agent" | "user" | "system") || "agent",
+      })
+      return json(res, workspace)
+    }
+
+    // Update board metadata
+    if (path.startsWith("/kanban/board/") && method === "PUT") {
+      const boardId = path.split("/kanban/board/")[1]
+      const body = await parseBody(req)
+      const workspace = await updateKanbanBoard(boardId, {
+        name: body.name as string | undefined,
+        description: body.description as string | undefined,
+        icon: body.icon as string | undefined,
+        color: body.color as string | undefined,
+      })
+      return json(res, workspace)
+    }
+
+    // Delete board
+    if (path.startsWith("/kanban/board/") && method === "DELETE") {
+      const boardId = path.split("/kanban/board/")[1]
+      const workspace = await deleteKanbanBoard(boardId)
+      return json(res, workspace)
+    }
+
+    // Create column in board
+    if (path.match(/^\/kanban\/board\/[^/]+\/column$/) && method === "POST") {
+      const boardId = path.split("/kanban/board/")[1].replace("/column", "")
+      const body = await parseBody(req)
+      const workspace = await createKanbanColumn(boardId, {
+        title: body.title as string,
+        color: body.color as string | undefined,
+        icon: body.icon as string | undefined,
+      })
+      return json(res, workspace)
+    }
+
+    // Create card (with optional boardId)
     if (path === "/kanban/card" && method === "POST") {
       const body = await parseBody(req)
+      const boardId = (body.boardId as string) || "auto-analysis"
       const columnId = (body.columnId as string) || "pending"
-      const board = await createKanbanCard(columnId, {
+      const workspace = await createKanbanCard(columnId, {
         title: body.title as string,
         description: body.description as string | undefined,
         bullets: body.bullets as string[] | undefined,
-      })
-      return json(res, board)
+      }, boardId)
+      return json(res, workspace)
     }
 
+    // Update card
     if (path.startsWith("/kanban/card/") && method === "PUT") {
       const cardId = path.split("/kanban/card/")[1]
       const body = await parseBody(req)
-      const board = await updateKanbanCard(cardId, {
+      const workspace = await updateKanbanCard(cardId, {
         title: body.title as string | undefined,
         description: body.description as string | undefined,
         bullets: body.bullets as string[] | undefined,
         status: body.status as "open" | "done" | undefined,
-        lane: body.lane as "pending" | "suggestions" | "automations" | undefined,
-      })
-      return json(res, board)
+        lane: body.lane as string | undefined,
+      }, body.boardId as string | undefined)
+      return json(res, workspace)
     }
 
+    // Delete card
     if (path.startsWith("/kanban/card/") && method === "DELETE") {
       const cardId = path.split("/kanban/card/")[1]
-      const board = await deleteKanbanCard(cardId)
-      return json(res, board)
+      const workspace = await deleteKanbanCard(cardId)
+      return json(res, workspace)
     }
 
+    // Move card
     if (path.startsWith("/kanban/move/") && method === "POST") {
       const cardId = path.split("/kanban/move/")[1]
       const body = await parseBody(req)
-      const board = await moveKanbanCard(
+      const workspace = await moveKanbanCard(
         cardId,
         body.toColumnId as string,
         body.position as number | undefined,
+        body.boardId as string | undefined,
       )
-      return json(res, board)
+      return json(res, workspace)
     }
 
     // --- Memory ---

@@ -8,6 +8,9 @@ import {
   ChevronRightIcon,
   ChevronLeftIcon,
   ArrowRightIcon,
+  ChatIcon,
+  ClockIcon,
+  PlusIcon,
 } from "renderer/icons"
 import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
@@ -23,6 +26,43 @@ import useChat from "renderer/hooks/useChat"
 import { AnimatePresence, motion } from "framer-motion"
 import { PENDING_MESSAGE_MARKER } from "@shared/constants"
 import Navigation from "../Navigation"
+import { tipcClient } from "renderer/lib/tipc-client"
+
+const formatRelativeTime = (isoString) => {
+  if (!isoString) return ""
+  const date = new Date(isoString)
+  const now = new Date()
+  const diffMs = now - date
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return "agora"
+  if (diffMin < 60) return `${diffMin}min`
+  const diffH = Math.floor(diffMin / 60)
+  if (diffH < 24) return `${diffH}h`
+  const diffD = Math.floor(diffH / 24)
+  if (diffD < 30) return `${diffD}d`
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+}
+
+const parseSessionLabel = (key) => {
+  if (!key) return key
+  const parts = key.split(":")
+  if (parts.length >= 2) {
+    const channel = parts[0]
+    const chatId = parts.slice(1).join(":")
+    const channelLabels = {
+      liv: "Liv",
+      cli: "CLI",
+      telegram: "Telegram",
+      discord: "Discord",
+      slack: "Slack",
+      whatsapp: "WhatsApp",
+      email: "Email",
+      cron: "Cron",
+    }
+    return `${channelLabels[channel] || channel} · ${chatId}`
+  }
+  return key
+}
 
 function Chat() {
   const { t } = useTranslation()
@@ -45,6 +85,11 @@ function Chat() {
   const [requestError, setRequestError] = useState("")
   const [showContext, setShowContext] = useState(false)
   const [showThemeSelector, setShowThemeSelector] = useState(false)
+  const [showSessions, setShowSessions] = useState(false)
+  const [sessions, setSessions] = useState([])
+  const [currentSessionKey, setCurrentSessionKey] = useState("liv:chat")
+  const [loadingSessions, setLoadingSessions] = useState(false)
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false)
 
   const tokenBufferRef = useRef("")
   const flushTimeoutRef = useRef(null)
@@ -57,14 +102,85 @@ function Chat() {
     checkApiKeyValid()
   }, [validKey])
 
+  const loadSessions = useCallback(async () => {
+    if (!isNanobotActive) return
+    setLoadingSessions(true)
+    try {
+      const list = await tipcClient.getNanobotSessions()
+      setSessions(list || [])
+    } catch {
+      setSessions([])
+    } finally {
+      setLoadingSessions(false)
+    }
+  }, [isNanobotActive])
+
+  useEffect(() => {
+    if (showSessions && isNanobotActive) {
+      loadSessions()
+    }
+  }, [showSessions, isNanobotActive, loadSessions])
+
+  const switchSession = useCallback(
+    async (sessionKey) => {
+      if (sessionKey === currentSessionKey) return
+      setCurrentSessionKey(sessionKey)
+      try {
+        const data = await tipcClient.getNanobotSessionMessages({ sessionKey })
+        const loadedHistory = (data.messages || []).map((m) => ({
+          role: m.role === "assistant" ? "system" : m.role,
+          content: m.content,
+        }))
+        setHistory(loadedHistory)
+        resetMessages()
+      } catch (err) {
+        console.error("[Chat] Failed to load session:", err)
+      }
+    },
+    [currentSessionKey, resetMessages],
+  )
+
+  const onNewSession = useCallback(async () => {
+    setText("")
+    setHistory([])
+    resetMessages()
+    setCurrentSessionKey("liv:chat")
+    tokenBufferRef.current = ""
+    if (flushTimeoutRef.current) {
+      clearTimeout(flushTimeoutRef.current)
+      flushTimeoutRef.current = null
+    }
+    if (isNanobotActive) {
+      try {
+        await tipcClient.sendNanobotMessage({ content: "/new", sessionId: currentSessionKey })
+      } catch { /* ignore */ }
+      loadSessions()
+    }
+  }, [isNanobotActive, currentSessionKey, resetMessages, loadSessions])
+
+  const SLASH_COMMANDS = [
+    { cmd: "/new", label: "Nova sessao", desc: "Limpa a sessao atual e arquiva na memoria" },
+    { cmd: "/help", label: "Ajuda", desc: "Lista comandos disponiveis do agente" },
+  ]
+
   const onChangeText = (e) => {
     if (requestError) {
       setRequestError("")
     }
-    setText(e.target.value)
+    const val = e.target.value
+    setText(val)
+    if (isNanobotActive && val.startsWith("/") && val.length <= 6) {
+      setSlashMenuOpen(true)
+    } else {
+      setSlashMenuOpen(false)
+    }
   }
 
   const onResetConversation = () => {
+    if (isNanobotActive) {
+      onNewSession()
+      return
+    }
     setText("")
     setHistory([])
     resetMessages()
@@ -119,6 +235,14 @@ function Chat() {
   const onSubmit = async () => {
     const message = text.trim()
     if (message === "" || querying || !aiApiKeyValid) return
+
+    setSlashMenuOpen(false)
+
+    // Handle /new slash command locally
+    if (isNanobotActive && message === "/new") {
+      onNewSession()
+      return
+    }
 
     setQuerying(true)
     setRequestError("")
@@ -258,6 +382,18 @@ function Chat() {
                 </AnimatePresence>
               </div>
 
+              {isNanobotActive && (
+                <button
+                  type="button"
+                  className={`${styles.headerBtnIcon} ${showSessions ? styles.activeBtn : ""}`}
+                  onClick={() => setShowSessions(!showSessions)}
+                  title="Sessoes"
+                  aria-label="Sessoes"
+                >
+                  <ClockIcon className={styles.icon} />
+                </button>
+              )}
+
               <button
                 type="button"
                 className={`${styles.headerBtnIcon} ${history.length === 0 ? styles.disabled : ""}`}
@@ -345,11 +481,109 @@ function Chat() {
                     <VirtualList data={history} isStreaming={querying} />
                   )}
                 </div>
+
+                <AnimatePresence initial={false}>
+                  {showSessions && isNanobotActive && (
+                    <motion.aside
+                      className={styles.sessionsPanel}
+                      initial={{ width: 0, opacity: 0, x: 12 }}
+                      animate={{ width: 260, opacity: 1, x: 0 }}
+                      exit={{ width: 0, opacity: 0, x: 12 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className={styles.sessionsPanelHeader}>
+                        <span>Sessoes</span>
+                        <button
+                          type="button"
+                          className={styles.sessionsNewBtn}
+                          onClick={onNewSession}
+                          title="Nova sessao"
+                        >
+                          <PlusIcon className={styles.sessionsNewIcon} />
+                        </button>
+                      </div>
+                      <div className={styles.sessionsList}>
+                        {loadingSessions && sessions.length === 0 && (
+                          <div className={styles.sessionsEmpty}>Carregando...</div>
+                        )}
+                        {!loadingSessions && sessions.length === 0 && (
+                          <div className={styles.sessionsEmpty}>Nenhuma sessao</div>
+                        )}
+                        {sessions.map((s) => (
+                          <div
+                            key={s.key}
+                            className={`${styles.sessionItem} ${s.key === currentSessionKey ? styles.sessionActive : ""}`}
+                            onClick={() => switchSession(s.key)}
+                          >
+                            <div className={styles.sessionIcon}>
+                              <ChatIcon />
+                            </div>
+                            <div className={styles.sessionInfo}>
+                              <div className={styles.sessionLabel}>
+                                {parseSessionLabel(s.key)}
+                              </div>
+                              <div className={styles.sessionTime}>
+                                {formatRelativeTime(s.updated_at)}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.aside>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
 
           <div className={styles.inputBar}>
+            <AnimatePresence>
+              {slashMenuOpen && isNanobotActive && (
+                <motion.div
+                  className={styles.slashMenu}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.12 }}
+                >
+                  {SLASH_COMMANDS.filter((c) =>
+                    c.cmd.startsWith(text.trim().toLowerCase() || "/"),
+                  ).map((c) => (
+                    <div
+                      key={c.cmd}
+                      className={styles.slashMenuItem}
+                      onClick={() => {
+                        setSlashMenuOpen(false)
+                        if (c.cmd === "/new") {
+                          onNewSession()
+                        } else {
+                          // Send the slash command as a regular message
+                          setText("")
+                          setHistory((prev) => [...prev, { role: "user", content: c.cmd }])
+                          setQuerying(true)
+                          tipcClient
+                            .sendNanobotMessage({ content: c.cmd, sessionId: currentSessionKey })
+                            .then((res) => {
+                              setHistory((prev) => [
+                                ...prev,
+                                { role: "system", content: res?.content || "" },
+                              ])
+                            })
+                            .catch((err) => {
+                              setRequestError(err?.message || "Comando falhou")
+                            })
+                            .finally(() => setQuerying(false))
+                        }
+                      }}
+                    >
+                      <span className={styles.slashCmd}>{c.cmd}</span>
+                      <span className={styles.slashLabel}>{c.label}</span>
+                      <span className={styles.slashDesc}>{c.desc}</span>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
             {querying && toolCalls.length > 0 && (
               <div className={styles.toolCallsBar}>
                 {toolCalls.map((tc, i) => (
