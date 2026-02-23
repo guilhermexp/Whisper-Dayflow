@@ -8,6 +8,8 @@ nanobot tools via ComposioToolWrapper.
 
 import json
 import logging
+import hashlib
+import re
 from typing import Any
 
 import httpx
@@ -16,6 +18,26 @@ from nanobot.agent.tools.base import Tool
 from nanobot.agent.tools.registry import ToolRegistry
 
 log = logging.getLogger("composio-bridge")
+MAX_TOOL_NAME_LEN = 64
+
+
+def _slug(value: str) -> str:
+    cleaned = re.sub(r"[^a-zA-Z0-9_]+", "_", value.strip().lower())
+    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
+    return cleaned or "x"
+
+
+def _build_tool_name(app_name: str, action_name: str) -> str:
+    app = _slug(app_name)
+    action = _slug(action_name)
+    base = f"composio_{app}_{action}"
+    if len(base) <= MAX_TOOL_NAME_LEN:
+        return base
+
+    digest = hashlib.sha1(f"{app_name}:{action_name}".encode("utf-8")).hexdigest()[:8]
+    suffix = f"_{digest}"
+    allowed = MAX_TOOL_NAME_LEN - len(suffix)
+    return f"{base[:allowed]}{suffix}"
 
 # ---------------------------------------------------------------------------
 # ComposioToolWrapper — wraps a single Composio action as a nanobot Tool
@@ -30,7 +52,7 @@ class ComposioToolWrapper(Tool):
         self._bridge = bridge
         self._app_name = app_name
         self._action_name = action["name"]
-        self._name = f"composio_{app_name}_{action['name']}"
+        self._name = _build_tool_name(app_name, action["name"])
         self._description = action.get("description", action["name"])
         self._parameters = action.get("parameters", {"type": "object", "properties": {}})
 

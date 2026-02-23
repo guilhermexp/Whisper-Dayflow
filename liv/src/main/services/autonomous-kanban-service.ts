@@ -17,6 +17,7 @@ import {
   getAutonomousMemoryPaths,
   buildAutonomousPromptContext,
 } from "./autonomous-memory-service"
+import { loadKanbanAutomationConfig } from "./automation-workspace-config"
 
 const AUTO_AGENT_DIR = path.join(recordingsFolder, "auto-agent")
 const BOARD_FILE = path.join(AUTO_AGENT_DIR, "kanban-board.json")
@@ -79,22 +80,41 @@ const loadRuns = (limit = 200): AutoJournalRun[] => {
   return runs
 }
 
-const parsePendingSignal = (text: string) => {
-  const patterns = [
-    /\b(preciso|pendente|falta|lembrar|revisar|finalizar|terminar|enviar|agendar|resolver|ajustar|corrigir|follow\s?up|need to|todo|to do|remember to)\b/i,
-    /\b(vou|devo)\b.{0,40}\b(fazer|revisar|enviar|agendar|ajustar|resolver)\b/i,
-  ]
-
-  return patterns.some((pattern) => pattern.test(text))
+const safeRegex = (pattern: string): RegExp | null => {
+  try {
+    return new RegExp(pattern, "i")
+  } catch {
+    return null
+  }
 }
 
-const buildPendingCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] => {
+const parsePendingSignal = (text: string, patterns: string[]) => {
+  const compiled = patterns
+    .map((pattern) => safeRegex(pattern))
+    .filter((value): value is RegExp => Boolean(value))
+  return compiled.some((pattern) => pattern.test(text))
+}
+
+const buildPendingCards = (
+  runs: AutoJournalRun[],
+  config: ReturnType<typeof loadKanbanAutomationConfig>,
+): AutonomousKanbanCard[] => {
   const map = new Map<string, { title: string; mentions: number; lastSeen: number; runIds: string[]; summaries: string[] }>()
+  const pendingPatterns = [
+    ...config.pendingPatterns,
+    config.pendingIntentPattern,
+  ]
+  const highlightMatches = new Set(
+    config.highlightDoLaterValues.map((item) => item.toLowerCase().trim()),
+  )
 
   for (const run of runs) {
     const activities = run.summary?.activities || []
     for (const activity of activities) {
-      const signal = parsePendingSignal(`${activity.title} ${activity.summary}`) || run.summary?.highlight === "Do later"
+      const highlight = (run.summary?.highlight || "").toLowerCase().trim()
+      const signal =
+        parsePendingSignal(`${activity.title} ${activity.summary}`, pendingPatterns) ||
+        highlightMatches.has(highlight)
       if (!signal) continue
 
       const key = titleKey(activity.title)
@@ -120,7 +140,7 @@ const buildPendingCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] => {
 
   return Array.from(map.values())
     .sort((a, b) => b.lastSeen - a.lastSeen)
-    .slice(0, 20)
+    .slice(0, config.limits.pendingCards)
     .map((item) => ({
       id: `pending-${hashId(item.title + item.lastSeen)}`,
       title: item.title,
@@ -139,7 +159,10 @@ const buildPendingCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] => {
     }))
 }
 
-const buildSuggestionCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] => {
+const buildSuggestionCards = (
+  runs: AutoJournalRun[],
+  config: ReturnType<typeof loadKanbanAutomationConfig>,
+): AutonomousKanbanCard[] => {
   const activities = runs.flatMap((run) => run.summary?.activities || [])
   if (activities.length === 0) return []
 
@@ -156,7 +179,7 @@ const buildSuggestionCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] =>
 
   const cards: AutonomousKanbanCard[] = []
 
-  if (distractionRatio >= 0.22) {
+  if (distractionRatio >= config.thresholds.distractionRatio) {
     cards.push({
       id: `suggest-${hashId("reduce-distraction")}`,
       title: "Reduzir blocos de distração com foco protegido",
@@ -175,7 +198,7 @@ const buildSuggestionCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] =>
     })
   }
 
-  if (averageSwitches >= 2.3) {
+  if (averageSwitches >= config.thresholds.averageContextSwitches) {
     cards.push({
       id: `suggest-${hashId("context-switch")}`,
       title: "Diminuir troca de contexto por sessão",
@@ -194,7 +217,7 @@ const buildSuggestionCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] =>
     })
   }
 
-  if (idleRatio >= 0.2 && workCount > 0) {
+  if (idleRatio >= config.thresholds.idleRatio && workCount > 0) {
     cards.push({
       id: `suggest-${hashId("idle-balance")}`,
       title: "Revisar pausas para manter ritmo estável",
@@ -232,10 +255,13 @@ const buildSuggestionCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] =>
     })
   }
 
-  return cards.slice(0, 8)
+  return cards.slice(0, config.limits.suggestionCards)
 }
 
-const buildAutomationCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] => {
+const buildAutomationCards = (
+  runs: AutoJournalRun[],
+  config: ReturnType<typeof loadKanbanAutomationConfig>,
+): AutonomousKanbanCard[] => {
   const patternMap = new Map<string, { title: string; count: number; runIds: string[]; lastSeen: number }>()
 
   for (const run of runs) {
@@ -259,22 +285,20 @@ const buildAutomationCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] =>
   }
 
   const repetitive = Array.from(patternMap.values())
-    .filter((item) => item.count >= 3)
+    .filter((item) => item.count >= config.thresholds.repetitiveActivityCount)
     .sort((a, b) => b.count - a.count)
-    .slice(0, 10)
+    .slice(0, config.limits.automationCards)
 
   const cards = repetitive.map((item) => {
     const normalized = normalizeText(item.title)
     let automationIdea = "Criar pipeline para atualizar checklist e registrar progresso automaticamente"
 
-    if (/email|inbox|gmail/.test(normalized)) {
-      automationIdea = "Rodar triagem automática de e-mails e criar tarefas de follow-up"
-    } else if (/zoom|meet|meeting|reuniao/.test(normalized)) {
-      automationIdea = "Gerar resumo pós-reunião com próximos passos e responsáveis"
-    } else if (/deploy|ci|build|release/.test(normalized)) {
-      automationIdea = "Executar checklist de release automático com validações"
-    } else if (/pesquisa|research|study|analise/.test(normalized)) {
-      automationIdea = "Salvar insights da pesquisa e criar tarefas de execução"
+    for (const rule of config.automationIdeaRules) {
+      const pattern = safeRegex(rule.match)
+      if (pattern?.test(normalized)) {
+        automationIdea = rule.idea
+        break
+      }
     }
 
     return {
@@ -295,7 +319,7 @@ const buildAutomationCards = (runs: AutoJournalRun[]): AutonomousKanbanCard[] =>
     } satisfies AutonomousKanbanCard
   })
 
-  return cards.slice(0, 10)
+  return cards.slice(0, config.limits.automationCards)
 }
 
 const buildColumns = (cards: AutonomousKanbanCard[]): AutonomousKanbanColumn[] => {
@@ -448,11 +472,12 @@ export async function refreshAutonomousKanban(): Promise<KanbanWorkspace> {
       }
 
       await initializeAutonomousMemory()
-      const runs = loadRuns(240)
+      const config = loadKanbanAutomationConfig()
+      const runs = loadRuns(config.limits.runsWindow)
 
-      const pending = buildPendingCards(runs)
-      const suggestions = buildSuggestionCards(runs)
-      const automations = buildAutomationCards(runs)
+      const pending = buildPendingCards(runs, config)
+      const suggestions = buildSuggestionCards(runs, config)
+      const automations = buildAutomationCards(runs, config)
 
       const cards = [...pending, ...suggestions, ...automations]
 

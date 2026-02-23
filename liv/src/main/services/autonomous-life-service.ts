@@ -492,7 +492,7 @@ Nao use markdown fences ou texto extra.`
         effectiveProvider === "custom"
           ? config.customEnhancementBaseUrl || "https://api.example.com/v1"
           : effectiveProvider === "openrouter"
-            ? "https://openrouter.ai/api/v1"
+            ? config.openrouterBaseUrl || "https://openrouter.ai/api/v1"
             : effectiveProvider === "groq"
               ? config.groqBaseUrl || "https://api.groq.com/openai/v1"
               : settingsBaseUrl || "https://api.openai.com/v1"

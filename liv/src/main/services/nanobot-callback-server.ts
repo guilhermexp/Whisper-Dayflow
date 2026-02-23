@@ -9,6 +9,7 @@
  */
 
 import http from "http"
+import crypto from "crypto"
 import { BrowserWindow } from "electron"
 import { logger } from "../logger"
 import { WINDOWS } from "../window"
@@ -49,8 +50,14 @@ import { configStore } from "../config"
 import { historyStore } from "../history-store"
 import { runHistorySearch } from "../history-analytics"
 import { Notification } from "electron"
+import {
+  getAutomationWorkspacePaths,
+  loadKanbanAutomationConfig,
+  loadProfileAutomationConfig,
+} from "./automation-workspace-config"
 
 const LOG_PREFIX = "[NanobotCallback]"
+const MAX_BODY_BYTES = 1_048_576 // 1MB
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,8 +66,22 @@ const LOG_PREFIX = "[NanobotCallback]"
 function parseBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let data = ""
-    req.on("data", (chunk: Buffer) => { data += chunk.toString() })
+    let size = 0
+    let rejected = false
+
+    req.on("data", (chunk: Buffer) => {
+      if (rejected) return
+      size += chunk.length
+      if (size > MAX_BODY_BYTES) {
+        rejected = true
+        reject(new Error("Payload too large"))
+        req.destroy()
+        return
+      }
+      data += chunk.toString()
+    })
     req.on("end", () => {
+      if (rejected) return
       if (!data) return resolve({})
       try {
         resolve(JSON.parse(data))
@@ -90,6 +111,36 @@ function error(res: http.ServerResponse, message: string, status = 400) {
   json(res, { error: message }, status)
 }
 
+function getBearerToken(req: http.IncomingMessage): string | null {
+  const authHeader = req.headers.authorization
+  if (!authHeader) return null
+  const [scheme, token] = authHeader.split(" ")
+  if (!scheme || !token) return null
+  if (scheme.toLowerCase() !== "bearer") return null
+  return token
+}
+
+function safeEqualString(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a)
+  const bBuf = Buffer.from(b)
+  if (aBuf.length !== bBuf.length) return false
+  return crypto.timingSafeEqual(aBuf, bBuf)
+}
+
+let callbackAuthToken: string | null = null
+
+function isAuthorized(req: http.IncomingMessage): boolean {
+  if (!callbackAuthToken) return false
+  const tokenFromHeader = req.headers["x-liv-callback-token"]
+  const tokenFromBearer = getBearerToken(req)
+  const candidate =
+    (Array.isArray(tokenFromHeader) ? tokenFromHeader[0] : tokenFromHeader) ||
+    tokenFromBearer ||
+    ""
+  if (!candidate) return false
+  return safeEqualString(candidate, callbackAuthToken)
+}
+
 // ---------------------------------------------------------------------------
 // Route handler
 // ---------------------------------------------------------------------------
@@ -103,6 +154,10 @@ async function handleRequest(
   const path = url.split("?")[0]
 
   try {
+    if (!isAuthorized(req)) {
+      return error(res, "Unauthorized", 401)
+    }
+
     // --- Journal ---
     if (path === "/journal/entries" && method === "GET") {
       const q = parseQuery(url)
@@ -409,11 +464,23 @@ async function handleRequest(
       })
     }
 
+    if (path === "/automation/config" && method === "GET") {
+      return json(res, {
+        paths: getAutomationWorkspacePaths(),
+        kanban: loadKanbanAutomationConfig(),
+        profile: loadProfileAutomationConfig(),
+      })
+    }
+
     // --- 404 ---
     error(res, `Not found: ${method} ${path}`, 404)
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (message === "Payload too large") {
+      return error(res, message, 413)
+    }
     logger.error(`${LOG_PREFIX} Error handling ${method} ${path}:`, err)
-    error(res, String(err), 500)
+    error(res, message, 500)
   }
 }
 
@@ -424,7 +491,11 @@ async function handleRequest(
 let server: http.Server | null = null
 
 /** Start the callback server and return the port it's listening on. */
-export async function startNanobotCallbackServer(): Promise<number> {
+export async function startNanobotCallbackServer(input: {
+  authToken: string
+}): Promise<number> {
+  callbackAuthToken = input.authToken
+
   if (server) {
     logger.warn(`${LOG_PREFIX} Already running`)
     const addr = server.address()
@@ -458,6 +529,7 @@ export function stopNanobotCallbackServer(): void {
   if (server) {
     server.close()
     server = null
+    callbackAuthToken = null
     logger.info(`${LOG_PREFIX} Callback server stopped`)
   }
 }

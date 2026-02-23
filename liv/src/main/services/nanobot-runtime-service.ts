@@ -1,7 +1,9 @@
+import crypto from "crypto"
 import { logger } from "../logger"
 import { startNanobotCallbackServer, stopNanobotCallbackServer } from "./nanobot-callback-server"
 import { nanobotBridge } from "./nanobot-bridge-service"
 import { destroyClients, initClients } from "./nanobot-gateway-client"
+import { ensureAutomationWorkspaceFiles } from "./automation-workspace-config"
 
 const LOG_PREFIX = "[NanobotRuntime]"
 
@@ -26,8 +28,12 @@ function bindBridgeLifecycleListeners() {
 
 export async function startNanobotRuntime() {
   bindBridgeLifecycleListeners()
-  const callbackPort = await startNanobotCallbackServer()
-  await nanobotBridge.start(callbackPort)
+  ensureAutomationWorkspaceFiles()
+  const callbackToken = crypto.randomBytes(24).toString("hex")
+  const callbackPort = await startNanobotCallbackServer({
+    authToken: callbackToken,
+  })
+  await nanobotBridge.start(callbackPort, callbackToken)
   logger.info(
     `${LOG_PREFIX} Started (gateway=${nanobotBridge.port}, callback=${callbackPort})`,
   )

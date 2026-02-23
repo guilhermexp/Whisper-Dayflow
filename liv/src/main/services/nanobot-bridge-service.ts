@@ -15,7 +15,7 @@ import fs from "fs"
 import { app } from "electron"
 import { configStore, dataFolder } from "../config"
 import { logger } from "../logger"
-import { getKey, getOpenrouterKey, getGeminiKey, getGroqKey, getComposioKey } from "../pile-utils/store"
+import { getKey, getGeminiKey, getGroqKey, getComposioKey } from "../pile-utils/store"
 import settings from "electron-settings"
 import type { NanobotStatus } from "../../shared/types"
 
@@ -29,6 +29,23 @@ const HEALTH_CHECK_TIMEOUT_MS = 30_000
 const MAX_BACKOFF_MS = 30_000
 const INITIAL_BACKOFF_MS = 1_000
 const MAX_RESTART_ATTEMPTS = 5
+
+const normalizePileProvider = (provider?: string): string => {
+  const supported = new Set(["openai", "openrouter", "ollama", "gemini", "groq", "custom"])
+  if (provider === "subscription") return "openai"
+  if (!provider || !supported.has(provider)) return "openai"
+  return provider
+}
+
+const normalizeNanobotProvider = (provider?: string): "openai" | "gemini" | "groq" | "custom" => {
+  const normalized = normalizePileProvider(provider)
+  // Force-disable OpenRouter for Nanobot runtime as requested.
+  if (normalized === "openrouter") return "openai"
+  if (normalized === "gemini") return "gemini"
+  if (normalized === "groq") return "groq"
+  if (normalized === "custom") return "custom"
+  return "openai"
+}
 
 // ---------------------------------------------------------------------------
 // Port allocation
@@ -76,6 +93,7 @@ class NanobotBridgeService {
   private intentionallyStopped = false
   private restartCount = 0
   private memoryCheckTimer: ReturnType<typeof setInterval> | null = null
+  private callbackToken = ""
   private listeners: Map<NanobotBridgeEvent, Set<EventListener>> = new Map()
 
   // --- Public API ---
@@ -114,7 +132,7 @@ class NanobotBridgeService {
    * Start the nanobot gateway process.
    * Resolves when the gateway responds to /health, or rejects on timeout.
    */
-  async start(callbackPort: number): Promise<void> {
+  async start(callbackPort: number, callbackToken = ""): Promise<void> {
     if (this.proc) {
       logger.warn(`${LOG_PREFIX} Already running, stopping first`)
       await this.stop()
@@ -122,6 +140,7 @@ class NanobotBridgeService {
 
     this.intentionallyStopped = false
     this.callbackPort = callbackPort
+    this.callbackToken = callbackToken
 
     // Allocate port (use fixed port from config if set)
     const cfg = configStore.get()
@@ -272,7 +291,7 @@ class NanobotBridgeService {
     this.intentionallyStopped = false
     this.restartCount = 0
     this.backoffMs = INITIAL_BACKOFF_MS
-    await this.start(this.callbackPort)
+    await this.start(this.callbackPort, this.callbackToken)
   }
 
   // --- Private helpers ---
@@ -290,34 +309,49 @@ class NanobotBridgeService {
     // Read AI provider config from electron-settings (canonical source)
     const pileProvider = (await settings.get("pileAIProvider")) as string | undefined
     const pileModel = (await settings.get("model")) as string | undefined
-    const openrouterModel = (await settings.get("openrouterModel")) as string | undefined
     const baseUrl = (await settings.get("baseUrl")) as string | undefined
 
     // Read nanobot-specific config from configStore
     const cfg = configStore.get()
 
     // Get API key from encrypted store based on provider
-    const provider = pileProvider || "openai"
+    const provider = normalizeNanobotProvider(pileProvider)
+    let effectiveProvider = provider
     let apiKey = ""
     if (provider === "groq") {
       apiKey = (await getGroqKey()) || ""
-    } else if (provider === "openrouter") {
-      apiKey = (await getOpenrouterKey()) || ""
     } else if (provider === "gemini") {
       apiKey = (await getGeminiKey()) || ""
     } else {
-      // openai, anthropic, custom — all use the main AI key
+      // openai/custom use the main AI key
       apiKey = (await getKey()) || ""
+    }
+
+    // Optional runtime fallback to Kimi via environment variables.
+    // This avoids hardcoding secrets in repository code.
+    const kimiApiKey = process.env.KIMI_API_KEY?.trim() || ""
+    const kimiBaseUrl =
+      process.env.KIMI_BASE_URL?.trim() || "https://api.kimi.com/coding"
+    const kimiModel =
+      process.env.KIMI_MODEL?.trim() || "kimi-k2.5-coding"
+    let effectiveBaseUrl = baseUrl
+    if (!apiKey && kimiApiKey) {
+      effectiveProvider = "custom"
+      apiKey = kimiApiKey
+      effectiveBaseUrl = kimiBaseUrl
+      logger.info(`${LOG_PREFIX} Falling back to Kimi custom provider (env).`)
     }
 
     // Determine model: use nanobot override if set, otherwise Chat model
     let model = ""
     if (cfg.nanobotModel) {
       model = cfg.nanobotModel
-    } else if (provider === "openrouter" && openrouterModel) {
-      model = `openrouter/${openrouterModel}`
+    } else if (effectiveProvider === "custom" && !pileModel) {
+      model = kimiModel
+    } else if (effectiveProvider === "openai" && pileModel?.startsWith("openrouter/")) {
+      model = "openai/gpt-5.2"
     } else if (pileModel) {
-      model = pileModel.includes("/") ? pileModel : `${provider}/${pileModel}`
+      model = pileModel.includes("/") ? pileModel : `${effectiveProvider}/${pileModel}`
     } else {
       model = "anthropic/claude-sonnet-4-20250514"
     }
@@ -328,7 +362,7 @@ class NanobotBridgeService {
     const env: Record<string, string> = {
       LIV_API_KEY: apiKey,
       LIV_MODEL: model,
-      LIV_PROVIDER: provider,
+      LIV_PROVIDER: effectiveProvider,
       LIV_WORKSPACE: workspace,
       LIV_CALLBACK_PORT: String(this.callbackPort),
       LIV_GATEWAY_PORT: String(this.gatewayPort),
@@ -339,7 +373,11 @@ class NanobotBridgeService {
       LIV_MAX_ITERATIONS: String(cfg.nanobotMaxIterations ?? 20),
     }
 
-    if (baseUrl) env.LIV_API_BASE = baseUrl
+    if (this.callbackToken) {
+      env.LIV_CALLBACK_TOKEN = this.callbackToken
+    }
+
+    if (effectiveBaseUrl) env.LIV_API_BASE = effectiveBaseUrl
 
     // Composio API key (from encrypted storage)
     const composioKey = await getComposioKey()
@@ -618,7 +656,7 @@ class NanobotBridgeService {
 
     this.restartTimer = setTimeout(async () => {
       try {
-        await this.start(this.callbackPort)
+        await this.start(this.callbackPort, this.callbackToken)
       } catch (err) {
         logger.error(`${LOG_PREFIX} Restart failed:`, err)
         this.backoffMs = Math.min(this.backoffMs * 2, MAX_BACKOFF_MS)

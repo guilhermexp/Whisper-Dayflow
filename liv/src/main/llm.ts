@@ -10,6 +10,7 @@ const llmLog = logWithContext("LLM")
 
 const DEFAULT_CHAT_MODEL = "gpt-5.2"
 const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.2"
+const DEFAULT_OLLAMA_CHAT_MODEL = "llama3.1:8b"
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"
 const FALLBACK_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
 
@@ -26,6 +27,9 @@ const normalizePileProvider = (provider?: string) => {
   if (!provider || !supportedProviders.has(provider)) return "openai"
   return provider
 }
+
+const isOpenAIStyleModel = (model?: string) =>
+  typeof model === "string" && /^gpt-|^o1|^o3/i.test(model)
 
 const stripMarkdownCodeFences = (text: string) => {
   const trimmed = text.trim()
@@ -647,7 +651,7 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
       effectiveProvider === "custom"
         ? config.customEnhancementBaseUrl || "https://api.example.com/v1"
         : effectiveProvider === "openrouter"
-          ? "https://openrouter.ai/api/v1"
+          ? config.openrouterBaseUrl || "https://openrouter.ai/api/v1"
           : effectiveProvider === "groq"
             ? config.groqBaseUrl || "https://api.groq.com/openai/v1"
             : settingsBaseUrl || "https://api.openai.com/v1"
@@ -755,12 +759,17 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
   }
 
   const callWithOllama = async (promptText = finalPrompt): Promise<string> => {
+    const settingsModel = (await settings.get("model")) as string | undefined
+    const persistedModel =
+      settingsModel && !isOpenAIStyleModel(settingsModel)
+        ? settingsModel
+        : undefined
     const ollamaModel =
       (options.pipeline === "video"
         ? config.autoJournalVideoModel
         : undefined) ||
-      ((await settings.get("model")) as string | undefined) ||
-      "llama3"
+      persistedModel ||
+      DEFAULT_OLLAMA_CHAT_MODEL
     const ollamaBaseUrl =
       ((await settings.get("ollamaBaseUrl")) as string | undefined) ||
       "http://localhost:11434"

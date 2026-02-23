@@ -16,6 +16,7 @@ import {
   writeAutonomousMemory,
   getAutonomousMemoryPaths,
 } from "./autonomous-memory-service"
+import { loadProfileAutomationConfig } from "./automation-workspace-config"
 
 const AUTO_AGENT_DIR = path.join(recordingsFolder, "auto-agent")
 const PROFILE_BOARD_FILE = path.join(AUTO_AGENT_DIR, "profile-board.json")
@@ -215,6 +216,17 @@ const pushCard = (
 const matchAny = (text: string, patterns: RegExp[]) =>
   patterns.some((pattern) => pattern.test(text))
 
+const compilePatterns = (patterns: string[]): RegExp[] =>
+  patterns
+    .map((pattern) => {
+      try {
+        return new RegExp(pattern, "i")
+      } catch {
+        return null
+      }
+    })
+    .filter((item): item is RegExp => Boolean(item))
+
 const computeRatios = (activities: AutoJournalActivity[]) => {
   const total = Math.max(1, activities.length)
   const work = activities.filter((activity) => activity.category === "Work").length
@@ -293,6 +305,7 @@ const getCategoryMinutesByDay = (activities: AutoJournalActivity[]) => {
 const buildCards = (
   runs: AutoJournalRun[],
   enabledWidgets: AutonomousProfileWidgetId[],
+  automationConfig: ReturnType<typeof loadProfileAutomationConfig>,
 ): AutonomousProfileCard[] => {
   const cards: AutonomousProfileCard[] = []
   const enabledSet = new Set(enabledWidgets)
@@ -355,7 +368,10 @@ const buildCards = (
   if (enabledSet.has("parallelism")) {
     pushCard(cards, {
       widgetId: "parallelism",
-      kind: averageContextSwitches >= 2.2 ? "risk" : "strength",
+      kind:
+        averageContextSwitches >= automationConfig.thresholds.highContextSwitches
+          ? "risk"
+          : "strength",
       title: "Paralelismo e troca de contexto",
       summary: `Você está tocando em média ${averageParallelActivities.toFixed(1)} frentes por run, com ${averageContextSwitches.toFixed(1)} trocas de contexto.`,
       actions: [
@@ -363,7 +379,10 @@ const buildCards = (
         "Usar blocos fechados por objetivo antes de alternar de frente",
       ],
       confidence: clampConfidence(0.52 + Math.min(0.35, averageContextSwitches / 6)),
-      impact: averageContextSwitches >= 2.2 ? "high" : "medium",
+      impact:
+        averageContextSwitches >= automationConfig.thresholds.highContextSwitches
+          ? "high"
+          : "medium",
       sourceRunIds: runIds,
       observedAt: latestRunAt,
     })
@@ -401,9 +420,7 @@ const buildCards = (
   }
 
   if (enabledSet.has("meeting_suggestions")) {
-    const meetingPatterns = [
-      /meet|meeting|reuniao|alinhamento|call|zoom|google meet|sync/i,
-    ]
+    const meetingPatterns = compilePatterns(automationConfig.patterns.meeting)
     const meetingActivities = activities.filter((activity) =>
       matchAny(`${activity.title} ${activity.summary}`, meetingPatterns),
     )
@@ -479,9 +496,7 @@ const buildCards = (
   }
 
   if (enabledSet.has("business_opportunities")) {
-    const businessSignals = [
-      /cliente|proposal|proposta|venda|sales|partnership|parceria|produto|feature|lancamento|pitch/i,
-    ]
+    const businessSignals = compilePatterns(automationConfig.patterns.business)
     const businessRelated = activities.filter((activity) =>
       matchAny(`${activity.title} ${activity.summary}`, businessSignals),
     )
@@ -510,7 +525,11 @@ const buildCards = (
   if (enabledSet.has("focus_risks")) {
     pushCard(cards, {
       widgetId: "focus_risks",
-      kind: distractionRatio >= 0.2 || idleRatio >= 0.18 ? "risk" : "wellbeing",
+      kind:
+        distractionRatio >= automationConfig.thresholds.highDistractionRatio ||
+        idleRatio >= automationConfig.thresholds.highIdleRatio
+          ? "risk"
+          : "wellbeing",
       title: "Riscos de foco e energia",
       summary: `Distração ${formatRatioPercent(distractionRatio)} | Idle ${formatRatioPercent(idleRatio)} | Work ${formatRatioPercent(workRatio)}.`,
       actions: [
@@ -520,13 +539,16 @@ const buildCards = (
       confidence: clampConfidence(
         0.5 + Math.min(0.4, distractionRatio + idleRatio + workRatio * 0.2),
       ),
-      impact: distractionRatio >= 0.2 ? "high" : "medium",
+      impact:
+        distractionRatio >= automationConfig.thresholds.highDistractionRatio
+          ? "high"
+          : "medium",
       sourceRunIds: runIds,
       observedAt: latestRunAt,
     })
   }
 
-  if (cards.length < 3) {
+  if (cards.length < automationConfig.limits.minimumCards) {
     pushCard(cards, {
       widgetId: enabledWidgets[0] || "work_time_daily",
       kind: "wellbeing",
@@ -572,10 +594,11 @@ export async function refreshAutonomousProfile(): Promise<AutonomousProfileBoard
   running = true
   try {
     await initializeAutonomousMemory()
+    const automationConfig = loadProfileAutomationConfig()
     const enabledWidgets = getEnabledWidgets()
-    const runs = loadRuns(240)
+    const runs = loadRuns(automationConfig.limits.runsWindow)
     const activities = runs.flatMap((run) => run.summary?.activities || [])
-    const cards = buildCards(runs, enabledWidgets)
+    const cards = buildCards(runs, enabledWidgets, automationConfig)
     const ratios = computeRatios(activities)
     const averageContextSwitches =
       runs.reduce(
