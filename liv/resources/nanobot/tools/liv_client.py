@@ -5,6 +5,7 @@ Used by Liv tools to call Electron main process services.
 
 import json
 import logging
+import os
 from typing import Any
 
 import httpx
@@ -19,9 +20,12 @@ class LivClient:
 
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip("/")
+        callback_token = os.environ.get("LIV_CALLBACK_TOKEN", "").strip()
+        headers = {"X-Liv-Callback-Token": callback_token} if callback_token else {}
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=DEFAULT_TIMEOUT,
+            headers=headers,
         )
 
     async def get(self, path: str, params: dict | None = None) -> Any:

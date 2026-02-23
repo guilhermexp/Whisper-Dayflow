@@ -54,6 +54,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("liv-gateway")
+MAX_PROVIDER_TOOLS = int(os.environ.get("LIV_MAX_PROVIDER_TOOLS", "120"))
 
 # ---------------------------------------------------------------------------
 # Request / Response models
@@ -97,6 +98,17 @@ class GatewayState:
         self.ready = False
         self.custom_tools: list = []
         self.composio = None  # ComposioBridge instance (if API key set)
+
+    def tools_count(self) -> int:
+        if not self.agent:
+            return len(self.custom_tools)
+        try:
+            return len(self.agent.tools.get_definitions())
+        except Exception:
+            return 0
+
+    def remaining_tool_slots(self) -> int:
+        return max(0, MAX_PROVIDER_TOOLS - self.tools_count())
 
     def _ensure_bootstrap_files(self, workspace: Path):
         """Create bootstrap files if they don't exist (AGENTS.md, SOUL.md, USER.md, MEMORY.md)."""
@@ -295,11 +307,24 @@ I update it automatically as I learn about the user and their patterns.
             try:
                 connections = await self.composio.list_connections()
                 for conn in connections:
+                    if self.remaining_tool_slots() <= 0:
+                        log.warning(
+                            f"Tool cap reached ({MAX_PROVIDER_TOOLS}). Skipping further Composio auto-registration."
+                        )
+                        break
                     if conn.get("status") == "ACTIVE":
                         app_name = conn.get("appName", "")
                         if app_name:
                             self.composio._connected_apps[app_name] = conn["id"]
-                            count = await self.composio.register_app_tools(app_name, self.agent.tools)
+                            actions = await self.composio.get_app_actions(app_name)
+                            allowed = self.remaining_tool_slots()
+                            selected = [a.get("name", "") for a in actions][:allowed]
+                            selected = [name for name in selected if name]
+                            if not selected:
+                                continue
+                            count = await self.composio.register_selected_app_tools(
+                                app_name, selected, self.agent.tools
+                            )
                             log.info(f"Auto-registered {count} Composio tools for {app_name}")
             except Exception as e:
                 log.error(f"Failed to auto-register Composio tools: {e}")
@@ -868,12 +893,25 @@ async def composio_register_tools(req: ComposioToolRequest):
             state.composio._connected_apps[req.app_name] = conn["id"]
             break
 
+    remaining = state.remaining_tool_slots()
+    if remaining <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tool limit reached ({MAX_PROVIDER_TOOLS}). Unregister tools before adding new ones.",
+        )
+
     if req.selected_actions:
+        selected = req.selected_actions[:remaining]
         count = await state.composio.register_selected_app_tools(
-            req.app_name, req.selected_actions, state.agent.tools
+            req.app_name, selected, state.agent.tools
         )
     else:
-        count = await state.composio.register_app_tools(req.app_name, state.agent.tools)
+        actions = await state.composio.get_app_actions(req.app_name)
+        selected = [a.get("name", "") for a in actions][:remaining]
+        selected = [name for name in selected if name]
+        count = await state.composio.register_selected_app_tools(
+            req.app_name, selected, state.agent.tools
+        )
     return {"count": count, "app_name": req.app_name}
 
 
