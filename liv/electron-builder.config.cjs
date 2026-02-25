@@ -32,6 +32,19 @@ module.exports = {
   ],
   extraResources: [
     {
+      // Nanobot Python package source must be on a real filesystem path in packaged apps
+      // so the system Python can install it into the runtime venv.
+      from: "nanobot-ref",
+      to: "nanobot-ref",
+      filter: [
+        "pyproject.toml",
+        "README.md",
+        "LICENSE",
+        "nanobot/**",
+        "bridge/**",
+      ],
+    },
+    {
       from: "node_modules/sqlite3",
       to: "app.asar.unpacked/node_modules/sqlite3",
       filter: ["**/*"],
