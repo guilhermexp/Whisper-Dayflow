@@ -552,7 +552,8 @@ class NanobotBridgeService {
 
     // 2. Install nanobot-ref package (has its own deps like loguru, croniter, etc.)
     const nanobotRefPath = this.resolveNanobotRefPath()
-    if (fs.existsSync(path.join(nanobotRefPath, "pyproject.toml"))) {
+    const nanobotRefPyproject = path.join(nanobotRefPath, "pyproject.toml")
+    if (fs.existsSync(nanobotRefPyproject)) {
       try {
         const editableFlag = app.isPackaged ? "" : "-e"
         const cmd = `"${pythonPath}" -m pip install ${pipUserFlag} ${editableFlag} "${nanobotRefPath}" 2>&1`
@@ -562,6 +563,8 @@ class NanobotBridgeService {
         const msg = this.formatCommandError(err)
         logger.error(`${LOG_PREFIX} Failed to install nanobot-ref: ${msg}`)
       }
+    } else {
+      logger.warn(`${LOG_PREFIX} nanobot-ref package not found at runtime: ${nanobotRefPyproject}`)
     }
 
     // Final verification
