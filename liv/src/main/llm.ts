@@ -680,7 +680,9 @@ Return ONLY the JSON object. No markdown, no explanation, no extra text.
     debugModel = model
     debugProvider = effectiveProvider
 
-    const timeout = config.enhancementTimeout ?? 30000
+    // Auto-journal prompts can be substantially larger than regular enhancement
+    // calls; keep a longer floor timeout to avoid premature aborts.
+    const timeout = Math.max(config.enhancementTimeout ?? 30000, 120000)
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeout)
 

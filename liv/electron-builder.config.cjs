@@ -20,6 +20,8 @@ module.exports = {
     "!components.json",
     "!.prettierrc",
     "!liv-rs/*",
+    "!resources/nanobot/.venv{,/**}",
+    "!resources/nanobot/**/__pycache__{,/**}",
   ],
   asarUnpack: [
     "resources/**",
