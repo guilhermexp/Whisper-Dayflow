@@ -152,7 +152,7 @@ class NanobotBridgeService {
     const env = await this.buildEnv()
 
     // Resolve Python executable
-    const pythonPath = this.findPython()
+    let pythonPath = this.findPython()
     if (!pythonPath) {
       const err = "Python 3 not found. Install Python 3.10+ to use the Nanobot agent."
       this.setStatus("error", err)
@@ -168,7 +168,7 @@ class NanobotBridgeService {
     }
 
     // Ensure Python dependencies are installed
-    await this.ensureDependencies(pythonPath, path.dirname(gatewayScript))
+    pythonPath = await this.ensureDependencies(pythonPath, path.dirname(gatewayScript))
 
     logger.info(`${LOG_PREFIX} Spawning: ${pythonPath} ${gatewayScript}`)
     this.setStatus("starting")
@@ -420,6 +420,21 @@ class NanobotBridgeService {
   private findPython(): string | null {
     const { execSync } = require("child_process")
 
+    // 0. Prefer app-managed runtime venv (packaged builds, writable location)
+    const runtimeVenvPython = this.getRuntimeVenvPythonPath()
+    if (fs.existsSync(runtimeVenvPython)) {
+      try {
+        const version = execSync(`"${runtimeVenvPython}" --version 2>&1`, {
+          encoding: "utf8",
+          timeout: 5_000,
+        }).trim()
+        if (version.includes("Python 3")) {
+          logger.info(`${LOG_PREFIX} Using runtime venv Python: ${runtimeVenvPython} (${version})`)
+          return runtimeVenvPython
+        }
+      } catch { /* fallthrough */ }
+    }
+
     // 1. Prefer the venv Python inside the gateway directory (always correct version + deps)
     const gatewayDir = path.dirname(this.resolveGatewayScript())
     const venvPython = path.join(gatewayDir, ".venv", "bin", "python3")
@@ -495,8 +510,14 @@ class NanobotBridgeService {
    * This prevents the gateway from crashing in a restart loop due to
    * missing modules like fastapi, uvicorn, etc.
    */
-  private async ensureDependencies(pythonPath: string, gatewayDir: string): Promise<void> {
+  private async ensureDependencies(pythonPath: string, gatewayDir: string): Promise<string> {
     const { execSync } = require("child_process")
+
+    // Packaged macOS builds often fall back to Homebrew Python, where `pip install --user`
+    // may be blocked (externally-managed env). Create a dedicated app-owned venv instead.
+    if (app.isPackaged && !pythonPath.includes(".venv")) {
+      pythonPath = this.ensureRuntimeVenv(pythonPath)
+    }
 
     // Quick check: can Python import the two key modules?
     try {
@@ -504,7 +525,7 @@ class NanobotBridgeService {
         encoding: "utf8",
         timeout: 10_000,
       })
-      return // deps already installed
+      return pythonPath // deps already installed
     } catch {
       // deps missing — try to install
     }
@@ -524,7 +545,7 @@ class NanobotBridgeService {
         execSync(cmd, { encoding: "utf8", timeout: 120_000, cwd: gatewayDir })
         logger.info(`${LOG_PREFIX} Gateway dependencies installed`)
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err)
+        const msg = this.formatCommandError(err)
         logger.error(`${LOG_PREFIX} Failed to install gateway deps: ${msg}`)
       }
     }
@@ -533,11 +554,12 @@ class NanobotBridgeService {
     const nanobotRefPath = this.resolveNanobotRefPath()
     if (fs.existsSync(path.join(nanobotRefPath, "pyproject.toml"))) {
       try {
-        const cmd = `"${pythonPath}" -m pip install ${pipUserFlag} -e "${nanobotRefPath}" 2>&1`
+        const editableFlag = app.isPackaged ? "" : "-e"
+        const cmd = `"${pythonPath}" -m pip install ${pipUserFlag} ${editableFlag} "${nanobotRefPath}" 2>&1`
         execSync(cmd, { encoding: "utf8", timeout: 180_000, cwd: gatewayDir })
         logger.info(`${LOG_PREFIX} nanobot-ref package installed`)
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err)
+        const msg = this.formatCommandError(err)
         logger.error(`${LOG_PREFIX} Failed to install nanobot-ref: ${msg}`)
       }
     }
@@ -549,12 +571,58 @@ class NanobotBridgeService {
         timeout: 10_000,
       })
       logger.info(`${LOG_PREFIX} All Python dependencies verified`)
+      return pythonPath
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const msg = this.formatCommandError(err)
       const errStr = `Python dependencies still missing after install. Check logs. Error: ${msg}`
       this.setStatus("error", errStr)
       throw new Error(errStr)
     }
+  }
+
+  private getRuntimeVenvDir(): string {
+    return path.join(dataFolder, "nanobot-python", ".venv")
+  }
+
+  private getRuntimeVenvPythonPath(): string {
+    return path.join(this.getRuntimeVenvDir(), "bin", "python3")
+  }
+
+  private ensureRuntimeVenv(basePythonPath: string): string {
+    const { execSync } = require("child_process")
+    const venvDir = this.getRuntimeVenvDir()
+    const venvPython = this.getRuntimeVenvPythonPath()
+
+    if (!fs.existsSync(venvPython)) {
+      fs.mkdirSync(path.dirname(venvDir), { recursive: true })
+      logger.info(`${LOG_PREFIX} Creating runtime Python venv at ${venvDir}`)
+      execSync(`"${basePythonPath}" -m venv "${venvDir}" 2>&1`, {
+        encoding: "utf8",
+        timeout: 120_000,
+      })
+    }
+
+    // Keep pip/setuptools/wheel reasonably up to date for package installs.
+    try {
+      execSync(`"${venvPython}" -m pip install --upgrade pip setuptools wheel 2>&1`, {
+        encoding: "utf8",
+        timeout: 180_000,
+      })
+    } catch (err: unknown) {
+      logger.warn(`${LOG_PREFIX} Failed to upgrade venv packaging tools: ${this.formatCommandError(err)}`)
+    }
+
+    logger.info(`${LOG_PREFIX} Using packaged-runtime venv Python: ${venvPython}`)
+    return venvPython
+  }
+
+  private formatCommandError(err: unknown): string {
+    if (!(err instanceof Error)) return String(err)
+    const extra = err as Error & { stdout?: string | Buffer; stderr?: string | Buffer }
+    const stdout = extra.stdout ? String(extra.stdout) : ""
+    const stderr = extra.stderr ? String(extra.stderr) : ""
+    const details = [stdout, stderr].filter(Boolean).join("\n").trim()
+    return details ? `${err.message}\n${details}` : err.message
   }
 
   private resolveGatewayScript(): string {
