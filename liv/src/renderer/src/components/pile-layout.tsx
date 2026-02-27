@@ -50,19 +50,6 @@ export function Component() {
                 <TagsContextProvider>
                   <TimelineContextProvider>
                     <LinksContextProvider>
-                      {/* Global title bar drag region (macOS) */}
-                      {window.electron?.isMac && (
-                        <div style={{
-                          position: 'fixed',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: 'var(--titlebar-height, 0px)',
-                          WebkitAppRegion: 'drag',
-                          zIndex: 9998,
-                          pointerEvents: 'auto',
-                        } as any} />
-                      )}
                       <Suspense fallback={null}>
                         {/* Hide content during navigation to prevent flash */}
                         <div style={{

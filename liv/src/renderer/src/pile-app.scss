@@ -42,6 +42,30 @@
   --titlebar-area: 0px;
 }
 
+/* Electron draggable titlebar safety:
+ * many page headers live inside a drag region. Interactive controls must be
+ * explicitly marked as no-drag (not "none").
+ */
+[class*="header"] [class*="headerActions"],
+[class*="header"] button,
+[class*="header"] a,
+[class*="header"] input,
+[class*="header"] select,
+[class*="header"] textarea,
+[class*="header"] [role="button"],
+[class*="header"] [class*="close"] {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto;
+}
+
+[class*="header"] button svg,
+[class*="header"] button span,
+[class*="header"] a svg,
+[class*="header"] a span,
+[class*="header"] [class*="close"] svg {
+  -webkit-app-region: no-drag !important;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --translucent: rgba(0, 0, 0, 0.6);

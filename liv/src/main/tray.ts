@@ -8,6 +8,10 @@ import {
 } from "./window"
 import { state } from "./state"
 import { configStore } from "./config"
+import {
+  getScreenSessionRecordingStatus,
+  stopScreenSessionRecording,
+} from "./services/screen-session-recording-service"
 import { STT_PROVIDERS, type LocalSTTProviderId } from "../shared"
 import { PREDEFINED_LOCAL_MODELS } from "../shared/models/catalog"
 
@@ -115,8 +119,11 @@ const buildEnhancementSubmenu = (): MenuItemConstructorOptions[] => {
   return submenu
 }
 
-const buildMenu = (tray: Tray) =>
-  Menu.buildFromTemplate([
+const buildMenu = (tray: Tray) => {
+  const screenSessionStatus = getScreenSessionRecordingStatus()
+  const isVideoRecording = Boolean(screenSessionStatus.running)
+
+  const template: MenuItemConstructorOptions[] = [
     {
       label: state.isRecording ? "Cancel Recording" : "Start Recording",
       async click() {
@@ -137,6 +144,16 @@ const buildMenu = (tray: Tray) =>
         showMainWindow("/")
       },
     },
+    ...(isVideoRecording
+      ? [
+          {
+            label: "Stop Video Recording",
+            async click() {
+              await stopScreenSessionRecording()
+            },
+          } satisfies MenuItemConstructorOptions,
+        ]
+      : []),
     {
       type: "separator",
     },
@@ -170,7 +187,10 @@ const buildMenu = (tray: Tray) =>
     {
       role: "quit",
     },
-  ])
+  ]
+
+  return Menu.buildFromTemplate(template)
+}
 
 let _tray: Tray | undefined
 

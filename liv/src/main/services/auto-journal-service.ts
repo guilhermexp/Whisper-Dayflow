@@ -50,9 +50,17 @@ async function findFfmpeg(): Promise<string | null> {
     const bundled = requireForFfmpeg("@ffmpeg-installer/ffmpeg") as {
       path?: string
     }
-    if (bundled?.path && fs.existsSync(bundled.path)) {
-      console.log("[ffmpeg] Found bundled ffmpeg at:", bundled.path)
-      return bundled.path
+    if (bundled?.path) {
+      const candidates = [bundled.path]
+      // Executables cannot be spawned from inside app.asar; use unpacked copy.
+      if (app.isPackaged && bundled.path.includes("app.asar")) {
+        candidates.unshift(bundled.path.replace("app.asar", "app.asar.unpacked"))
+      }
+      const hit = candidates.find((candidate) => fs.existsSync(candidate))
+      if (hit) {
+        console.log("[ffmpeg] Found bundled ffmpeg at:", hit)
+        return hit
+      }
     }
   } catch (error) {
     console.warn("[ffmpeg] Bundled ffmpeg not available:", error)

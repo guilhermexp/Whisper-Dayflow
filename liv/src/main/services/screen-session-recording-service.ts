@@ -2,7 +2,7 @@ import fs from "fs"
 import path from "path"
 import { createRequire } from "module"
 import { exec, execFile } from "child_process"
-import { desktopCapturer, BrowserWindow } from "electron"
+import { desktopCapturer, BrowserWindow, app } from "electron"
 import { configStore, recordingsFolder } from "../config"
 import { logger } from "../logger"
 import type {
@@ -28,6 +28,14 @@ type SessionSample = {
   imagePath: string
   windowTitle: string
   appName: string
+}
+
+type RawVideoTranscriptLine = {
+  timestamp: number
+  appName: string
+  windowTitle: string
+  imagePath?: string
+  text: string
 }
 
 function ensureDirs() {
@@ -85,9 +93,70 @@ function getVideoPath(sessionId: string): string {
   return path.join(SESSIONS_DIR, sessionId, "session.mp4")
 }
 
+function getRawTranscriptPath(sessionId: string): string {
+  return path.join(SESSIONS_DIR, sessionId, "video-transcript.jsonl")
+}
+
 function appendSampleLine(samplesPath: string, sample: SessionSample) {
   fs.mkdirSync(path.dirname(samplesPath), { recursive: true })
   fs.appendFileSync(samplesPath, `${JSON.stringify(sample)}\n`, "utf8")
+}
+
+function normalizeInlineText(value: string): string {
+  return String(value || "").replace(/\s+/g, " ").trim()
+}
+
+function readSessionSamples(session: ScreenRecordingSession): SessionSample[] {
+  if (!fs.existsSync(session.samplesPath)) return []
+  try {
+    return fs
+      .readFileSync(session.samplesPath, "utf8")
+      .split("\n")
+      .filter((line) => line.trim().length > 0)
+      .map((line) => JSON.parse(line) as SessionSample)
+      .filter((sample) => Number.isFinite(sample.timestamp))
+      .sort((a, b) => a.timestamp - b.timestamp)
+  } catch (error) {
+    logger.warn(`[ScreenSession] Failed to read samples for transcript (${session.id}):`, error)
+    return []
+  }
+}
+
+function writeRawVideoTranscript(session: ScreenRecordingSession): string | null {
+  const samples = readSessionSamples(session)
+  if (samples.length === 0) return null
+
+  const transcriptPath = getRawTranscriptPath(session.id)
+  try {
+    fs.mkdirSync(path.dirname(transcriptPath), { recursive: true })
+
+    const lines: RawVideoTranscriptLine[] = samples.map((sample) => {
+      const appName = normalizeInlineText(sample.appName || "Unknown")
+      const windowTitle = normalizeInlineText(sample.windowTitle || "Unknown")
+      const label =
+        windowTitle && windowTitle !== appName
+          ? `${appName} - ${windowTitle}`
+          : appName || windowTitle || "Unknown"
+
+      return {
+        timestamp: sample.timestamp,
+        appName,
+        windowTitle,
+        imagePath: sample.imagePath,
+        text: `Visual: ${label}`,
+      }
+    })
+
+    fs.writeFileSync(
+      transcriptPath,
+      `${lines.map((line) => JSON.stringify(line)).join("\n")}\n`,
+      "utf8",
+    )
+    return transcriptPath
+  } catch (error) {
+    logger.warn(`[ScreenSession] Failed to write raw transcript (${session.id}):`, error)
+    return null
+  }
 }
 
 function parseWindowName(name: string): { appName: string; windowTitle: string } {
@@ -128,7 +197,15 @@ async function findFfmpeg(): Promise<string | null> {
     const bundled = requireForFfmpeg("@ffmpeg-installer/ffmpeg") as {
       path?: string
     }
-    if (bundled.path && fs.existsSync(bundled.path)) return bundled.path
+    if (bundled.path) {
+      const candidates = [bundled.path]
+      // Executables cannot be spawned from inside app.asar; prefer unpacked path.
+      if (app.isPackaged && bundled.path.includes("app.asar")) {
+        candidates.unshift(bundled.path.replace("app.asar", "app.asar.unpacked"))
+      }
+      const hit = candidates.find((candidate) => fs.existsSync(candidate))
+      if (hit) return hit
+    }
   } catch {}
 
   return new Promise((resolve) => {
@@ -230,7 +307,8 @@ async function generateSessionVideo(session: ScreenRecordingSession): Promise<st
       "-i",
       path.join(tmpDir, "frame-%05d.jpg"),
       "-vf",
-      `scale=1280:-2:force_original_aspect_ratio=decrease,setsar=1,setpts=${ptsFactor}*PTS`,
+      // Ensure final dimensions are even (libx264 requires width/height divisible by 2).
+      `scale=1280:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2,setsar=1,setpts=${ptsFactor}*PTS`,
     ]
 
     const tryEncode = async (label: string, extraArgs: string[]) => {
@@ -300,6 +378,26 @@ async function generateSessionVideo(session: ScreenRecordingSession): Promise<st
     try {
       fs.rmSync(tmpDir, { recursive: true, force: true })
     } catch {}
+  }
+}
+
+async function finalizeStoppedSessionArtifacts(session: ScreenRecordingSession): Promise<void> {
+  try {
+    const videoPath = await generateSessionVideo(session)
+    if (videoPath) {
+      session.videoPath = videoPath
+    }
+
+    const rawTranscriptPath = writeRawVideoTranscript(session)
+    if (rawTranscriptPath) {
+      session.rawTranscriptPath = rawTranscriptPath
+    }
+
+    upsertSession(session)
+    logger.info(`[ScreenSession] Finalized artifacts for ${session.id}`)
+  } catch (error) {
+    logger.error(`[ScreenSession] Failed to finalize artifacts for ${session.id}:`, error)
+    upsertSession(session)
   }
 }
 
@@ -377,14 +475,13 @@ export async function stopScreenSessionRecording(): Promise<ScreenRecordingSessi
   session.endedAt = Date.now()
   session.status = "completed"
 
-  const videoPath = await generateSessionVideo(session)
-  if (videoPath) {
-    session.videoPath = videoPath
-  }
-
   upsertSession(session)
 
   logger.info(`[ScreenSession] Stopped recording ${session.id}`)
+
+  // Finalize heavier artifacts asynchronously so the UI "Parar" action returns fast.
+  void finalizeStoppedSessionArtifacts(session)
+
   return session
 }
 
