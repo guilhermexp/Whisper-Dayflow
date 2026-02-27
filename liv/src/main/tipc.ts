@@ -1249,36 +1249,38 @@ export const router = {
 
   stopScreenSessionRecording: t.procedure.action(async () => {
     const session = await stopScreenSessionRecording()
-    let run: Awaited<ReturnType<typeof runAutoJournalOnce>> = null
-
+    // Return immediately so the UI button/state can update without waiting for
+    // AI analysis. The analysis is still triggered in background.
     if (session?.capturedFrames && session.capturedFrames > 0) {
-      try {
-        const elapsedMs =
-          session.endedAt && session.startedAt
-            ? Math.max(0, session.endedAt - session.startedAt)
-            : 0
-        const windowMinutes = Math.max(1, Math.ceil(elapsedMs / 60000))
+      void (async () => {
+        try {
+          const elapsedMs =
+            session.endedAt && session.startedAt
+              ? Math.max(0, session.endedAt - session.startedAt)
+              : 0
+          const windowMinutes = Math.max(1, Math.ceil(elapsedMs / 60000))
 
-        // Ensure manual video stop produces an immediate auto-journal analysis.
-        // If source mode is audio-only, force a temporary video run.
-        const cfg = configStore.get()
-        const sourceMode = cfg.autoJournalSourceMode ?? "both"
-        if (sourceMode === "audio") {
-          configStore.save({ ...cfg, autoJournalSourceMode: "video" })
-          try {
-            run = await runAutoJournalOnce(windowMinutes)
-          } finally {
-            configStore.save(cfg)
+          // Ensure manual video stop produces an immediate auto-journal analysis.
+          // If source mode is audio-only, force a temporary video run.
+          const cfg = configStore.get()
+          const sourceMode = cfg.autoJournalSourceMode ?? "both"
+          if (sourceMode === "audio") {
+            configStore.save({ ...cfg, autoJournalSourceMode: "video" })
+            try {
+              await runAutoJournalOnce(windowMinutes)
+            } finally {
+              configStore.save(cfg)
+            }
+          } else {
+            await runAutoJournalOnce(windowMinutes)
           }
-        } else {
-          run = await runAutoJournalOnce(windowMinutes)
+        } catch (error) {
+          console.error("[screen-session] Failed to run auto-journal after stop:", error)
         }
-      } catch (error) {
-        console.error("[screen-session] Failed to run auto-journal after stop:", error)
-      }
+      })()
     }
 
-    return { session, run }
+    return { session, run: null }
   }),
 
   openScreenSessionRecordingsDir: t.procedure.action(async () => {

@@ -125,6 +125,12 @@ function buildMetrics(summary) {
   }
 }
 
+function clampPct(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return 0
+  return Math.max(0, Math.min(100, Math.round(n)))
+}
+
 function buildTicks(startTs, endTs, stepMinutes = 30) {
   const ticks = []
   const stepMs = stepMinutes * 60 * 1000
@@ -146,6 +152,47 @@ function getSessionTitle(session, run) {
 function getSessionCategory(run) {
   const firstActivity = run?.summary?.activities?.[0]
   return normalizeCategory(firstActivity?.category)
+}
+
+function isValidTs(ts) {
+  return Number.isFinite(ts) && ts > 0
+}
+
+function getTimelineBlockRange(session, run) {
+  const activities = Array.isArray(run?.summary?.activities) ? run.summary.activities : []
+  const activityRanges = activities
+    .map((activity) => ({
+      startTs: Number(activity?.startTs),
+      endTs: Number(activity?.endTs),
+    }))
+    .filter(({ startTs, endTs }) => isValidTs(startTs) && isValidTs(endTs) && endTs >= startTs)
+
+  if (activityRanges.length > 0) {
+    return {
+      startTs: Math.min(...activityRanges.map((r) => r.startTs)),
+      endTs: Math.max(...activityRanges.map((r) => r.endTs)),
+      source: "activities",
+    }
+  }
+
+  const runStart = Number(run?.summary?.windowStartTs)
+  const runEnd = Number(run?.summary?.windowEndTs)
+  if (isValidTs(runStart) && isValidTs(runEnd) && runEnd >= runStart) {
+    return { startTs: runStart, endTs: runEnd, source: "run" }
+  }
+
+  const sessionStart = Number(session?.startedAt)
+  const rawSessionEnd = Number(session?.endedAt)
+  const sessionEnd = isValidTs(rawSessionEnd)
+    ? rawSessionEnd
+    : Math.min(Date.now(), (isValidTs(sessionStart) ? sessionStart : Date.now()) + 30 * 60 * 1000)
+
+  if (isValidTs(sessionStart) && isValidTs(sessionEnd) && sessionEnd >= sessionStart) {
+    return { startTs: sessionStart, endTs: sessionEnd, source: "session" }
+  }
+
+  const now = Date.now()
+  return { startTs: now, endTs: now + 30 * 1000, source: "fallback" }
 }
 
 function VideoRecordings() {
@@ -295,10 +342,15 @@ function VideoRecordings() {
 
   const positionedBlocks = useMemo(() => {
     return filteredSessions.map(({ session, run }) => {
-      const start = session.startedAt || timelineBounds.startTs
-      const end = session.endedAt || start + 30 * 1000
-      const top = ((start - timelineBounds.startTs) / rangeMs) * timelineHeight
-      const height = Math.max(64, ((end - start) / rangeMs) * timelineHeight)
+      const range = getTimelineBlockRange(session, run)
+      const start = range.startTs || timelineBounds.startTs
+      const end = Math.max(start + 1, range.endTs || start + 30 * 1000)
+      const clippedStart = Math.max(start, timelineBounds.startTs)
+      const clippedEnd = Math.min(end, timelineBounds.endTs)
+      const renderStart = Math.min(clippedStart, timelineBounds.endTs)
+      const renderEnd = Math.max(renderStart + 1, clippedEnd)
+      const top = ((renderStart - timelineBounds.startTs) / rangeMs) * timelineHeight
+      const height = Math.max(64, ((renderEnd - renderStart) / rangeMs) * timelineHeight)
       const category = getSessionCategory(run)
 
       return {
@@ -308,6 +360,9 @@ function VideoRecordings() {
         height,
         category,
         title: getSessionTitle(session, run),
+        displayStartTs: start,
+        displayEndTs: end,
+        rangeSource: range.source,
       }
     })
   }, [filteredSessions, timelineBounds.startTs, rangeMs, timelineHeight])
@@ -315,8 +370,23 @@ function VideoRecordings() {
   const selectedSession = selected?.session || null
   const selectedRun = selected?.run || null
   const selectedSummary = selectedRun?.summary || null
+  const selectedRange = selectedSession
+    ? getTimelineBlockRange(selectedSession, selectedRun)
+    : null
   const videoUrl = selectedSession?.videoPath ? `file://${selectedSession.videoPath}` : null
   const metrics = buildMetrics(selectedSummary)
+  const summaryActivities = Array.isArray(selectedSummary?.activities) ? selectedSummary.activities : []
+  const distractionCount = summaryActivities.filter(
+    (activity) => normalizeCategory(activity?.category) === "distraction",
+  ).length
+  const selectedFocusPct = clampPct(metrics.focusPct)
+  const selectedDistractionPct = clampPct(metrics.distractionPct)
+  const selectedRangeLabel = selectedRange
+    ? `${formatClock(selectedRange.startTs)} to ${formatClock(selectedRange.endTs)}`
+    : `${formatClock(selectedSession?.startedAt)} to ${formatClock(selectedSession?.endedAt)}`
+  const selectedDurationLabel = selectedRange
+    ? formatDuration(selectedRange.startTs, selectedRange.endTs)
+    : formatDuration(selectedSession?.startedAt, selectedSession?.endedAt)
 
   return (
     <div className={`${layoutStyles.frame} ${themeStyles} ${osStyles}`}>
@@ -417,11 +487,15 @@ function VideoRecordings() {
                 {positionedBlocks.map((block) => {
                   const isSelected = block.session.id === selectedSession?.id
                   const activities = block.run?.summary?.activities || []
+                  const showMeta = block.height >= 86
+                  const showSummary = block.height >= 118 && Boolean(activities[0]?.summary)
+                  const density = showSummary ? "full" : showMeta ? "medium" : "compact"
                   return (
                     <button
                       key={block.session.id}
                       className={`${styles.timelineBlock} ${isSelected ? styles.timelineBlockActive : ""}`}
                       data-category={block.category}
+                      data-density={density}
                       style={{
                         top: `${block.top}px`,
                         height: `${block.height}px`,
@@ -430,13 +504,15 @@ function VideoRecordings() {
                     >
                       <div className={styles.blockTitle}>{block.title}</div>
                       <div className={styles.blockSub}>
-                        {formatClock(block.session.startedAt)} to {formatClock(block.session.endedAt)}
+                        {formatClock(block.displayStartTs)} to {formatClock(block.displayEndTs)}
                       </div>
-                      <div className={styles.blockMeta}>
-                        <span>{formatDuration(block.session.startedAt, block.session.endedAt)}</span>
-                        <span>Frames: {block.session.capturedFrames || 0}</span>
-                      </div>
-                      {activities[0]?.summary && (
+                      {showMeta && (
+                        <div className={styles.blockMeta}>
+                          <span>{formatDuration(block.displayStartTs, block.displayEndTs)}</span>
+                          <span>Frames: {block.session.capturedFrames || 0}</span>
+                        </div>
+                      )}
+                      {showSummary && (
                         <div className={styles.blockSummary}>{activities[0].summary}</div>
                       )}
                     </button>
@@ -458,10 +534,11 @@ function VideoRecordings() {
             ) : (
               <>
                 <div className={styles.detailHeader}>
-                  <div>
+                  <div className={styles.detailHeaderText}>
+                    <div className={styles.detailRange}>{selectedRangeLabel}</div>
                     <h2 className={styles.detailTitle}>{getSessionTitle(selectedSession, selectedRun)}</h2>
                     <div className={styles.detailSub}>
-                      {formatClock(selectedSession.startedAt)} to {formatClock(selectedSession.endedAt)}
+                      {selectedDurationLabel} · Frames: {selectedSession.capturedFrames || 0}
                     </div>
                   </div>
                   <button
@@ -474,11 +551,18 @@ function VideoRecordings() {
                   </button>
                 </div>
 
-                {videoUrl ? (
-                  <video className={styles.video} src={videoUrl} controls preload="metadata" />
-                ) : (
-                  <div className={styles.noVideo}>MP4 indisponível para esta sessão.</div>
-                )}
+                <div className={styles.previewCard}>
+                  {videoUrl ? (
+                    <video className={styles.video} src={videoUrl} controls preload="metadata" />
+                  ) : (
+                    <div className={styles.noVideo}>MP4 indisponível para esta sessão.</div>
+                  )}
+                  <div className={styles.previewMeta}>
+                    <span>{formatDate(selectedSession.startedAt)}</span>
+                    <span>Intervalo: {selectedSession.intervalSeconds}s</span>
+                    <span>Frames: {selectedSession.capturedFrames || 0}</span>
+                  </div>
+                </div>
 
                 <div className={styles.summaryBlock}>
                   <div className={styles.summaryTitle}>Summary</div>
@@ -491,24 +575,26 @@ function VideoRecordings() {
                 <div className={styles.metricsRow}>
                   <div className={styles.metricCard}>
                     <div className={styles.metricLabel}>Focus meter</div>
-                    <div className={styles.metricValue}>{metrics.focusPct}%</div>
+                    <div className={styles.metricValue}>{selectedFocusPct}%</div>
                     <div className={styles.metricBar}>
-                      <span style={{ width: `${metrics.focusPct}%` }} />
+                      <span style={{ width: `${selectedFocusPct}%` }} />
                     </div>
                   </div>
                   <div className={styles.metricCard}>
                     <div className={styles.metricLabel}>Distractions</div>
-                    <div className={styles.metricValue}>{metrics.distractionPct}%</div>
+                    <div className={styles.metricValue}>{selectedDistractionPct}%</div>
                     <div className={styles.metricBar}>
-                      <span style={{ width: `${metrics.distractionPct}%` }} />
+                      <span style={{ width: `${selectedDistractionPct}%` }} />
+                    </div>
+                    <div className={styles.metricHint}>
+                      {distractionCount} evento{distractionCount === 1 ? "" : "s"}
                     </div>
                   </div>
                 </div>
 
                 <div className={styles.detailFooter}>
-                  <span>{formatDate(selectedSession.startedAt)}</span>
-                  <span>Intervalo: {selectedSession.intervalSeconds}s</span>
-                  <span>Frames: {selectedSession.capturedFrames || 0}</span>
+                  <span>{selectedSummary?.highlight ? `Highlight: ${selectedSummary.highlight}` : "Sem highlight"}</span>
+                  <span>{summaryActivities.length} atividade{summaryActivities.length === 1 ? "" : "s"}</span>
                   {videoUrl && (
                     <a className={styles.download} href={videoUrl} download>
                       <DownloadIcon /> Baixar vídeo

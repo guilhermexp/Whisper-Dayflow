@@ -595,6 +595,7 @@ export type ScreenRecordingSession = {
   framesDir: string
   samplesPath: string
   videoPath?: string
+  rawTranscriptPath?: string
   error?: string
 }
 
